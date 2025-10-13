@@ -3,22 +3,41 @@ import Editor, { OnMount, Monaco } from '@monaco-editor/react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Play, Save, FileText, Settings, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Play, Save, Download, X, FileCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { FileNode } from '@/types/athena';
 
 interface CodeEditorProps {
   code: string;
   onChange: (code: string) => void;
   onRun: () => void;
-  onClose?: () => void;
-  filename?: string;
+  openTabs: FileNode[];
+  activeTabIndex: number;
+  onTabChange: (index: number) => void;
+  onTabClose: (index: number) => void;
+  onFileRename: (index: number, newName: string) => void;
 }
 
-export function CodeEditor({ code, onChange, onRun, onClose, filename = "main.js" }: CodeEditorProps) {
+export function CodeEditor({ 
+  code, 
+  onChange, 
+  onRun, 
+  openTabs, 
+  activeTabIndex, 
+  onTabChange, 
+  onTabClose,
+  onFileRename 
+}: CodeEditorProps) {
   const [lineCount, setLineCount] = useState(1);
+  const [editingTabIndex, setEditingTabIndex] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState('');
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const currentFile = openTabs[activeTabIndex];
 
   useEffect(() => {
     const lines = code.split('\n').length;
@@ -77,9 +96,45 @@ export function CodeEditor({ code, onChange, onRun, onClose, filename = "main.js
   const handleSave = useCallback(() => {
     toast({
       title: "File saved",
-      description: `${filename} has been saved successfully`,
+      description: `${currentFile.name} has been saved successfully`,
     });
-  }, [filename, toast]);
+  }, [currentFile.name, toast]);
+
+  const handleExport = useCallback(() => {
+    const blob = new Blob([code], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = currentFile.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "File exported",
+      description: `${currentFile.name} has been exported successfully`,
+    });
+  }, [code, currentFile.name, toast]);
+
+  const handleDoubleClick = useCallback((index: number) => {
+    setEditingTabIndex(index);
+    setEditingName(openTabs[index].name);
+  }, [openTabs]);
+
+  const handleNameChange = useCallback(() => {
+    if (editingTabIndex !== null && editingName.trim()) {
+      onFileRename(editingTabIndex, editingName.trim());
+    }
+    setEditingTabIndex(null);
+  }, [editingTabIndex, editingName, onFileRename]);
+
+  useEffect(() => {
+    if (editingTabIndex !== null && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingTabIndex]);
 
   const getLanguage = (filename: string): string => {
     const ext = filename.split('.').pop()?.toLowerCase();
@@ -112,46 +167,105 @@ export function CodeEditor({ code, onChange, onRun, onClose, filename = "main.js
 
   return (
     <Card className="h-full flex flex-col bg-ide-editor border-border">
-      {/* Editor Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border bg-ide-tab">
-        <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-ps2-blue" />
-          <span className="text-sm font-medium">{filename}</span>
-          <Badge variant="secondary" className="text-xs">
-            {getLanguage(filename).toUpperCase()}
-          </Badge>
+      {/* Professional Header - VS Code Style */}
+      <div className="flex flex-col border-b border-border bg-[hsl(var(--ide-tab))]">
+        {/* Tabs Row */}
+        <div className="flex items-center gap-0.5 px-2 pt-1 overflow-x-auto scrollbar-thin">
+          {openTabs.map((tab, index) => (
+            <div
+              key={tab.path}
+              className={`
+                group flex items-center gap-2 px-3 py-1.5 min-w-[120px] max-w-[200px]
+                border-t-2 transition-all cursor-pointer
+                ${index === activeTabIndex 
+                  ? 'bg-[hsl(var(--ide-editor))] border-[hsl(var(--ps2-blue))] text-foreground' 
+                  : 'bg-transparent border-transparent text-muted-foreground hover:bg-[hsl(var(--ide-editor))]/50'
+                }
+              `}
+              onClick={() => onTabChange(index)}
+            >
+              <FileCode className="w-3.5 h-3.5 shrink-0" />
+              
+              {editingTabIndex === index ? (
+                <Input
+                  ref={inputRef}
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onBlur={handleNameChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleNameChange();
+                    if (e.key === 'Escape') setEditingTabIndex(null);
+                  }}
+                  className="h-5 px-1 py-0 text-xs border-[hsl(var(--ps2-blue))] bg-background"
+                />
+              ) : (
+                <span 
+                  className="text-xs font-medium truncate flex-1"
+                  onDoubleClick={() => handleDoubleClick(index)}
+                >
+                  {tab.name}
+                </span>
+              )}
+              
+              {openTabs.length > 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTabClose(index);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 hover:bg-muted rounded p-0.5 transition-opacity"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-8 px-3"
-            onClick={handleSave}
-            title="Save (Ctrl+S)"
-          >
-            <Save className="w-4 h-4 mr-1" />
-            Save
-          </Button>
-          <Button 
-            onClick={onRun} 
-            size="sm" 
-            className="h-8 px-3 bg-[hsl(var(--ps2-purple))] hover:bg-[hsl(var(--ps2-purple))]/80 text-primary-foreground"
-            title="Run (F5)"
-          >
-            <Play className="w-4 h-4 mr-1" />
-            Run
-          </Button>
-          {onClose && (
+
+        {/* Actions Row */}
+        <div className="flex items-center justify-between px-3 py-2 bg-[hsl(var(--ide-editor))]/50">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-medium text-foreground">{currentFile.name}</span>
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
+                {getLanguage(currentFile.name).toUpperCase()}
+              </Badge>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-1.5">
             <Button 
               variant="ghost" 
               size="sm" 
-              className="h-8 w-8 p-0"
-              onClick={onClose}
-              title="Close Editor"
+              className="h-7 px-2.5 text-xs hover:bg-muted"
+              onClick={handleSave}
+              title="Save file (Ctrl+S)"
             >
-              <X className="w-4 h-4" />
+              <Save className="w-3.5 h-3.5 mr-1.5" />
+              Save
             </Button>
-          )}
+            
+            <Button 
+              onClick={onRun} 
+              size="sm" 
+              className="h-7 px-2.5 text-xs bg-[hsl(var(--ps2-purple))] hover:bg-[hsl(var(--ps2-purple))]/80 text-primary-foreground"
+              title="Run script (F5)"
+            >
+              <Play className="w-3.5 h-3.5 mr-1.5" />
+              Run
+            </Button>
+
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 px-2.5 text-xs hover:bg-muted"
+              onClick={handleExport}
+              title="Export current file"
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5" />
+              Export
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -160,7 +274,7 @@ export function CodeEditor({ code, onChange, onRun, onClose, filename = "main.js
         <Editor
           height="100%"
           defaultLanguage="javascript"
-          language={getLanguage(filename)}
+          language={getLanguage(currentFile.name)}
           value={code}
           onChange={handleEditorChange}
           onMount={handleEditorDidMount}
@@ -196,21 +310,17 @@ export function CodeEditor({ code, onChange, onRun, onClose, filename = "main.js
       </div>
 
       {/* Editor Status Bar */}
-      <div className="ide-statusbar flex items-center justify-between">
+      <div className="ide-statusbar flex items-center justify-between text-xs">
         <div className="flex items-center gap-4">
-          <span className="text-muted-foreground">{getLanguage(filename).toUpperCase()}</span>
+          <span className="text-muted-foreground">{getLanguage(currentFile.name).toUpperCase()}</span>
           <span className="text-muted-foreground">UTF-8</span>
           <span className="text-muted-foreground">{lineCount} lines</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-muted-foreground">
-            Ln {getCursorPosition().line}
-          </span>
-          <span className="text-muted-foreground">
-            Col {getCursorPosition().column}
+            Ln {getCursorPosition().line}, Col {getCursorPosition().column}
           </span>
           <span className="text-muted-foreground">Spaces: 2</span>
-          <Settings className="w-4 h-4 text-muted-foreground hover:text-foreground cursor-pointer" />
         </div>
       </div>
     </Card>

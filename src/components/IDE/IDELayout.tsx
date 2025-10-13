@@ -11,17 +11,22 @@ import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 
 export function IDELayout() {
-  const [selectedFile, setSelectedFile] = useState<FileNode>({
+  const defaultFile: FileNode = {
     name: 'main.js',
     type: 'file',
     path: '/main.js',
     content: '// Welcome to ATHENA ENV SDK for PlayStation 2\n// Enhanced JavaScript environment for PS2 homebrew development\n\n// {"name": "My PS2 App", "author": "Developer", "version": "1.0.0", "icon": "icon.png", "file": "main.js"}\n\nconst font = new Font("default");\nlet frameCount = 0;\n\nos.setInterval(() => {\n  Screen.clear(Color.new(0, 32, 64, 255));\n  \n  // Draw title\n  font.print(50, 50, "ATHENA ENV SDK Demo");\n  font.print(50, 80, "Frame: " + frameCount);\n  \n  // Draw some graphics\n  Draw.rect(200, 150, 240, 100, Color.new(128, 0, 255, 255));\n  Draw.circle(320, 200, 30, Color.new(0, 255, 128, 255));\n  \n  font.print(50, 350, "Press buttons on your controller!");\n  \n  frameCount++;\n  Screen.flip();\n}, 16);'
-  });
-  const [code, setCode] = useState(selectedFile.content || '');
+  };
+  
+  const [openTabs, setOpenTabs] = useState<FileNode[]>([defaultFile]);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [code, setCode] = useState(defaultFile.content || '');
   const [isRunning, setIsRunning] = useState(false);
   const [showFileExplorer, setShowFileExplorer] = useState(true);
   const [showPreview, setShowPreview] = useState(true);
   const [projectFiles, setProjectFiles] = useState<FileNode[]>([]);
+
+  const selectedFile = openTabs[activeTabIndex];
 
   const isImageFile = (filename: string): boolean => {
     const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.ico'];
@@ -30,21 +35,55 @@ export function IDELayout() {
 
   const handleFileSelect = useCallback((file: FileNode) => {
     if (file.type === 'file') {
-      setSelectedFile(file);
-      if (file.content !== undefined) {
-        setCode(file.content);
+      // Check if file is already open
+      const existingTabIndex = openTabs.findIndex(tab => tab.path === file.path);
+      
+      if (existingTabIndex !== -1) {
+        // Switch to existing tab
+        setActiveTabIndex(existingTabIndex);
+        setCode(openTabs[existingTabIndex].content || '');
+      } else {
+        // Open new tab
+        setOpenTabs(prev => [...prev, file]);
+        setActiveTabIndex(openTabs.length);
+        setCode(file.content || '');
       }
       setIsRunning(false);
     }
-  }, []);
+  }, [openTabs]);
 
   const handleCodeChange = useCallback((newCode: string) => {
     setCode(newCode);
-    // Update the file content
-    if (selectedFile) {
-      setSelectedFile(prev => ({ ...prev, content: newCode }));
+    // Update the file content in the active tab
+    setOpenTabs(prev => prev.map((tab, idx) => 
+      idx === activeTabIndex ? { ...tab, content: newCode } : tab
+    ));
+  }, [activeTabIndex]);
+
+  const handleTabChange = useCallback((index: number) => {
+    setActiveTabIndex(index);
+    setCode(openTabs[index].content || '');
+    setIsRunning(false);
+  }, [openTabs]);
+
+  const handleTabClose = useCallback((index: number) => {
+    if (openTabs.length === 1) return; // Don't close last tab
+    
+    const newTabs = openTabs.filter((_, idx) => idx !== index);
+    setOpenTabs(newTabs);
+    
+    // Adjust active tab index
+    if (activeTabIndex >= index && activeTabIndex > 0) {
+      setActiveTabIndex(activeTabIndex - 1);
     }
-  }, [selectedFile]);
+    setCode(newTabs[Math.min(activeTabIndex, newTabs.length - 1)].content || '');
+  }, [openTabs, activeTabIndex]);
+
+  const handleFileRename = useCallback((index: number, newName: string) => {
+    setOpenTabs(prev => prev.map((tab, idx) => 
+      idx === index ? { ...tab, name: newName, path: tab.path.replace(tab.name, newName) } : tab
+    ));
+  }, []);
 
   const handleRun = useCallback(() => {
     setShowPreview(true); // Auto-open preview when running
@@ -97,7 +136,11 @@ export function IDELayout() {
                     code={code}
                     onChange={handleCodeChange}
                     onRun={handleRun}
-                    filename={selectedFile.name}
+                    openTabs={openTabs}
+                    activeTabIndex={activeTabIndex}
+                    onTabChange={handleTabChange}
+                    onTabClose={handleTabClose}
+                    onFileRename={handleFileRename}
                   />
                 )}
               </ResizablePanel>
