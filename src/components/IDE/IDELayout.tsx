@@ -47,6 +47,7 @@ export function IDELayout() {
   }, [selectedFile]);
 
   const handleRun = useCallback(() => {
+    setShowPreview(true); // Auto-open preview when running
     setIsRunning(true);
   }, []);
 
