@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* ATHENA ENV SDK - Dark IDE Theme */
+    --background: 220 13% 9%;
+    --foreground: 220 9% 95%;
+
+    --card: 220 13% 11%;
+    --card-foreground: 220 9% 95%;
+
+    --popover: 220 13% 11%;
+    --popover-foreground: 220 9% 95%;
+
+    --primary: 268 83% 58%;
+    --primary-foreground: 220 9% 95%;
+
+    --secondary: 220 13% 13%;
+    --secondary-foreground: 220 9% 80%;
+
+    --muted: 220 13% 13%;
+    --muted-foreground: 220 9% 60%;
+
+    --accent: 268 83% 58%;
+    --accent-foreground: 220 9% 95%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 220 9% 95%;
+
+    --border: 220 13% 15%;
+    --input: 220 13% 13%;
+    --ring: 268 83% 58%;
+
+    /* IDE Specific Colors */
+    --editor-bg: 220 13% 7%;
+    --editor-line-number: 220 9% 40%;
+    --editor-selection: 268 83% 58% / 0.2;
+    --sidebar-bg: 220 13% 10%;
+    --statusbar-bg: 220 13% 12%;
+    --tab-bg: 220 13% 11%;
+    --tab-active-bg: 220 13% 9%;
+    
+    /* PS2 Theme Colors */
+    --ps2-blue: 223 100% 60%;
+    --ps2-purple: 268 83% 58%;
+    --ps2-cyan: 193 100% 60%;
+    --ps2-green: 142 76% 56%;
+    --ps2-orange: 25 95% 58%;
+    --ps2-red: 0 84% 60%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--ps2-purple)), hsl(var(--ps2-blue)));
+    --gradient-accent: linear-gradient(90deg, hsl(var(--ps2-cyan)), hsl(var(--ps2-green)));
+    --gradient-bg: linear-gradient(180deg, hsl(var(--background)), hsl(220 13% 6%));
+
+    --radius: 0.375rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* IDE Components */
+  .ide-sidebar {
+    @apply bg-[hsl(var(--sidebar-bg))] border-r border-border;
+  }
+  
+  .ide-editor {
+    @apply bg-[hsl(var(--editor-bg))] text-foreground font-mono;
+  }
+  
+  .ide-tab {
+    @apply bg-[hsl(var(--tab-bg))] hover:bg-[hsl(var(--tab-active-bg))] border-r border-border px-4 py-2 text-sm transition-colors;
+  }
+  
+  .ide-tab.active {
+    @apply bg-[hsl(var(--tab-active-bg))] text-primary border-b-2 border-primary;
+  }
+  
+  .ide-statusbar {
+    @apply bg-[hsl(var(--statusbar-bg))] border-t border-border px-4 py-1 text-xs;
+  }
+  
+  .ps2-preview {
+    @apply bg-gradient-to-br from-[hsl(var(--ps2-blue))] via-[hsl(var(--ps2-purple))] to-[hsl(var(--background))] 
+           border-2 border-[hsl(var(--ps2-blue))]/30 rounded-lg overflow-hidden;
+  }
+  
+  .code-highlight {
+    @apply bg-[hsl(var(--editor-selection))] rounded px-1;
+  }
+}
+
+@layer utilities {
+  .ps2-glow {
+    @apply shadow-[0_0_20px_hsl(var(--ps2-purple))/0.3];
+  }
+  
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}

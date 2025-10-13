@@ -1,0 +1,29 @@
+/* Custom styles for ATHENA ENV SDK */
+.code-editor {
+  font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+}
+
+.ps2-screen {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Scrollbar styles */
+.ide-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ide-scrollbar::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+.ide-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+
+.ide-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent));
+}
