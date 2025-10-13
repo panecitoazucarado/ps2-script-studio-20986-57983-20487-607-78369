@@ -26,8 +26,10 @@ export function PS2Preview({ code, isRunning, onToggleRun, files }: PS2PreviewPr
   const [consoleExpanded, setConsoleExpanded] = useState(true);
   const [commandInput, setCommandInput] = useState('');
   const [hasLoggedStart, setHasLoggedStart] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const frameRef = useRef(0);
   const consoleEndRef = useRef<HTMLDivElement>(null);
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
 
   const handleLog = useCallback((message: string) => {
     setLogs(prev => [...prev.slice(-99), message]);
@@ -120,6 +122,46 @@ export function PS2Preview({ code, isRunning, onToggleRun, files }: PS2PreviewPr
     }
   };
 
+  // Handle fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    if (!fullscreenContainerRef.current) return;
+
+    if (!isFullscreen) {
+      // Enter fullscreen
+      if (fullscreenContainerRef.current.requestFullscreen) {
+        fullscreenContainerRef.current.requestFullscreen();
+      }
+      setIsFullscreen(true);
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+      setIsFullscreen(false);
+    }
+  }, [isFullscreen]);
+
+  // Listen for ESC key to exit fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [isFullscreen]);
+
   // Update frame count when running
   useEffect(() => {
     if (!isRunning) {
@@ -137,69 +179,131 @@ export function PS2Preview({ code, isRunning, onToggleRun, files }: PS2PreviewPr
   }, [isRunning]);
 
   return (
-    <Card className="h-full flex flex-col bg-card">
+    <Card className="h-full flex flex-col bg-card" ref={fullscreenContainerRef}>
       {/* PS2 Header - Minimalist */}
-      <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/50 bg-ide-tab">
-        <div className="flex items-center gap-1.5">
-          <Badge 
-            variant={isRunning ? "default" : "secondary"} 
-            className={`h-6 text-xs px-2 ${isRunning ? "bg-ps2-green" : ""}`}
-          >
-            {isRunning ? 'En ejecución' : 'Detenido'}
-          </Badge>
+      {!isFullscreen && (
+        <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/50 bg-ide-tab">
+          <div className="flex items-center gap-1.5">
+            <Badge 
+              variant={isRunning ? "default" : "secondary"} 
+              className={`h-6 text-xs px-2 ${isRunning ? "bg-ps2-green" : ""}`}
+            >
+              {isRunning ? 'En ejecución' : 'Detenido'}
+            </Badge>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 w-7 p-0 hover:bg-accent"
+              title="Volumen"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 w-7 p-0 hover:bg-accent"
+              title="Reiniciar"
+              onClick={() => {
+                setFrameCount(0);
+                frameRef.current = 0;
+                if (isRunning) {
+                  onToggleRun();
+                  setTimeout(onToggleRun, 100);
+                }
+              }}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 w-7 p-0 hover:bg-accent"
+              title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+              onClick={toggleFullscreen}
+            >
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </Button>
+            <div className="w-px h-4 bg-border mx-1" />
+            <Button
+              onClick={onToggleRun}
+              size="sm"
+              variant={isRunning ? "destructive" : "default"}
+              className="h-7 px-3 text-xs"
+            >
+              <Power className="w-3.5 h-3.5 mr-1.5" />
+              {isRunning ? 'Detener' : 'Arrancar'}
+            </Button>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-1">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-7 w-7 p-0 hover:bg-accent"
-            title="Volumen"
-          >
-            <Volume2 className="w-3.5 h-3.5" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-7 w-7 p-0 hover:bg-accent"
-            title="Reiniciar"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-7 w-7 p-0 hover:bg-accent"
-            title="Pantalla completa"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </Button>
-          <div className="w-px h-4 bg-border mx-1" />
-          <Button
-            onClick={onToggleRun}
-            size="sm"
-            variant={isRunning ? "destructive" : "default"}
-            className="h-7 px-3 text-xs"
-          >
-            <Power className="w-3.5 h-3.5 mr-1.5" />
-            {isRunning ? 'Detener' : 'Arrancar'}
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* PS2 Content */}
-      <div className="flex-1 p-2 bg-gradient-to-br from-ps2-blue/10 via-ps2-purple/10 to-background overflow-hidden">
+      <div className={`flex-1 bg-gradient-to-br from-ps2-blue/10 via-ps2-purple/10 to-background overflow-hidden relative ${isFullscreen ? 'p-0' : 'p-2'}`}>
+        {/* Fullscreen Controls Overlay */}
+        {isFullscreen && (
+          <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-black/80 backdrop-blur-sm rounded-lg p-2 border border-ps2-cyan/30">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0 hover:bg-accent text-white"
+              title="Volumen"
+            >
+              <Volume2 className="w-4 h-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0 hover:bg-accent text-white"
+              title="Reiniciar"
+              onClick={() => {
+                setFrameCount(0);
+                frameRef.current = 0;
+                if (isRunning) {
+                  onToggleRun();
+                  setTimeout(onToggleRun, 100);
+                }
+              }}
+            >
+              <RotateCcw className="w-4 h-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0 hover:bg-accent text-white"
+              title="Salir de pantalla completa (ESC)"
+              onClick={toggleFullscreen}
+            >
+              <Minimize2 className="w-4 h-4" />
+            </Button>
+            <div className="w-px h-5 bg-white/20 mx-1" />
+            <Button
+              onClick={onToggleRun}
+              size="sm"
+              variant={isRunning ? "destructive" : "default"}
+              className="h-8 px-3 text-xs"
+            >
+              <Power className="w-4 h-4 mr-1.5" />
+              {isRunning ? 'Detener' : 'Arrancar'}
+            </Button>
+          </div>
+        )}
+        
         <Tabs defaultValue="athena" className="h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-2 mb-2">
-            <TabsTrigger value="athena" className="flex items-center gap-2">
-              <img src={athenaLogo} alt="Athena" className="w-4 h-4" />
-              AthenaEnv Real-Time
-            </TabsTrigger>
-            <TabsTrigger value="pcsx2" className="flex items-center gap-2">
-              <Box className="w-4 h-4" />
-              Conectar con PCSX2
-            </TabsTrigger>
-          </TabsList>
+          {!isFullscreen && (
+            <TabsList className="grid w-full grid-cols-2 mb-2">
+              <TabsTrigger value="athena" className="flex items-center gap-2">
+                <img src={athenaLogo} alt="Athena" className="w-4 h-4" />
+                AthenaEnv Real-Time
+              </TabsTrigger>
+              <TabsTrigger value="pcsx2" className="flex items-center gap-2">
+                <Box className="w-4 h-4" />
+                Conectar con PCSX2
+              </TabsTrigger>
+            </TabsList>
+          )}
 
           <TabsContent value="athena" className="flex-1 mt-0">
             {/* AthenaEnv Real Runner - PANTALLA COMPLETA */}
@@ -262,7 +366,7 @@ export function PS2Preview({ code, isRunning, onToggleRun, files }: PS2PreviewPr
       </div>
 
       {/* PS2 System Console Terminal */}
-      {consoleVisible && (
+      {consoleVisible && !isFullscreen && (
         <div className={`border-t border-border bg-ide-editor transition-all duration-300 ${consoleExpanded ? 'h-48' : 'h-10'}`}>
           {/* Console Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-ide-tab">
