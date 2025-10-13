@@ -18,7 +18,7 @@ export function IDELayout() {
     content: '// Welcome to ATHENA ENV SDK for PlayStation 2\n// Enhanced JavaScript environment for PS2 homebrew development\n\n// {"name": "My PS2 App", "author": "Developer", "version": "1.0.0", "icon": "icon.png", "file": "main.js"}\n\nconst font = new Font("default");\nlet frameCount = 0;\n\nos.setInterval(() => {\n  Screen.clear(Color.new(0, 32, 64, 255));\n  \n  // Draw title\n  font.print(50, 50, "ATHENA ENV SDK Demo");\n  font.print(50, 80, "Frame: " + frameCount);\n  \n  // Draw some graphics\n  Draw.rect(200, 150, 240, 100, Color.new(128, 0, 255, 255));\n  Draw.circle(320, 200, 30, Color.new(0, 255, 128, 255));\n  \n  font.print(50, 350, "Press buttons on your controller!");\n  \n  frameCount++;\n  Screen.flip();\n}, 16);'
   };
   
-  const [openTabs, setOpenTabs] = useState<FileNode[]>([defaultFile]);
+  const [openTabsState, setOpenTabsState] = useState<FileNode[]>([defaultFile]);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [code, setCode] = useState(defaultFile.content || '');
   const [isRunning, setIsRunning] = useState(false);
@@ -26,12 +26,21 @@ export function IDELayout() {
   const [showPreview, setShowPreview] = useState(true);
   const [projectFiles, setProjectFiles] = useState<FileNode[]>([]);
 
+  const openTabs = openTabsState;
   const selectedFile = openTabs[activeTabIndex];
 
   const isImageFile = (filename: string): boolean => {
     const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.ico'];
     return imageExtensions.some(ext => filename.toLowerCase().endsWith(ext));
   };
+
+  const setOpenTabs = useCallback((updater: any) => {
+    if (typeof updater === 'function') {
+      setOpenTabsState((prev: FileNode[]) => updater(prev));
+    } else {
+      setOpenTabsState(updater);
+    }
+  }, []);
 
   const handleFileSelect = useCallback((file: FileNode) => {
     if (file.type === 'file') {
@@ -44,21 +53,21 @@ export function IDELayout() {
         setCode(openTabs[existingTabIndex].content || '');
       } else {
         // Open new tab
-        setOpenTabs(prev => [...prev, file]);
+        setOpenTabs((prev: FileNode[]) => [...prev, file]);
         setActiveTabIndex(openTabs.length);
         setCode(file.content || '');
       }
       setIsRunning(false);
     }
-  }, [openTabs]);
+  }, [openTabs, setOpenTabs]);
 
   const handleCodeChange = useCallback((newCode: string) => {
     setCode(newCode);
     // Update the file content in the active tab
-    setOpenTabs(prev => prev.map((tab, idx) => 
+    setOpenTabs((prev: FileNode[]) => prev.map((tab, idx) => 
       idx === activeTabIndex ? { ...tab, content: newCode } : tab
     ));
-  }, [activeTabIndex]);
+  }, [activeTabIndex, setOpenTabs]);
 
   const handleTabChange = useCallback((index: number) => {
     setActiveTabIndex(index);
@@ -73,17 +82,24 @@ export function IDELayout() {
     setOpenTabs(newTabs);
     
     // Adjust active tab index
-    if (activeTabIndex >= index && activeTabIndex > 0) {
-      setActiveTabIndex(activeTabIndex - 1);
+    let newActiveIndex = activeTabIndex;
+    if (activeTabIndex === index) {
+      // If closing active tab, switch to the one on the left or right
+      newActiveIndex = index > 0 ? index - 1 : 0;
+    } else if (activeTabIndex > index) {
+      newActiveIndex = activeTabIndex - 1;
     }
-    setCode(newTabs[Math.min(activeTabIndex, newTabs.length - 1)].content || '');
-  }, [openTabs, activeTabIndex]);
+    
+    setActiveTabIndex(newActiveIndex);
+    setCode(newTabs[newActiveIndex].content || '');
+  }, [openTabs, activeTabIndex, setOpenTabs]);
 
   const handleFileRename = useCallback((index: number, newName: string) => {
-    setOpenTabs(prev => prev.map((tab, idx) => 
+    if (!newName.trim()) return;
+    setOpenTabs((prev: FileNode[]) => prev.map((tab, idx) => 
       idx === index ? { ...tab, name: newName, path: tab.path.replace(tab.name, newName) } : tab
     ));
-  }, []);
+  }, [setOpenTabs]);
 
   const handleRun = useCallback(() => {
     setShowPreview(true); // Auto-open preview when running
