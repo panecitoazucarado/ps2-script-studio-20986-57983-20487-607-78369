@@ -16,7 +16,9 @@ import {
   ChevronRight,
   ChevronDown,
   Download,
-  Save
+  Save,
+  X,
+  SearchX
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { FileNode } from '@/types/athena';
@@ -250,6 +252,21 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
     }
   };
 
+  const countFilteredFiles = (nodes: FileNode[], term: string): number => {
+    let count = 0;
+    for (const node of nodes) {
+      if (node.name.toLowerCase().includes(term.toLowerCase())) {
+        count++;
+      }
+      if (node.type === 'folder' && node.children) {
+        count += countFilteredFiles(node.children, term);
+      }
+    }
+    return count;
+  };
+
+  const hasSearchResults = searchTerm ? countFilteredFiles(fileSystem, searchTerm) > 0 : true;
+
   const renderFileTree = (nodes: FileNode[], depth = 0) => {
     return nodes
       .filter(node => 
@@ -352,12 +369,45 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
         <div className="relative">
           <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-muted-foreground" />
           <Input
-            placeholder="Search files..."
+            placeholder="Buscar archivos..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-7 h-7 text-xs"
+            className={`pl-7 pr-7 h-7 text-xs transition-colors ${
+              searchTerm && !hasSearchResults 
+                ? 'border-destructive/50 focus-visible:ring-destructive/50' 
+                : searchTerm && hasSearchResults 
+                ? 'border-ps2-purple/50 focus-visible:ring-ps2-purple/50'
+                : ''
+            }`}
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 hover:bg-accent rounded p-0.5 transition-colors"
+              title="Limpiar búsqueda"
+            >
+              <X className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+            </button>
+          )}
         </div>
+        
+        {searchTerm && !hasSearchResults && fileSystem.length > 0 && (
+          <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded text-xs text-destructive">
+            <div className="flex items-center gap-2">
+              <SearchX className="w-3 h-3 flex-shrink-0" />
+              <span>No se encontró "{searchTerm}"</span>
+            </div>
+          </div>
+        )}
+        
+        {searchTerm && hasSearchResults && fileSystem.length > 0 && (
+          <div className="mt-2 p-2 bg-ps2-purple/10 border border-ps2-purple/20 rounded text-xs text-ps2-purple">
+            <div className="flex items-center gap-2">
+              <Search className="w-3 h-3 flex-shrink-0" />
+              <span>{countFilteredFiles(fileSystem, searchTerm)} resultado(s) encontrado(s)</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* File Tree */}
@@ -381,6 +431,24 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
             >
               <Plus className="w-3 h-3 mr-2" />
               Importar Proyecto
+            </Button>
+          </div>
+        ) : searchTerm && !hasSearchResults ? (
+          <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+            <SearchX className="w-12 h-12 text-destructive/50 mb-3" />
+            <p className="text-sm text-destructive mb-2">
+              Archivo no encontrado
+            </p>
+            <p className="text-xs text-muted-foreground/70 mb-4">
+              No se encontró ningún archivo que coincida con "{searchTerm}"
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setSearchTerm('')}
+            >
+              <X className="w-3 h-3 mr-2" />
+              Limpiar búsqueda
             </Button>
           </div>
         ) : (
