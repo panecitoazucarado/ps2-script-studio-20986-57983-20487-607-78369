@@ -73,12 +73,6 @@ export function IDEHeader({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="ghost" size="sm" className="h-8 px-3 gap-2 hidden md:flex">
-            <Save className="w-4 h-4" />
-            <span className="text-xs">Guardar</span>
-          </Button>
-          
-          <Separator orientation="vertical" className="h-6 hidden md:block" />
           
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
             <Github className="w-4 h-4" />

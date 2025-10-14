@@ -14,8 +14,11 @@ import {
   Search,
   RefreshCw,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Download,
+  Save
 } from 'lucide-react';
+import JSZip from 'jszip';
 import { FileNode } from '@/types/athena';
 
 interface FileExplorerProps {
@@ -56,6 +59,50 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
     };
     
     input.click();
+  };
+
+  const handleExportProject = async () => {
+    if (fileSystem.length === 0) {
+      alert('No hay archivos para exportar');
+      return;
+    }
+
+    const zip = new JSZip();
+    
+    const addFilesToZip = (nodes: FileNode[], folder?: JSZip) => {
+      nodes.forEach(node => {
+        if (node.type === 'folder' && node.children) {
+          const newFolder = folder ? folder.folder(node.name) : zip.folder(node.name);
+          if (newFolder) {
+            addFilesToZip(node.children, newFolder);
+          }
+        } else if (node.type === 'file' && node.content) {
+          const targetFolder = folder || zip;
+          
+          // Si es una imagen (base64), extraer los datos
+          if (node.content.startsWith('data:')) {
+            const base64Data = node.content.split(',')[1];
+            targetFolder.file(node.name, base64Data, { base64: true });
+          } else {
+            // Archivo de texto
+            targetFolder.file(node.name, node.content);
+          }
+        }
+      });
+    };
+
+    addFilesToZip(fileSystem);
+
+    // Generar el ZIP y descargarlo
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'athena-env-project.zip';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const buildFileTree = async (files: FileList): Promise<FileNode[]> => {
@@ -254,7 +301,7 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
     <Card className="h-full flex flex-col ide-sidebar">
       {/* Explorer Header */}
       <div className="p-3 border-b border-border">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium">File Explorer</h3>
           <div className="flex gap-1">
             <Button 
@@ -277,6 +324,30 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
             </Button>
           </div>
         </div>
+
+        {/* Action Buttons */}
+        {fileSystem.length > 0 && (
+          <div className="flex gap-2 mb-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1 h-7 gap-2"
+              onClick={() => {/* Save functionality */}}
+            >
+              <Save className="w-3 h-3" />
+              <span className="text-xs">Guardar</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1 h-7 gap-2 border-ps2-purple/50 text-ps2-purple hover:bg-ps2-purple/10"
+              onClick={handleExportProject}
+            >
+              <Download className="w-3 h-3" />
+              <span className="text-xs">Exportar</span>
+            </Button>
+          </div>
+        )}
         
         <div className="relative">
           <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-muted-foreground" />
