@@ -122,7 +122,7 @@ export function IDELayout() {
 
       {/* Main IDE Content */}
       <div className="flex-1 overflow-hidden">
-        <ResizablePanelGroup direction="horizontal">
+        <ResizablePanelGroup direction="horizontal" className="flex-row-reverse">
           {/* File Explorer - Collapsible */}
           {showFileExplorer && (
             <>
