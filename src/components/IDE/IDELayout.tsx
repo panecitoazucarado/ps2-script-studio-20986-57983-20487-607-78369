@@ -148,7 +148,7 @@ export function IDELayout() {
           
           {/* Editor + Preview */}
           <ResizablePanel defaultSize={showFileExplorer ? 80 : 100}>
-            <ResizablePanelGroup direction="horizontal">
+            <ResizablePanelGroup direction="horizontal" className="flex-row-reverse">
               {/* Code Editor or Image Viewer */}
               <ResizablePanel 
                 defaultSize={showPreview ? 50 : 100}
