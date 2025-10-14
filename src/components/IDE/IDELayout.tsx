@@ -126,14 +126,23 @@ export function IDELayout() {
           {/* File Explorer - Collapsible */}
           {showFileExplorer && (
             <>
-              <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
+              <ResizablePanel 
+                defaultSize={20} 
+                minSize={12} 
+                maxSize={40}
+                collapsible
+                collapsedSize={0}
+                onCollapse={() => setShowFileExplorer(false)}
+              >
                 <FileExplorer 
                   onFileSelect={handleFileSelect}
                   selectedFile={selectedFile}
                   onProjectLoad={setProjectFiles}
                 />
               </ResizablePanel>
-              <ResizableHandle className="w-1 bg-border hover:bg-accent transition-colors" />
+              <ResizableHandle withHandle className="w-1.5 bg-border/50 hover:bg-ps2-purple/50 transition-all duration-200 data-[resize-handle-state=hover]:w-2 data-[resize-handle-state=drag]:w-2 data-[resize-handle-state=drag]:bg-ps2-purple group relative">
+                <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:w-1.5 bg-ps2-purple/20 group-hover:bg-ps2-purple/40 transition-all" />
+              </ResizableHandle>
             </>
           )}
           
@@ -141,7 +150,10 @@ export function IDELayout() {
           <ResizablePanel defaultSize={showFileExplorer ? 80 : 100}>
             <ResizablePanelGroup direction="horizontal">
               {/* Code Editor or Image Viewer */}
-              <ResizablePanel defaultSize={showPreview ? 50 : 100}>
+              <ResizablePanel 
+                defaultSize={showPreview ? 50 : 100}
+                minSize={30}
+              >
                 {selectedFile && isImageFile(selectedFile.name) ? (
                   <ImageViewer
                     imageData={selectedFile.content || ''}
@@ -164,8 +176,17 @@ export function IDELayout() {
               {/* PS2 Preview - Collapsible with Tab */}
               {showPreview && (
                 <>
-                  <ResizableHandle className="w-1 bg-border hover:bg-accent transition-colors" />
-                  <ResizablePanel defaultSize={50} minSize={30}>
+                  <ResizableHandle withHandle className="w-1.5 bg-border/50 hover:bg-ps2-purple/50 transition-all duration-200 data-[resize-handle-state=hover]:w-2 data-[resize-handle-state=drag]:w-2 data-[resize-handle-state=drag]:bg-ps2-purple group relative">
+                    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:w-1.5 bg-ps2-purple/20 group-hover:bg-ps2-purple/40 transition-all" />
+                  </ResizableHandle>
+                  <ResizablePanel 
+                    defaultSize={50} 
+                    minSize={25}
+                    maxSize={70}
+                    collapsible
+                    collapsedSize={0}
+                    onCollapse={() => setShowPreview(false)}
+                  >
                     <div className="h-full flex flex-col">
                       {/* Preview Tab */}
                       <div className="flex items-center justify-between bg-muted/50 border-b border-border px-3 py-1.5">
