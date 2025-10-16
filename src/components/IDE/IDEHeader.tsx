@@ -18,6 +18,7 @@ import {
   EyeOff,
   Sidebar
 } from 'lucide-react';
+import { WindowConfigMenu } from './WindowConfigMenu';
 
 interface IDEHeaderProps {
   showFileExplorer: boolean;
@@ -78,14 +79,7 @@ export function IDEHeader({
             <Github className="w-4 h-4" />
           </Button>
           
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-8 px-3 border-ps2-purple/50 text-ps2-purple hover:bg-ps2-purple/10 gap-2"
-          >
-            <Settings className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs">Config</span>
-          </Button>
+          <WindowConfigMenu />
         </div>
       </div>
     </header>
