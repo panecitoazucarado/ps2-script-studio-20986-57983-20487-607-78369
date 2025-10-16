@@ -95,6 +95,24 @@ export function IDELayoutContent() {
     setCode(newTabs[newActiveIndex].content || '');
   }, [openTabs, activeTabIndex, setOpenTabs]);
 
+  const handleTabReorder = useCallback((fromIndex: number, toIndex: number) => {
+    setOpenTabs((prev: FileNode[]) => {
+      const newTabs = [...prev];
+      const [movedTab] = newTabs.splice(fromIndex, 1);
+      newTabs.splice(toIndex, 0, movedTab);
+      return newTabs;
+    });
+    
+    // Update active tab index after reordering
+    if (activeTabIndex === fromIndex) {
+      setActiveTabIndex(toIndex);
+    } else if (activeTabIndex > fromIndex && activeTabIndex <= toIndex) {
+      setActiveTabIndex(activeTabIndex - 1);
+    } else if (activeTabIndex < fromIndex && activeTabIndex >= toIndex) {
+      setActiveTabIndex(activeTabIndex + 1);
+    }
+  }, [activeTabIndex, setOpenTabs]);
+
   const handleFileRename = useCallback((index: number, newName: string) => {
     if (!newName.trim()) return;
     setOpenTabs((prev: FileNode[]) => prev.map((tab, idx) => 
@@ -238,6 +256,7 @@ export function IDELayoutContent() {
                       onTabChange={handleTabChange}
                       onTabClose={handleTabClose}
                       onFileRename={handleFileRename}
+                      onTabReorder={handleTabReorder}
                     />
                   )}
                 </ResizablePanel>

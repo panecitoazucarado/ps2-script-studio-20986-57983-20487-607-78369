@@ -17,6 +17,7 @@ interface CodeEditorProps {
   onTabChange: (index: number) => void;
   onTabClose: (index: number) => void;
   onFileRename: (index: number, newName: string) => void;
+  onTabReorder: (fromIndex: number, toIndex: number) => void;
 }
 
 export function CodeEditor({ 
@@ -27,7 +28,8 @@ export function CodeEditor({
   activeTabIndex, 
   onTabChange, 
   onTabClose,
-  onFileRename 
+  onFileRename,
+  onTabReorder
 }: CodeEditorProps) {
   const [lineCount, setLineCount] = useState(1);
   const [editingTabIndex, setEditingTabIndex] = useState<number | null>(null);
@@ -35,6 +37,8 @@ export function CodeEditor({
   const [contextMenuTab, setContextMenuTab] = useState<number | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [modifiedTabs, setModifiedTabs] = useState<Set<number>>(new Set());
+  const [draggedTabIndex, setDraggedTabIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -178,6 +182,43 @@ export function CodeEditor({
     closeContextMenu();
   }, [contextMenuTab, openTabs, onTabClose, closeContextMenu]);
 
+  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
+    setDraggedTabIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    // Set a transparent drag image
+    const dragImage = document.createElement('div');
+    dragImage.style.opacity = '0';
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, 0, 0);
+    setTimeout(() => document.body.removeChild(dragImage), 0);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedTabIndex !== null && draggedTabIndex !== index) {
+      setDragOverIndex(index);
+    }
+  }, [draggedTabIndex]);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverIndex(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedTabIndex !== null && draggedTabIndex !== index) {
+      onTabReorder(draggedTabIndex, index);
+    }
+    setDraggedTabIndex(null);
+    setDragOverIndex(null);
+  }, [draggedTabIndex, onTabReorder]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedTabIndex(null);
+    setDragOverIndex(null);
+  }, []);
+
   const getFileIcon = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase();
     return <FileCode className="w-3.5 h-3.5 shrink-0" />;
@@ -234,10 +275,18 @@ export function CodeEditor({
           {openTabs.map((tab, index) => (
             <div
               key={tab.path}
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
               className={`
                 group relative flex items-center gap-2 px-4 py-2 min-w-[140px] max-w-[220px]
                 border-t-2 border-r border-border/50
-                transition-all duration-200 cursor-pointer select-none
+                transition-all duration-200 select-none
+                ${draggedTabIndex === index ? 'opacity-50 cursor-grabbing' : 'cursor-grab active:cursor-grabbing'}
+                ${dragOverIndex === index ? 'border-l-2 border-l-[hsl(var(--ps2-blue))]' : ''}
                 ${index === activeTabIndex 
                   ? 'bg-[hsl(var(--ide-editor))] border-t-[hsl(var(--ps2-blue))] text-foreground shadow-sm' 
                   : 'bg-[hsl(var(--ide-tab))] border-t-transparent text-muted-foreground hover:bg-[hsl(var(--ide-editor))]/70 hover:text-foreground'
