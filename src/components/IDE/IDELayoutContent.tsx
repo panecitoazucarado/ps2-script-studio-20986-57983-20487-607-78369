@@ -198,9 +198,24 @@ export function IDELayoutContent() {
           showPreview={showPreview && windows.preview.docked}
           showAIChat={showAIChat}
           onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
-          onTogglePreview={() => setShowPreview(!showPreview)}
-          onToggleAIChat={() => setShowAIChat(!showAIChat)}
+          onToggleAIChat={() => {
+            // Si IA Developer se va a abrir, cerrar Vista Previa
+            if (!showAIChat) {
+              setShowPreview(false);
+            }
+            setShowAIChat(!showAIChat);
+          }}
+          onTogglePreview={() => {
+            // Si Vista Previa se va a abrir, cerrar IA Developer
+            if (!showPreview) {
+              setShowAIChat(false);
+            }
+            setShowPreview(!showPreview);
+          }}
           onToggleAIChatWindow={() => {
+            if (!showAIChat) {
+              setShowPreview(false);
+            }
             setShowAIChat(!showAIChat);
             toggleWindowVisibility('aiChat');
           }}
@@ -245,77 +260,119 @@ export function IDELayoutContent() {
             
             <ResizablePanel defaultSize={showFileExplorer && windows.fileExplorer.docked && windows.fileExplorer.visible ? 80 : 100}>
               <ResizablePanelGroup direction="horizontal" className="flex-row-reverse">
+            <ResizablePanel 
+              defaultSize={50} 
+              minSize={30}
+            >
+              {selectedFile && isImageFile(selectedFile.name) ? (
+                <ImageViewer
+                  imageData={selectedFile.content || ''}
+                  filename={selectedFile.name}
+                />
+              ) : (
+                <CodeEditor
+                  code={code}
+                  onChange={handleCodeChange}
+                  onRun={handleRun}
+                  openTabs={openTabs}
+                  activeTabIndex={activeTabIndex}
+                  onTabChange={handleTabChange}
+                  onTabClose={handleTabClose}
+                  onFileRename={handleFileRename}
+                  onTabReorder={handleTabReorder}
+                />
+              )}
+            </ResizablePanel>
+            
+            {showPreview && windows.preview.docked && windows.preview.visible && (
+              <>
+                <ResizableHandle withHandle className="w-1.5 bg-border/50 hover:bg-ps2-purple/50 transition-all duration-200 data-[resize-handle-state=hover]:w-2 data-[resize-handle-state=drag]:w-2 data-[resize-handle-state=drag]:bg-ps2-purple group relative">
+                  <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:w-1.5 bg-ps2-purple/20 group-hover:bg-ps2-purple/40 transition-all" />
+                </ResizableHandle>
                 <ResizablePanel 
-                  defaultSize={showPreview && windows.preview.docked && windows.preview.visible ? 50 : 100}
-                  minSize={30}
+                  defaultSize={50} 
+                  minSize={25}
+                  maxSize={70}
+                  collapsible
+                  collapsedSize={0}
+                  onCollapse={() => setShowPreview(false)}
                 >
-                  {selectedFile && isImageFile(selectedFile.name) ? (
-                    <ImageViewer
-                      imageData={selectedFile.content || ''}
-                      filename={selectedFile.name}
-                    />
-                  ) : (
-                    <CodeEditor
-                      code={code}
-                      onChange={handleCodeChange}
-                      onRun={handleRun}
-                      openTabs={openTabs}
-                      activeTabIndex={activeTabIndex}
-                      onTabChange={handleTabChange}
-                      onTabClose={handleTabClose}
-                      onFileRename={handleFileRename}
-                      onTabReorder={handleTabReorder}
-                    />
-                  )}
-                </ResizablePanel>
-                
-                {showPreview && windows.preview.docked && windows.preview.visible && (
-                  <>
-                    <ResizableHandle withHandle className="w-1.5 bg-border/50 hover:bg-ps2-purple/50 transition-all duration-200 data-[resize-handle-state=hover]:w-2 data-[resize-handle-state=drag]:w-2 data-[resize-handle-state=drag]:bg-ps2-purple group relative">
-                      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:w-1.5 bg-ps2-purple/20 group-hover:bg-ps2-purple/40 transition-all" />
-                    </ResizableHandle>
-                    <ResizablePanel 
-                      defaultSize={50} 
-                      minSize={25}
-                      maxSize={70}
-                      collapsible
-                      collapsedSize={0}
-                      onCollapse={() => setShowPreview(false)}
+                  <div className="h-full flex flex-col">
+                    {/* Draggable header for undocking */}
+                    <div 
+                      ref={previewHeaderRef}
+                      className="flex items-center justify-between bg-muted/50 border-b border-border px-3 py-1.5 cursor-move select-none hover:bg-ps2-cyan/5 transition-colors group"
+                      onMouseDown={handlePreviewDrag}
                     >
-                      <div className="h-full flex flex-col">
-                        {/* Draggable header for undocking */}
-                        <div 
-                          ref={previewHeaderRef}
-                          className="flex items-center justify-between bg-muted/50 border-b border-border px-3 py-1.5 cursor-move select-none hover:bg-ps2-cyan/5 transition-colors group"
-                          onMouseDown={handlePreviewDrag}
-                        >
-                          <div className="flex items-center gap-2">
-                            <GripVertical className="w-3 h-3 text-muted-foreground group-hover:text-ps2-cyan transition-colors" />
-                            <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-                            <span className="text-xs font-medium group-hover:text-ps2-cyan transition-colors">VISTA PREVIA PS2</span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
-                            onClick={() => setShowPreview(false)}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                        
-                        <div className="flex-1 overflow-hidden">
-                          <PS2Preview
-                            code={code}
-                            isRunning={isRunning}
-                            onToggleRun={handleToggleRun}
-                            files={projectFiles}
-                          />
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <GripVertical className="w-3 h-3 text-muted-foreground group-hover:text-ps2-cyan transition-colors" />
+                        <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                        <span className="text-xs font-medium group-hover:text-ps2-cyan transition-colors">VISTA PREVIA PS2</span>
                       </div>
-                    </ResizablePanel>
-                  </>
-                )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
+                        onClick={() => setShowPreview(false)}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-hidden">
+                      <PS2Preview
+                        code={code}
+                        isRunning={isRunning}
+                        onToggleRun={handleToggleRun}
+                        files={projectFiles}
+                      />
+                    </div>
+                  </div>
+                </ResizablePanel>
+              </>
+            )}
+
+            {showAIChat && windows.aiChat && windows.aiChat.docked && windows.aiChat.visible && (
+              <>
+                <ResizableHandle withHandle className="w-1.5 bg-border/50 hover:bg-ps2-purple/50 transition-all duration-200 data-[resize-handle-state=hover]:w-2 data-[resize-handle-state=drag]:w-2 data-[resize-handle-state=drag]:bg-ps2-purple group relative">
+                  <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:w-1.5 bg-ps2-purple/20 group-hover:bg-ps2-purple/40 transition-all" />
+                </ResizableHandle>
+                <ResizablePanel 
+                  defaultSize={50} 
+                  minSize={25}
+                  maxSize={70}
+                  collapsible
+                  collapsedSize={0}
+                  onCollapse={() => setShowAIChat(false)}
+                >
+                  <div className="h-full flex flex-col">
+                    <div className="flex items-center justify-between bg-gradient-to-r from-ps2-purple/10 to-ps2-cyan/10 border-b border-border px-3 py-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-ps2-purple animate-pulse" />
+                        <span className="text-xs font-medium text-ps2-purple">IA DEVELOPER</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
+                        onClick={() => setShowAIChat(false)}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-hidden">
+                      <AIDeveloperChat 
+                        projectFiles={projectFiles}
+                        onFileSystemChange={() => {
+                          console.log('Sistema de archivos actualizado por IA');
+                        }}
+                      />
+                    </div>
+                  </div>
+                </ResizablePanel>
+              </>
+            )}
               </ResizablePanelGroup>
             </ResizablePanel>
           </ResizablePanelGroup>

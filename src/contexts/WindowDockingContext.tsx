@@ -46,10 +46,8 @@ const DEFAULT_WINDOWS: Record<WindowId, WindowState> = {
   },
   aiChat: {
     id: 'aiChat',
-    docked: false,
-    position: 'floating',
-    floatingPosition: { x: window.innerWidth / 2 - 250, y: window.innerHeight / 2 - 300 },
-    size: { width: 500, height: 600 },
+    docked: true,
+    position: 'right',
     visible: false,
     zIndex: 1,
   },
