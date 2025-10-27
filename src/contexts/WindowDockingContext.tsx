@@ -60,7 +60,12 @@ export function WindowDockingProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('athena-window-states');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Merge saved state with defaults to ensure all windows exist
+        return {
+          ...DEFAULT_WINDOWS,
+          ...parsed
+        };
       } catch {
         return DEFAULT_WINDOWS;
       }

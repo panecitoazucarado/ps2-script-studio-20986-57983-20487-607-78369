@@ -14,7 +14,7 @@ import { X, GripVertical } from 'lucide-react';
 import { useWindowDocking } from '@/contexts/WindowDockingContext';
 
 export function IDELayoutContent() {
-  const { windows, undockWindow, dockingEnabled } = useWindowDocking();
+  const { windows, undockWindow, dockingEnabled, toggleWindowVisibility } = useWindowDocking();
   
   const defaultFile: FileNode = {
     name: 'main.js',
@@ -200,6 +200,10 @@ export function IDELayoutContent() {
           onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
           onTogglePreview={() => setShowPreview(!showPreview)}
           onToggleAIChat={() => setShowAIChat(!showAIChat)}
+          onToggleAIChatWindow={() => {
+            setShowAIChat(!showAIChat);
+            toggleWindowVisibility('aiChat');
+          }}
         />
 
         <div className="flex-1 overflow-hidden">
@@ -354,7 +358,7 @@ export function IDELayoutContent() {
         </FloatingWindow>
       )}
 
-      {!windows.aiChat.docked && windows.aiChat.visible && (
+      {windows.aiChat && !windows.aiChat.docked && windows.aiChat.visible && (
         <FloatingWindow
           id="aiChat"
           title="IA Developer - Asistente de Desarrollo"

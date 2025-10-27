@@ -20,7 +20,6 @@ import {
   Bot
 } from 'lucide-react';
 import { WindowConfigMenu } from './WindowConfigMenu';
-import { useWindowDocking } from '@/contexts/WindowDockingContext';
 
 interface IDEHeaderProps {
   showFileExplorer: boolean;
@@ -29,6 +28,7 @@ interface IDEHeaderProps {
   onToggleFileExplorer: () => void;
   onTogglePreview: () => void;
   onToggleAIChat: () => void;
+  onToggleAIChatWindow: () => void;
 }
 
 export function IDEHeader({ 
@@ -37,9 +37,9 @@ export function IDEHeader({
   showAIChat,
   onToggleFileExplorer, 
   onTogglePreview,
-  onToggleAIChat
+  onToggleAIChat,
+  onToggleAIChatWindow
 }: IDEHeaderProps) {
-  const { toggleWindowVisibility } = useWindowDocking();
   return (
     <header className="ide-statusbar border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center justify-between px-4 py-2.5 gap-4">
@@ -85,7 +85,7 @@ export function IDEHeader({
               className="h-8 px-3 gap-2 bg-gradient-to-r from-ps2-purple/10 to-ps2-cyan/10 hover:from-ps2-purple/20 hover:to-ps2-cyan/20"
               onClick={() => {
                 onToggleAIChat();
-                toggleWindowVisibility('aiChat');
+                onToggleAIChatWindow();
               }}
             >
               <Bot className="w-4 h-4 text-ps2-purple" />
