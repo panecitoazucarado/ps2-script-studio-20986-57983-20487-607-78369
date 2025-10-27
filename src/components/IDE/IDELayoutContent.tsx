@@ -7,6 +7,7 @@ import { PS2Preview } from './PS2Preview';
 import { IDEHeader } from './IDEHeader';
 import { IDEStatusBar } from './IDEStatusBar';
 import { FloatingWindow } from './FloatingWindow';
+import { AIDeveloperChat } from './AIDeveloperChat';
 import { FileNode } from '@/types/athena';
 import { Button } from '@/components/ui/button';
 import { X, GripVertical } from 'lucide-react';
@@ -28,6 +29,7 @@ export function IDELayoutContent() {
   const [isRunning, setIsRunning] = useState(false);
   const [showFileExplorer, setShowFileExplorer] = useState(true);
   const [showPreview, setShowPreview] = useState(true);
+  const [showAIChat, setShowAIChat] = useState(false);
   const [projectFiles, setProjectFiles] = useState<FileNode[]>([]);
 
   const fileExplorerHeaderRef = useRef<HTMLDivElement>(null);
@@ -194,8 +196,10 @@ export function IDELayoutContent() {
         <IDEHeader 
           showFileExplorer={showFileExplorer && windows.fileExplorer.docked}
           showPreview={showPreview && windows.preview.docked}
+          showAIChat={showAIChat}
           onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
           onTogglePreview={() => setShowPreview(!showPreview)}
+          onToggleAIChat={() => setShowAIChat(!showAIChat)}
         />
 
         <div className="flex-1 overflow-hidden">
@@ -346,6 +350,22 @@ export function IDELayoutContent() {
             isRunning={isRunning}
             onToggleRun={handleToggleRun}
             files={projectFiles}
+          />
+        </FloatingWindow>
+      )}
+
+      {!windows.aiChat.docked && windows.aiChat.visible && (
+        <FloatingWindow
+          id="aiChat"
+          title="IA Developer - Asistente de Desarrollo"
+          onClose={() => setShowAIChat(false)}
+        >
+          <AIDeveloperChat 
+            projectFiles={projectFiles}
+            onFileSystemChange={() => {
+              // Recargar el explorador de archivos cuando la IA modifique archivos
+              console.log('Sistema de archivos actualizado por IA');
+            }}
           />
         </FloatingWindow>
       )}

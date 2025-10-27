@@ -16,23 +16,30 @@ import {
   MonitorPlay,
   Eye,
   EyeOff,
-  Sidebar
+  Sidebar,
+  Bot
 } from 'lucide-react';
 import { WindowConfigMenu } from './WindowConfigMenu';
+import { useWindowDocking } from '@/contexts/WindowDockingContext';
 
 interface IDEHeaderProps {
   showFileExplorer: boolean;
   showPreview: boolean;
+  showAIChat: boolean;
   onToggleFileExplorer: () => void;
   onTogglePreview: () => void;
+  onToggleAIChat: () => void;
 }
 
 export function IDEHeader({ 
   showFileExplorer, 
-  showPreview, 
+  showPreview,
+  showAIChat,
   onToggleFileExplorer, 
-  onTogglePreview 
+  onTogglePreview,
+  onToggleAIChat
 }: IDEHeaderProps) {
+  const { toggleWindowVisibility } = useWindowDocking();
   return (
     <header className="ide-statusbar border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center justify-between px-4 py-2.5 gap-4">
@@ -68,6 +75,21 @@ export function IDEHeader({
             >
               <MonitorPlay className="w-4 h-4" />
               <span className="hidden sm:inline">Vista Previa</span>
+            </Button>
+            
+            <Separator orientation="vertical" className="h-6 mx-1" />
+            
+            <Button 
+              variant={showAIChat ? "secondary" : "ghost"}
+              size="sm" 
+              className="h-8 px-3 gap-2 bg-gradient-to-r from-ps2-purple/10 to-ps2-cyan/10 hover:from-ps2-purple/20 hover:to-ps2-cyan/20"
+              onClick={() => {
+                onToggleAIChat();
+                toggleWindowVisibility('aiChat');
+              }}
+            >
+              <Bot className="w-4 h-4 text-ps2-purple" />
+              <span className="hidden sm:inline text-ps2-purple">IA Developer</span>
             </Button>
           </div>
         </div>
