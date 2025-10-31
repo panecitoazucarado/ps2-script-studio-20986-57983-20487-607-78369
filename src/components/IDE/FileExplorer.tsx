@@ -27,15 +27,20 @@ interface FileExplorerProps {
   onFileSelect: (file: FileNode) => void;
   selectedFile?: FileNode;
   onProjectLoad?: (files: FileNode[]) => void;
+  onFileSystemUpdate?: (files: FileNode[]) => void;
 }
 
 const initialFileSystem: FileNode[] = [];
 
-export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: FileExplorerProps) {
+export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad, onFileSystemUpdate }: FileExplorerProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set([]));
   const [searchTerm, setSearchTerm] = useState('');
   const [fileSystem, setFileSystem] = useState<FileNode[]>(initialFileSystem);
-  const fileInputRef = useState<HTMLInputElement | null>(null)[0];
+  const [showNewFileDialog, setShowNewFileDialog] = useState(false);
+  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
+  const [newFileName, setNewFileName] = useState('');
+  const [newFolderName, setNewFolderName] = useState('');
+  const [selectedFolderPath, setSelectedFolderPath] = useState<string>('/');
 
   const handleFolderImport = () => {
     const input = document.createElement('input');
@@ -207,6 +212,93 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
     return rootNodes;
   };
 
+  const updateFileSystem = (newFileSystem: FileNode[]) => {
+    setFileSystem(newFileSystem);
+    onFileSystemUpdate?.(newFileSystem);
+  };
+
+  const handleCreateFile = () => {
+    if (!newFileName.trim()) return;
+    
+    const extension = newFileName.includes('.') ? newFileName.split('.').pop()?.toLowerCase() : 'txt';
+    const filePath = selectedFolderPath === '/' ? `/${newFileName}` : `${selectedFolderPath}/${newFileName}`;
+    
+    const newFile: FileNode = {
+      name: newFileName,
+      type: 'file',
+      path: filePath,
+      content: getDefaultContentByExtension(extension || '')
+    };
+
+    const updatedFileSystem = addFileToTree(fileSystem, newFile, selectedFolderPath);
+    updateFileSystem(updatedFileSystem);
+    setNewFileName('');
+    setShowNewFileDialog(false);
+  };
+
+  const handleCreateFolder = () => {
+    if (!newFolderName.trim()) return;
+    
+    const folderPath = selectedFolderPath === '/' ? `/${newFolderName}` : `${selectedFolderPath}/${newFolderName}`;
+    
+    const newFolder: FileNode = {
+      name: newFolderName,
+      type: 'folder',
+      path: folderPath,
+      children: []
+    };
+
+    const updatedFileSystem = addFileToTree(fileSystem, newFolder, selectedFolderPath);
+    updateFileSystem(updatedFileSystem);
+    setExpandedFolders(prev => new Set([...prev, folderPath]));
+    setNewFolderName('');
+    setShowNewFolderDialog(false);
+  };
+
+  const addFileToTree = (tree: FileNode[], newNode: FileNode, targetPath: string): FileNode[] => {
+    if (targetPath === '/') {
+      return [...tree, newNode];
+    }
+
+    return tree.map(node => {
+      if (node.type === 'folder' && node.path === targetPath) {
+        return {
+          ...node,
+          children: [...(node.children || []), newNode]
+        };
+      } else if (node.type === 'folder' && node.children) {
+        return {
+          ...node,
+          children: addFileToTree(node.children, newNode, targetPath)
+        };
+      }
+      return node;
+    });
+  };
+
+  const getDefaultContentByExtension = (ext: string): string => {
+    switch (ext) {
+      case 'js':
+        return '// ATHENA ENV JavaScript file\n\n';
+      case 'c':
+        return '#include <stdio.h>\n\nint main() {\n    return 0;\n}\n';
+      case 'h':
+        return '#ifndef HEADER_H\n#define HEADER_H\n\n#endif\n';
+      case 'html':
+        return '<!DOCTYPE html>\n<html>\n<head>\n    <title>Document</title>\n</head>\n<body>\n    \n</body>\n</html>\n';
+      case 'css':
+        return '/* Stylesheet */\n\n';
+      case 'json':
+        return '{\n    \n}\n';
+      case 'ini':
+      case 'cnf':
+      case 'cfg':
+        return '# Configuration file\n\n';
+      default:
+        return '';
+    }
+  };
+
   const toggleFolder = (path: string) => {
     setExpandedFolders(prev => {
       const newSet = new Set(prev);
@@ -267,7 +359,7 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
 
   const hasSearchResults = searchTerm ? countFilteredFiles(fileSystem, searchTerm) > 0 : true;
 
-  const renderFileTree = (nodes: FileNode[], depth = 0) => {
+  const renderFileTree = (nodes: FileNode[], depth = 0, parentPath = '/') => {
     return nodes
       .filter(node => 
         searchTerm === '' || 
@@ -276,15 +368,22 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
       .map(node => (
         <div key={node.path}>
           <div
-            className={`flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-accent/50 transition-colors ${
+            className={`flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-accent/50 transition-colors group ${
               selectedFile?.path === node.path ? 'bg-accent text-accent-foreground' : ''
             }`}
             style={{ paddingLeft: `${8 + depth * 16}px` }}
             onClick={() => {
               if (node.type === 'folder') {
                 toggleFolder(node.path);
+                setSelectedFolderPath(node.path);
               } else {
                 onFileSelect(node);
+              }
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              if (node.type === 'folder') {
+                setSelectedFolderPath(node.path);
               }
             }}
           >
@@ -309,7 +408,7 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
           {node.type === 'folder' && 
            expandedFolders.has(node.path) && 
            node.children && 
-           renderFileTree(node.children, depth + 1)}
+           renderFileTree(node.children, depth + 1, node.path)}
         </div>
       ));
   };
@@ -325,6 +424,24 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
               variant="ghost" 
               size="sm" 
               className="h-6 w-6 p-0"
+              onClick={() => setShowNewFileDialog(true)}
+              title="Crear nuevo archivo"
+            >
+              <File className="w-3 h-3" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0"
+              onClick={() => setShowNewFolderDialog(true)}
+              title="Crear nueva carpeta"
+            >
+              <FolderOpen className="w-3 h-3" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0"
               onClick={handleFolderImport}
               title="Importar proyecto Athena ENV"
             >
@@ -334,13 +451,101 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad }: File
               variant="ghost" 
               size="sm" 
               className="h-6 w-6 p-0"
-              onClick={() => setFileSystem([])}
+              onClick={() => {
+                setFileSystem([]);
+                updateFileSystem([]);
+              }}
               title="Limpiar proyecto"
             >
               <RefreshCw className="w-3 h-3" />
             </Button>
           </div>
         </div>
+
+        {/* New File Dialog */}
+        {showNewFileDialog && (
+          <div className="mb-3 p-2 bg-muted rounded-md border border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <File className="w-4 h-4 text-ps2-cyan" />
+              <span className="text-sm font-medium">Nuevo Archivo</span>
+            </div>
+            <Input
+              value={newFileName}
+              onChange={(e) => setNewFileName(e.target.value)}
+              placeholder="nombre.js"
+              className="mb-2 h-7 text-xs"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') handleCreateFile();
+                if (e.key === 'Escape') setShowNewFileDialog(false);
+              }}
+              autoFocus
+            />
+            <div className="flex gap-1">
+              <Button 
+                size="sm" 
+                className="h-6 flex-1 text-xs bg-ps2-cyan hover:bg-ps2-cyan/90"
+                onClick={handleCreateFile}
+              >
+                Crear
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost"
+                className="h-6 flex-1 text-xs"
+                onClick={() => {
+                  setShowNewFileDialog(false);
+                  setNewFileName('');
+                }}
+              >
+                Cancelar
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Extensiones: .js .c .h .html .css .json .ini .cfg .jpg y más
+            </p>
+          </div>
+        )}
+
+        {/* New Folder Dialog */}
+        {showNewFolderDialog && (
+          <div className="mb-3 p-2 bg-muted rounded-md border border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <FolderOpen className="w-4 h-4 text-ps2-blue" />
+              <span className="text-sm font-medium">Nueva Carpeta</span>
+            </div>
+            <Input
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="nombre-carpeta"
+              className="mb-2 h-7 text-xs"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') handleCreateFolder();
+                if (e.key === 'Escape') setShowNewFolderDialog(false);
+              }}
+              autoFocus
+            />
+            <div className="flex gap-1">
+              <Button 
+                size="sm" 
+                className="h-6 flex-1 text-xs bg-ps2-blue hover:bg-ps2-blue/90"
+                onClick={handleCreateFolder}
+              >
+                Crear
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost"
+                className="h-6 flex-1 text-xs"
+                onClick={() => {
+                  setShowNewFolderDialog(false);
+                  setNewFolderName('');
+                }}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         {fileSystem.length > 0 && (

@@ -31,6 +31,7 @@ export function IDELayoutContent() {
   const [showPreview, setShowPreview] = useState(true);
   const [showAIChat, setShowAIChat] = useState(false);
   const [projectFiles, setProjectFiles] = useState<FileNode[]>([]);
+  const [fileSystemVersion, setFileSystemVersion] = useState(0);
 
   const fileExplorerHeaderRef = useRef<HTMLDivElement>(null);
   const previewHeaderRef = useRef<HTMLDivElement>(null);
@@ -130,6 +131,134 @@ export function IDELayoutContent() {
   const handleToggleRun = useCallback(() => {
     setIsRunning(prev => !prev);
   }, []);
+
+  // Manejar actualizaciones del sistema de archivos
+  const handleFileSystemUpdate = useCallback((newFiles: FileNode[]) => {
+    setProjectFiles(newFiles);
+    setFileSystemVersion(prev => prev + 1);
+  }, []);
+
+  // Aplicar operaciones de archivos generadas por la IA
+  const handleApplyFileOperations = useCallback((operations: any[]) => {
+    let updatedFiles = [...projectFiles];
+
+    operations.forEach(op => {
+      switch (op.operation) {
+        case 'create_file': {
+          const newFile: FileNode = {
+            name: op.path.split('/').pop() || 'untitled',
+            type: 'file',
+            path: op.path,
+            content: op.content || ''
+          };
+          updatedFiles = addOrUpdateFileInTree(updatedFiles, newFile);
+          
+          // Abrir el archivo creado
+          handleFileSelect(newFile);
+          break;
+        }
+        case 'update_file': {
+          updatedFiles = updateFileInTree(updatedFiles, op.path, op.content);
+          
+          // Actualizar tabs abiertos
+          setOpenTabs(prev => prev.map(tab => 
+            tab.path === op.path ? { ...tab, content: op.content } : tab
+          ));
+          if (selectedFile?.path === op.path) {
+            setCode(op.content);
+          }
+          break;
+        }
+        case 'create_folder': {
+          const newFolder: FileNode = {
+            name: op.path.split('/').pop() || 'folder',
+            type: 'folder',
+            path: op.path,
+            children: []
+          };
+          updatedFiles = addOrUpdateFileInTree(updatedFiles, newFolder);
+          break;
+        }
+        case 'delete_file': {
+          updatedFiles = deleteFileFromTree(updatedFiles, op.path);
+          
+          // Cerrar tab si está abierto
+          const tabIndex = openTabs.findIndex(tab => tab.path === op.path);
+          if (tabIndex !== -1) {
+            handleTabClose(tabIndex);
+          }
+          break;
+        }
+        case 'rename_file': {
+          updatedFiles = renameFileInTree(updatedFiles, op.oldPath, op.newPath);
+          
+          // Actualizar tabs abiertos
+          setOpenTabs(prev => prev.map(tab => 
+            tab.path === op.oldPath ? { ...tab, path: op.newPath, name: op.newPath.split('/').pop() || tab.name } : tab
+          ));
+          break;
+        }
+      }
+    });
+
+    handleFileSystemUpdate(updatedFiles);
+  }, [projectFiles, handleFileSelect, selectedFile, openTabs, handleTabClose]);
+
+  // Funciones auxiliares para manipular el árbol de archivos
+  const addOrUpdateFileInTree = (tree: FileNode[], newNode: FileNode): FileNode[] => {
+    const pathParts = newNode.path.split('/').filter(Boolean);
+    if (pathParts.length === 1) {
+      const existingIndex = tree.findIndex(n => n.path === newNode.path);
+      if (existingIndex >= 0) {
+        const updated = [...tree];
+        updated[existingIndex] = newNode;
+        return updated;
+      }
+      return [...tree, newNode];
+    }
+
+    return tree.map(node => {
+      if (node.type === 'folder' && newNode.path.startsWith(node.path + '/')) {
+        return {
+          ...node,
+          children: addOrUpdateFileInTree(node.children || [], newNode)
+        };
+      }
+      return node;
+    });
+  };
+
+  const updateFileInTree = (tree: FileNode[], path: string, content: string): FileNode[] => {
+    return tree.map(node => {
+      if (node.path === path && node.type === 'file') {
+        return { ...node, content };
+      } else if (node.type === 'folder' && node.children) {
+        return { ...node, children: updateFileInTree(node.children, path, content) };
+      }
+      return node;
+    });
+  };
+
+  const deleteFileFromTree = (tree: FileNode[], path: string): FileNode[] => {
+    return tree.filter(node => {
+      if (node.path === path) return false;
+      if (node.type === 'folder' && node.children) {
+        node.children = deleteFileFromTree(node.children, path);
+      }
+      return true;
+    });
+  };
+
+  const renameFileInTree = (tree: FileNode[], oldPath: string, newPath: string): FileNode[] => {
+    return tree.map(node => {
+      if (node.path === oldPath) {
+        return { ...node, path: newPath, name: newPath.split('/').pop() || node.name };
+      } else if (node.type === 'folder' && node.children) {
+        return { ...node, children: renameFileInTree(node.children, oldPath, newPath) };
+      }
+      return node;
+    });
+  };
 
   // Handle dragging to undock
   const handleFileExplorerDrag = (e: React.MouseEvent) => {
@@ -244,11 +373,12 @@ export function IDELayoutContent() {
                       <span className="text-xs font-semibold text-muted-foreground group-hover:text-ps2-cyan transition-colors">EXPLORADOR</span>
                     </div>
                     <div className="flex-1 overflow-hidden">
-                      <FileExplorer 
-                        onFileSelect={handleFileSelect}
-                        selectedFile={selectedFile}
-                        onProjectLoad={setProjectFiles}
-                      />
+          <FileExplorer 
+            onFileSelect={handleFileSelect}
+            selectedFile={selectedFile}
+            onProjectLoad={setProjectFiles}
+            onFileSystemUpdate={handleFileSystemUpdate}
+          />
                     </div>
                   </div>
                 </ResizablePanel>
@@ -364,9 +494,8 @@ export function IDELayoutContent() {
                     <div className="flex-1 overflow-hidden">
                       <AIDeveloperChat 
                         projectFiles={projectFiles}
-                        onFileSystemChange={() => {
-                          console.log('Sistema de archivos actualizado por IA');
-                        }}
+                        onFileSystemChange={handleFileSystemUpdate}
+                        onApplyFileOperations={handleApplyFileOperations}
                       />
                     </div>
                   </div>
@@ -396,6 +525,7 @@ export function IDELayoutContent() {
             onFileSelect={handleFileSelect}
             selectedFile={selectedFile}
             onProjectLoad={setProjectFiles}
+            onFileSystemUpdate={handleFileSystemUpdate}
           />
         </FloatingWindow>
       )}
@@ -423,10 +553,8 @@ export function IDELayoutContent() {
         >
           <AIDeveloperChat 
             projectFiles={projectFiles}
-            onFileSystemChange={() => {
-              // Recargar el explorador de archivos cuando la IA modifique archivos
-              console.log('Sistema de archivos actualizado por IA');
-            }}
+            onFileSystemChange={handleFileSystemUpdate}
+            onApplyFileOperations={handleApplyFileOperations}
           />
         </FloatingWindow>
       )}
