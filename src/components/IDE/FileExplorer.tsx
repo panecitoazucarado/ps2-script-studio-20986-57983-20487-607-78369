@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,21 +18,56 @@ import {
   Download,
   Save,
   X,
-  SearchX
+  SearchX,
+  Trash2,
+  Edit3,
+  Info,
+  History,
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { FileNode } from '@/types/athena';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface FileExplorerProps {
   onFileSelect: (file: FileNode) => void;
   selectedFile?: FileNode;
   onProjectLoad?: (files: FileNode[]) => void;
   onFileSystemUpdate?: (files: FileNode[]) => void;
+  onAIConsult?: (file: FileNode, action: 'consult' | 'analyze' | 'improve') => void;
+}
+
+interface FileMetadata {
+  size: number;
+  created: Date;
+  modified: Date;
+  type: string;
+  lines?: number;
+}
+
+interface FileHistory {
+  timestamp: Date;
+  action: string;
+  size: number;
 }
 
 const initialFileSystem: FileNode[] = [];
 
-export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad, onFileSystemUpdate }: FileExplorerProps) {
+export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad, onFileSystemUpdate, onAIConsult }: FileExplorerProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set([]));
   const [searchTerm, setSearchTerm] = useState('');
   const [fileSystem, setFileSystem] = useState<FileNode[]>(initialFileSystem);
@@ -41,6 +76,21 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad, onFile
   const [newFileName, setNewFileName] = useState('');
   const [newFolderName, setNewFolderName] = useState('');
   const [selectedFolderPath, setSelectedFolderPath] = useState<string>('/');
+  
+  // Context menu & rename states
+  const [renamingFile, setRenamingFile] = useState<FileNode | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [contextMenuFile, setContextMenuFile] = useState<FileNode | null>(null);
+  
+  // Dialog states
+  const [showInfoDialog, setShowInfoDialog] = useState(false);
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+  const [fileMetadata, setFileMetadata] = useState<FileMetadata | null>(null);
+  const [fileHistory, setFileHistory] = useState<FileHistory[]>([]);
+  
+  // Double click detection
+  const lastClickTime = useRef<number>(0);
+  const lastClickedFile = useRef<string>('');
 
   const handleFolderImport = () => {
     const input = document.createElement('input');
@@ -299,6 +349,129 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad, onFile
     }
   };
 
+  // Handle double click to rename
+  const handleFileClick = (node: FileNode) => {
+    const now = Date.now();
+    const timeDiff = now - lastClickTime.current;
+    
+    if (timeDiff < 300 && lastClickedFile.current === node.path) {
+      // Double click detected
+      if (node.type === 'file') {
+        setRenamingFile(node);
+        setRenameValue(node.name);
+      }
+    } else {
+      // Single click
+      if (node.type === 'folder') {
+        toggleFolder(node.path);
+        setSelectedFolderPath(node.path);
+      } else {
+        onFileSelect(node);
+      }
+    }
+    
+    lastClickTime.current = now;
+    lastClickedFile.current = node.path;
+  };
+
+  // Delete file/folder
+  const handleDelete = (node: FileNode) => {
+    if (confirm(`¿Estás seguro de que quieres eliminar "${node.name}"?`)) {
+      const updatedFileSystem = deleteFileFromTree(fileSystem, node.path);
+      updateFileSystem(updatedFileSystem);
+    }
+  };
+
+  const deleteFileFromTree = (tree: FileNode[], targetPath: string): FileNode[] => {
+    return tree.filter(node => {
+      if (node.path === targetPath) {
+        return false;
+      }
+      if (node.type === 'folder' && node.children) {
+        node.children = deleteFileFromTree(node.children, targetPath);
+      }
+      return true;
+    });
+  };
+
+  // Rename file/folder
+  const handleRename = (oldNode: FileNode, newName: string) => {
+    if (!newName.trim() || newName === oldNode.name) {
+      setRenamingFile(null);
+      return;
+    }
+
+    const pathParts = oldNode.path.split('/');
+    pathParts[pathParts.length - 1] = newName;
+    const newPath = pathParts.join('/');
+
+    const updatedFileSystem = renameFileInTree(fileSystem, oldNode.path, newName, newPath);
+    updateFileSystem(updatedFileSystem);
+    setRenamingFile(null);
+  };
+
+  const renameFileInTree = (tree: FileNode[], oldPath: string, newName: string, newPath: string): FileNode[] => {
+    return tree.map(node => {
+      if (node.path === oldPath) {
+        return { ...node, name: newName, path: newPath };
+      }
+      if (node.type === 'folder' && node.children) {
+        return {
+          ...node,
+          children: renameFileInTree(node.children, oldPath, newName, newPath)
+        };
+      }
+      return node;
+    });
+  };
+
+  // Get file metadata
+  const getFileMetadata = (node: FileNode): FileMetadata => {
+    const content = node.content || '';
+    const size = new Blob([content]).size;
+    const lines = content.split('\n').length;
+    const extension = node.name.split('.').pop()?.toLowerCase() || '';
+    
+    return {
+      size,
+      created: new Date(), // In real app, this would come from file system
+      modified: new Date(),
+      type: extension,
+      lines: node.type === 'file' ? lines : undefined
+    };
+  };
+
+  // Show file info
+  const handleShowInfo = (node: FileNode) => {
+    setContextMenuFile(node);
+    setFileMetadata(getFileMetadata(node));
+    setShowInfoDialog(true);
+  };
+
+  // Show history
+  const handleShowHistory = (node: FileNode) => {
+    setContextMenuFile(node);
+    // In real app, this would come from version control
+    setFileHistory([
+      { timestamp: new Date(), action: 'Creado', size: getFileMetadata(node).size },
+      { timestamp: new Date(Date.now() - 3600000), action: 'Modificado', size: getFileMetadata(node).size - 100 },
+    ]);
+    setShowHistoryDialog(true);
+  };
+
+  // AI actions
+  const handleAIAction = (node: FileNode, action: 'consult' | 'analyze' | 'improve') => {
+    onAIConsult?.(node, action);
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   const toggleFolder = (path: string) => {
     setExpandedFolders(prev => {
       const newSet = new Set(prev);
@@ -365,52 +538,118 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad, onFile
         searchTerm === '' || 
         node.name.toLowerCase().includes(searchTerm.toLowerCase())
       )
-      .map(node => (
-        <div key={node.path}>
-          <div
-            className={`flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-accent/50 transition-colors group ${
-              selectedFile?.path === node.path ? 'bg-accent text-accent-foreground' : ''
-            }`}
-            style={{ paddingLeft: `${8 + depth * 16}px` }}
-            onClick={() => {
-              if (node.type === 'folder') {
-                toggleFolder(node.path);
-                setSelectedFolderPath(node.path);
-              } else {
-                onFileSelect(node);
-              }
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              if (node.type === 'folder') {
-                setSelectedFolderPath(node.path);
-              }
-            }}
-          >
-            {node.type === 'folder' && (
-              <button className="p-0 h-auto">
-                {expandedFolders.has(node.path) ? (
-                  <ChevronDown className="w-3 h-3" />
-                ) : (
-                  <ChevronRight className="w-3 h-3" />
+      .map(node => {
+        const isRenaming = renamingFile?.path === node.path;
+        
+        return (
+          <div key={node.path}>
+            <ContextMenu>
+              <ContextMenuTrigger>
+                <div
+                  className={`flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-accent/50 transition-colors group ${
+                    selectedFile?.path === node.path ? 'bg-accent text-accent-foreground' : ''
+                  }`}
+                  style={{ paddingLeft: `${8 + depth * 16}px` }}
+                  onClick={() => handleFileClick(node)}
+                >
+                  {node.type === 'folder' && (
+                    <button className="p-0 h-auto">
+                      {expandedFolders.has(node.path) ? (
+                        <ChevronDown className="w-3 h-3" />
+                      ) : (
+                        <ChevronRight className="w-3 h-3" />
+                      )}
+                    </button>
+                  )}
+                  {getFileIcon(node)}
+                  
+                  {isRenaming ? (
+                    <Input
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={() => handleRename(node, renameValue)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleRename(node, renameValue);
+                        } else if (e.key === 'Escape') {
+                          setRenamingFile(null);
+                        }
+                      }}
+                      className="h-5 text-xs flex-1 px-1"
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <>
+                      <span className="text-sm truncate flex-1">{node.name}</span>
+                      {node.name.endsWith('.js') && (
+                        <Badge variant="outline" className="text-xs px-1 py-0">
+                          JS
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                </div>
+              </ContextMenuTrigger>
+              
+              <ContextMenuContent className="w-64 bg-background/95 backdrop-blur-sm border-border">
+                <ContextMenuItem onClick={() => {
+                  setRenamingFile(node);
+                  setRenameValue(node.name);
+                }} className="gap-2 cursor-pointer">
+                  <Edit3 className="w-4 h-4 text-ps2-cyan" />
+                  <span>Renombrar</span>
+                  <span className="ml-auto text-xs text-muted-foreground">F2</span>
+                </ContextMenuItem>
+                
+                <ContextMenuItem onClick={() => handleDelete(node)} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+                  <Trash2 className="w-4 h-4" />
+                  <span>Eliminar</span>
+                  <span className="ml-auto text-xs text-muted-foreground">Del</span>
+                </ContextMenuItem>
+                
+                <ContextMenuSeparator />
+                
+                <ContextMenuItem onClick={() => handleShowInfo(node)} className="gap-2 cursor-pointer">
+                  <Info className="w-4 h-4 text-ps2-blue" />
+                  <span>Información</span>
+                </ContextMenuItem>
+                
+                <ContextMenuItem onClick={() => handleShowHistory(node)} className="gap-2 cursor-pointer">
+                  <History className="w-4 h-4 text-ps2-purple" />
+                  <span>Historial de cambios</span>
+                </ContextMenuItem>
+                
+                {node.type === 'file' && (
+                  <>
+                    <ContextMenuSeparator />
+                    
+                    <ContextMenuItem onClick={() => handleAIAction(node, 'consult')} className="gap-2 cursor-pointer">
+                      <MessageSquare className="w-4 h-4 text-ps2-green" />
+                      <span>Consultar con IA</span>
+                    </ContextMenuItem>
+                    
+                    <ContextMenuItem onClick={() => handleAIAction(node, 'analyze')} className="gap-2 cursor-pointer">
+                      <Sparkles className="w-4 h-4 text-ps2-orange" />
+                      <span>Analizar con IA</span>
+                    </ContextMenuItem>
+                    
+                    <ContextMenuItem onClick={() => handleAIAction(node, 'improve')} className="gap-2 cursor-pointer">
+                      <Sparkles className="w-4 h-4 text-ps2-cyan" />
+                      <span>Mejorar con IA</span>
+                    </ContextMenuItem>
+                  </>
                 )}
-              </button>
-            )}
-            {getFileIcon(node)}
-            <span className="text-sm truncate flex-1">{node.name}</span>
-            {node.name.endsWith('.js') && (
-              <Badge variant="outline" className="text-xs px-1 py-0">
-                JS
-              </Badge>
-            )}
+              </ContextMenuContent>
+            </ContextMenu>
+            
+            {node.type === 'folder' && 
+             expandedFolders.has(node.path) && 
+             node.children && 
+             renderFileTree(node.children, depth + 1, node.path)}
           </div>
-          
-          {node.type === 'folder' && 
-           expandedFolders.has(node.path) && 
-           node.children && 
-           renderFileTree(node.children, depth + 1, node.path)}
-        </div>
-      ));
+        );
+      });
   };
 
   return (
@@ -670,6 +909,98 @@ export function FileExplorer({ onFileSelect, selectedFile, onProjectLoad, onFile
           </Badge>
         </div>
       </div>
+
+      {/* File Info Dialog */}
+      <Dialog open={showInfoDialog} onOpenChange={setShowInfoDialog}>
+        <DialogContent className="max-w-md bg-background/95 backdrop-blur-sm border-border">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="w-5 h-5 text-ps2-blue" />
+              Información del archivo
+            </DialogTitle>
+            <DialogDescription>
+              Detalles y metadatos de {contextMenuFile?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {fileMetadata && (
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between py-2 border-b border-border">
+                <span className="text-muted-foreground">Nombre:</span>
+                <span className="font-medium">{contextMenuFile?.name}</span>
+              </div>
+              
+              <div className="flex justify-between py-2 border-b border-border">
+                <span className="text-muted-foreground">Tipo:</span>
+                <Badge variant="outline" className="text-xs">{fileMetadata.type.toUpperCase()}</Badge>
+              </div>
+              
+              <div className="flex justify-between py-2 border-b border-border">
+                <span className="text-muted-foreground">Tamaño:</span>
+                <span className="font-mono text-xs">{formatBytes(fileMetadata.size)}</span>
+              </div>
+              
+              {fileMetadata.lines && (
+                <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-muted-foreground">Líneas:</span>
+                  <span className="font-mono text-xs">{fileMetadata.lines}</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between py-2 border-b border-border">
+                <span className="text-muted-foreground">Creado:</span>
+                <span className="text-xs">{fileMetadata.created.toLocaleString()}</span>
+              </div>
+              
+              <div className="flex justify-between py-2">
+                <span className="text-muted-foreground">Modificado:</span>
+                <span className="text-xs">{fileMetadata.modified.toLocaleString()}</span>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* File History Dialog */}
+      <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+        <DialogContent className="max-w-2xl bg-background/95 backdrop-blur-sm border-border">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="w-5 h-5 text-ps2-purple" />
+              Historial de cambios
+            </DialogTitle>
+            <DialogDescription>
+              Registro de modificaciones de {contextMenuFile?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {fileHistory.map((entry, index) => (
+              <div key={index} className="flex items-center gap-3 p-3 bg-accent/30 rounded-lg border border-border/50">
+                <div className="w-2 h-2 rounded-full bg-ps2-purple"></div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-sm">{entry.action}</span>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {formatBytes(entry.size)}
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {entry.timestamp.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            ))}
+            
+            {fileHistory.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <History className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No hay historial disponible</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

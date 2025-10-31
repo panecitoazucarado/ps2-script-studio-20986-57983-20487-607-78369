@@ -378,6 +378,11 @@ export function IDELayoutContent() {
             selectedFile={selectedFile}
             onProjectLoad={setProjectFiles}
             onFileSystemUpdate={handleFileSystemUpdate}
+            onAIConsult={(file, action) => {
+              setShowAIChat(true);
+              setShowPreview(false);
+              console.log(`AI ${action} requested for:`, file.name);
+            }}
           />
                     </div>
                   </div>
@@ -526,6 +531,11 @@ export function IDELayoutContent() {
             selectedFile={selectedFile}
             onProjectLoad={setProjectFiles}
             onFileSystemUpdate={handleFileSystemUpdate}
+            onAIConsult={(file, action) => {
+              setShowAIChat(true);
+              setShowPreview(false);
+              console.log(`AI ${action} requested for:`, file.name);
+            }}
           />
         </FloatingWindow>
       )}
