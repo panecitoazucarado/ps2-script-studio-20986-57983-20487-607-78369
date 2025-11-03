@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3, MessageSquare, Save } from 'lucide-react';
+import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3, MessageSquare, Save, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/athena';
@@ -255,6 +255,28 @@ export function AIDeveloperChat({
     }
   };
 
+  // Copiar toda la conversación
+  const handleCopyConversation = () => {
+    const conversationText = messages.map(m => {
+      const role = m.role === 'user' ? 'Usuario' : 'IA Developer';
+      const time = new Date(m.timestamp).toLocaleString();
+      return `[${role}] - ${time}\n${m.content}\n`;
+    }).join('\n---\n\n');
+
+    navigator.clipboard.writeText(conversationText).then(() => {
+      toast({
+        title: "Conversación copiada",
+        description: "Toda la conversación ha sido copiada al portapapeles",
+      });
+    }).catch(() => {
+      toast({
+        title: "Error",
+        description: "No se pudo copiar la conversación",
+        variant: "destructive"
+      });
+    });
+  };
+
   const renderFileOperationBadge = (operation: FileOperation) => {
     const icons: Record<string, any> = {
       create_file: <FileText className="w-3 h-3" />,
@@ -345,6 +367,16 @@ export function AIDeveloperChat({
               <Button
                 size="sm"
                 variant="ghost"
+                onClick={handleCopyConversation}
+                disabled={messages.length <= 1}
+                className="h-7 px-2 text-xs hover:bg-green-500/20 hover:text-green-500"
+              >
+                <Copy className="w-3.5 h-3.5 mr-1" />
+                Copiar Chat
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
                 onClick={saveCurrentConversation}
                 disabled={messages.length <= 1}
                 className="h-7 px-2 text-xs hover:bg-ps2-purple/20 hover:text-ps2-purple"
@@ -385,7 +417,7 @@ export function AIDeveloperChat({
                         message.role === 'user'
                           ? 'bg-ps2-cyan/20 text-foreground'
                           : 'bg-muted text-foreground'
-                      }`}
+                      } max-w-full overflow-x-auto`}
                     >
                       {message.role === 'assistant' ? (
                         <div className="space-y-4">
@@ -479,7 +511,7 @@ export function AIDeveloperChat({
               <div className="flex items-center gap-3 text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Code2 className="w-3 h-3" />
-                  Análisis profundo de código
+                  Código completo sin límites
                 </span>
                 <span className="flex items-center gap-1">
                   <FileText className="w-3 h-3" />
