@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3 } from 'lucide-react';
+import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3, MessageSquare, Save } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/athena';
+import { AICodeBlock } from './AICodeBlock';
+import { ConversationManager, Conversation } from './ConversationManager';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -28,9 +29,17 @@ interface AIDeveloperChatProps {
   onFileSystemChange?: (files: FileNode[]) => void;
   projectFiles?: FileNode[];
   onApplyFileOperations?: (operations: FileOperation[]) => void;
+  onApplyCode?: (code: string, language: string) => void;
+  currentFile?: FileNode;
 }
 
-export function AIDeveloperChat({ onFileSystemChange, projectFiles = [], onApplyFileOperations }: AIDeveloperChatProps) {
+export function AIDeveloperChat({ 
+  onFileSystemChange, 
+  projectFiles = [], 
+  onApplyFileOperations,
+  onApplyCode,
+  currentFile
+}: AIDeveloperChatProps) {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
     content: '¡Hola! Soy tu asistente de desarrollo para PS2. Puedo ayudarte a crear archivos, carpetas, escribir código, optimizar tu proyecto y mucho más. ¿En qué estás trabajando hoy?',
@@ -38,8 +47,118 @@ export function AIDeveloperChat({ onFileSystemChange, projectFiles = [], onApply
   }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showConversations, setShowConversations] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Load conversations from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('ai-conversations');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setConversations(parsed);
+      } catch (error) {
+        console.error('Error loading conversations:', error);
+      }
+    }
+  }, []);
+
+  // Save current conversation
+  const saveCurrentConversation = () => {
+    if (messages.length <= 1) return; // Don't save if only welcome message
+
+    const conversationTitle = messages.length > 1 
+      ? messages[1].content.substring(0, 50) + (messages[1].content.length > 50 ? '...' : '')
+      : 'Nueva conversación';
+
+    const conversation: Conversation = {
+      id: currentConversationId || Date.now().toString(),
+      title: conversationTitle,
+      timestamp: Date.now(),
+      messageCount: messages.length
+    };
+
+    const updatedConversations = currentConversationId
+      ? conversations.map(c => c.id === currentConversationId ? conversation : c)
+      : [...conversations, conversation];
+
+    setConversations(updatedConversations);
+    localStorage.setItem('ai-conversations', JSON.stringify(updatedConversations));
+    localStorage.setItem(`conversation-${conversation.id}`, JSON.stringify(messages));
+    
+    if (!currentConversationId) {
+      setCurrentConversationId(conversation.id);
+    }
+
+    toast({
+      title: "Conversación guardada",
+      description: "Tu conversación ha sido guardada exitosamente",
+    });
+  };
+
+  // Load conversation
+  const loadConversation = (id: string) => {
+    const saved = localStorage.getItem(`conversation-${id}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setMessages(parsed);
+        setCurrentConversationId(id);
+        setShowConversations(false);
+        toast({
+          title: "Conversación cargada",
+          description: "Se ha restaurado la conversación seleccionada",
+        });
+      } catch (error) {
+        console.error('Error loading conversation:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo cargar la conversación",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  // Delete conversation
+  const deleteConversation = (id: string) => {
+    const updatedConversations = conversations.filter(c => c.id !== id);
+    setConversations(updatedConversations);
+    localStorage.setItem('ai-conversations', JSON.stringify(updatedConversations));
+    localStorage.removeItem(`conversation-${id}`);
+    
+    if (currentConversationId === id) {
+      setCurrentConversationId(null);
+      setMessages([{
+        role: 'assistant',
+        content: '¡Hola! Soy tu asistente de desarrollo para PS2. Puedo ayudarte a crear archivos, carpetas, escribir código, optimizar tu proyecto y mucho más. ¿En qué estás trabajando hoy?',
+        timestamp: Date.now()
+      }]);
+    }
+
+    toast({
+      title: "Conversación eliminada",
+      description: "La conversación ha sido eliminada",
+    });
+  };
+
+  // New conversation
+  const startNewConversation = () => {
+    setCurrentConversationId(null);
+    setMessages([{
+      role: 'assistant',
+      content: '¡Hola! Soy tu asistente de desarrollo para PS2. Puedo ayudarte a crear archivos, carpetas, escribir código, optimizar tu proyecto y mucho más. ¿En qué estás trabajando hoy?',
+      timestamp: Date.now()
+    }]);
+    setShowConversations(false);
+    toast({
+      title: "Nueva conversación",
+      description: "Se ha iniciado una nueva conversación",
+    });
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -200,7 +319,52 @@ export function AIDeveloperChat({ onFileSystemChange, projectFiles = [], onApply
 
   return (
     <div className="h-full flex flex-col bg-background">
-      <div className="flex-1 overflow-hidden">
+      {showConversations ? (
+        <ConversationManager
+          conversations={conversations}
+          currentConversationId={currentConversationId}
+          onSelectConversation={loadConversation}
+          onNewConversation={startNewConversation}
+          onDeleteConversation={deleteConversation}
+          onClose={() => setShowConversations(false)}
+        />
+      ) : (
+        <>
+          {/* Header with actions */}
+          <div className="flex items-center justify-between p-3 border-b border-border bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Bot className="w-5 h-5 text-ps2-purple" />
+              <h3 className="font-semibold text-sm">IA Developer</h3>
+              {currentFile && (
+                <Badge variant="outline" className="text-xs">
+                  {currentFile.name}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={saveCurrentConversation}
+                disabled={messages.length <= 1}
+                className="h-7 px-2 text-xs hover:bg-ps2-purple/20 hover:text-ps2-purple"
+              >
+                <Save className="w-3.5 h-3.5 mr-1" />
+                Guardar
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowConversations(true)}
+                className="h-7 px-2 text-xs hover:bg-ps2-cyan/20 hover:text-ps2-cyan"
+              >
+                <MessageSquare className="w-3.5 h-3.5 mr-1" />
+                Historial ({conversations.length})
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full p-4" ref={scrollRef}>
           <div className="space-y-4">
             {messages.map((message, index) => (
@@ -224,26 +388,22 @@ export function AIDeveloperChat({ onFileSystemChange, projectFiles = [], onApply
                       }`}
                     >
                       {message.role === 'assistant' ? (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {formatCodeBlock(message.content).map((part, i) => (
                             part.type === 'code' ? (
-                              <div key={i} className="rounded-md bg-background/50 border border-border overflow-hidden">
-                                <div className="flex items-center justify-between px-3 py-1 bg-muted/50 border-b border-border">
-                                  <Badge variant="outline" className="text-xs">
-                                    {part.language}
-                                  </Badge>
-                                </div>
-                                <pre className="p-3 text-xs overflow-x-auto">
-                                  <code className="text-foreground font-mono">{part.content}</code>
-                                </pre>
-                              </div>
+                              <AICodeBlock
+                                key={i}
+                                code={part.content}
+                                language={part.language}
+                                onApplyToFile={onApplyCode}
+                              />
                             ) : (
-                              <p key={i} className="text-sm whitespace-pre-wrap">{part.content}</p>
+                              <p key={i} className="text-sm whitespace-pre-wrap leading-relaxed">{part.content}</p>
                             )
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
                       )}
                       <span className="text-xs text-muted-foreground mt-2 block">
                         {new Date(message.timestamp).toLocaleTimeString()}
@@ -286,45 +446,53 @@ export function AIDeveloperChat({ onFileSystemChange, projectFiles = [], onApply
         </ScrollArea>
       </div>
 
-      <div className="border-t border-border p-4">
-        <div className="flex gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder="Describe qué quieres crear o modificar..."
-            disabled={isLoading}
-            className="flex-1 min-h-[60px] max-h-[120px] resize-none"
-            rows={2}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={isLoading || !input.trim()}
-            size="icon"
-            className="bg-ps2-purple hover:bg-ps2-purple/90 h-[60px] w-[60px]"
-          >
-            {isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Send className="w-5 h-5" />
-            )}
-          </Button>
-        </div>
-        <div className="mt-2 flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            <Code2 className="w-3 h-3 inline mr-1" />
-            Control total sobre archivos y código
-          </p>
-          <Badge variant="outline" className="text-xs">
-            {projectFiles.length} archivos
-          </Badge>
-        </div>
-      </div>
+          <div className="border-t border-border p-4 bg-background">
+            <div className="flex gap-2">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Describe qué quieres crear, modificar, analizar o consultar..."
+                disabled={isLoading}
+                className="flex-1 min-h-[80px] max-h-[200px] resize-none font-mono text-sm"
+                rows={3}
+              />
+              <Button
+                onClick={handleSend}
+                disabled={isLoading || !input.trim()}
+                size="icon"
+                className="bg-ps2-purple hover:bg-ps2-purple/90 h-[80px] w-[80px] flex-shrink-0"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  <Send className="w-6 h-6" />
+                )}
+              </Button>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Code2 className="w-3 h-3" />
+                  Análisis profundo de código
+                </span>
+                <span className="flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  {projectFiles.length} archivos
+                </span>
+              </div>
+              <span className="text-muted-foreground">
+                Shift + Enter para nueva línea
+              </span>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -138,6 +138,20 @@ export function IDELayoutContent() {
     setFileSystemVersion(prev => prev + 1);
   }, []);
 
+  // Aplicar código de la IA al archivo actual
+  const handleApplyCodeToFile = useCallback((code: string, language: string) => {
+    if (selectedFile) {
+      setCode(code);
+      setOpenTabs((prev: FileNode[]) => prev.map((tab, idx) => 
+        idx === activeTabIndex ? { ...tab, content: code } : tab
+      ));
+      
+      // Update in project files as well
+      setProjectFiles(prev => updateFileInTree(prev, selectedFile.path, code));
+      setFileSystemVersion(prev => prev + 1);
+    }
+  }, [selectedFile, activeTabIndex, setOpenTabs]);
+
   // Aplicar operaciones de archivos generadas por la IA
   const handleApplyFileOperations = useCallback((operations: any[]) => {
     let updatedFiles = [...projectFiles];
@@ -501,6 +515,8 @@ export function IDELayoutContent() {
                         projectFiles={projectFiles}
                         onFileSystemChange={handleFileSystemUpdate}
                         onApplyFileOperations={handleApplyFileOperations}
+                        onApplyCode={handleApplyCodeToFile}
+                        currentFile={selectedFile}
                       />
                     </div>
                   </div>
@@ -565,6 +581,8 @@ export function IDELayoutContent() {
             projectFiles={projectFiles}
             onFileSystemChange={handleFileSystemUpdate}
             onApplyFileOperations={handleApplyFileOperations}
+            onApplyCode={handleApplyCodeToFile}
+            currentFile={selectedFile}
           />
         </FloatingWindow>
       )}
