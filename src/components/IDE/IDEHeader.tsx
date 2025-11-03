@@ -83,10 +83,7 @@ export function IDEHeader({
               variant={showAIChat ? "secondary" : "ghost"}
               size="sm" 
               className="h-8 px-3 gap-2 bg-gradient-to-r from-ps2-purple/10 to-ps2-cyan/10 hover:from-ps2-purple/20 hover:to-ps2-cyan/20"
-              onClick={() => {
-                onToggleAIChat();
-                onToggleAIChatWindow();
-              }}
+              onClick={onToggleAIChatWindow}
             >
               <Bot className="w-4 h-4 text-ps2-purple" />
               <span className="hidden sm:inline text-ps2-purple">IA Developer</span>
