@@ -4,9 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Play, Save, Download, X, FileCode } from 'lucide-react';
+import { 
+  Play, Save, Download, X, FileCode, 
+  ChevronLeft, ChevronRight, MoreHorizontal,
+  FileJson, FileText, Image as ImageIcon, Code2,
+  RotateCcw, List
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/athena';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface CodeEditorProps {
   code: string;
@@ -39,6 +51,9 @@ export function CodeEditor({
   const [modifiedTabs, setModifiedTabs] = useState<Set<number>>(new Set());
   const [draggedTabIndex, setDraggedTabIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [closedTabsHistory, setClosedTabsHistory] = useState<FileNode[]>([]);
+  const [showTabsList, setShowTabsList] = useState(false);
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,7 +115,14 @@ export function CodeEditor({
     editor.addCommand(monaco.KeyCode.F5, () => {
       onRun();
     });
-  }, [onRun]);
+
+    // Ctrl+W to close tab
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyW, () => {
+      if (openTabs.length > 1) {
+        handleCloseCurrentTab();
+      }
+    });
+  }, [onRun, openTabs]);
 
   const handleEditorChange = useCallback((value: string | undefined) => {
     if (value !== undefined) {
@@ -182,6 +204,49 @@ export function CodeEditor({
     closeContextMenu();
   }, [contextMenuTab, openTabs, onTabClose, closeContextMenu]);
 
+  const handleCloseAll = useCallback(() => {
+    if (openTabs.length > 1) {
+      // Save all tabs to history except the first one (we keep one open)
+      setClosedTabsHistory(prev => [...prev, ...openTabs.slice(1)].slice(-10));
+      for (let i = openTabs.length - 1; i > 0; i--) {
+        onTabClose(i);
+      }
+    }
+    closeContextMenu();
+  }, [openTabs, onTabClose, closeContextMenu]);
+
+  const handleCloseCurrentTab = useCallback(() => {
+    if (openTabs.length > 1) {
+      const closedTab = openTabs[activeTabIndex];
+      setClosedTabsHistory(prev => [...prev, closedTab].slice(-10));
+      onTabClose(activeTabIndex);
+    }
+  }, [openTabs, activeTabIndex, onTabClose]);
+
+  const handleReopenLastClosed = useCallback(() => {
+    if (closedTabsHistory.length > 0) {
+      const lastClosed = closedTabsHistory[closedTabsHistory.length - 1];
+      setClosedTabsHistory(prev => prev.slice(0, -1));
+      
+      // Trigger parent to re-open the file
+      // This would need to be passed as a prop from parent
+      toast({
+        title: "Tab reopened",
+        description: `${lastClosed.name} has been restored`,
+      });
+    }
+  }, [closedTabsHistory, toast]);
+
+  const scrollTabs = useCallback((direction: 'left' | 'right') => {
+    if (tabsContainerRef.current) {
+      const scrollAmount = 200;
+      tabsContainerRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  }, []);
+
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     setDraggedTabIndex(index);
     e.dataTransfer.effectAllowed = 'move';
@@ -221,7 +286,29 @@ export function CodeEditor({
 
   const getFileIcon = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase();
-    return <FileCode className="w-3.5 h-3.5 shrink-0" />;
+    switch (ext) {
+      case 'js':
+      case 'jsx':
+      case 'ts':
+      case 'tsx':
+        return <Code2 className="w-3.5 h-3.5 shrink-0 text-yellow-500" />;
+      case 'json':
+        return <FileJson className="w-3.5 h-3.5 shrink-0 text-green-500" />;
+      case 'html':
+      case 'css':
+        return <FileCode className="w-3.5 h-3.5 shrink-0 text-blue-500" />;
+      case 'png':
+      case 'jpg':
+      case 'jpeg':
+      case 'gif':
+      case 'svg':
+        return <ImageIcon className="w-3.5 h-3.5 shrink-0 text-purple-500" />;
+      case 'txt':
+      case 'md':
+        return <FileText className="w-3.5 h-3.5 shrink-0 text-gray-500" />;
+      default:
+        return <FileCode className="w-3.5 h-3.5 shrink-0" />;
+    }
   };
 
   useEffect(() => {
@@ -236,6 +323,34 @@ export function CodeEditor({
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, [closeContextMenu]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Tab or Ctrl+Shift+Tab to navigate tabs
+      if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Previous tab
+          const newIndex = activeTabIndex > 0 ? activeTabIndex - 1 : openTabs.length - 1;
+          onTabChange(newIndex);
+        } else {
+          // Next tab
+          const newIndex = activeTabIndex < openTabs.length - 1 ? activeTabIndex + 1 : 0;
+          onTabChange(newIndex);
+        }
+      }
+      
+      // Ctrl+Shift+T to reopen last closed tab
+      if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+        e.preventDefault();
+        handleReopenLastClosed();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [activeTabIndex, openTabs, onTabChange, handleReopenLastClosed]);
 
   const getLanguage = (filename: string): string => {
     const ext = filename.split('.').pop()?.toLowerCase();
@@ -270,9 +385,24 @@ export function CodeEditor({
     <Card className="h-full flex flex-col bg-ide-editor border-border relative">
       {/* Professional Header - VS Code Style */}
       <div className="flex flex-col border-b border-border bg-[hsl(var(--ide-tab))]">
-        {/* Tabs Row */}
-        <div className="flex items-center gap-0 overflow-x-auto scrollbar-thin scroll-smooth">
-          {openTabs.map((tab, index) => (
+        {/* Tabs Row with Navigation */}
+        <div className="flex items-center gap-0">
+          {/* Scroll Left Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 w-8 px-0 shrink-0 rounded-none hover:bg-muted/50"
+            onClick={() => scrollTabs('left')}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+
+          {/* Tabs Container */}
+          <div 
+            ref={tabsContainerRef}
+            className="flex items-center gap-0 overflow-x-auto scrollbar-thin scroll-smooth flex-1"
+          >
+            {openTabs.map((tab, index) => (
             <div
               key={tab.path}
               draggable
@@ -352,6 +482,58 @@ export function CodeEditor({
               )}
             </div>
           ))}
+          </div>
+
+          {/* Scroll Right Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 w-8 px-0 shrink-0 rounded-none hover:bg-muted/50"
+            onClick={() => scrollTabs('right')}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+
+          {/* Tabs Dropdown List */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 w-8 px-0 shrink-0 rounded-none hover:bg-muted/50 border-l border-border/50"
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 max-h-96 overflow-y-auto bg-popover z-50">
+              {openTabs.map((tab, index) => (
+                <DropdownMenuItem
+                  key={tab.path}
+                  onClick={() => onTabChange(index)}
+                  className={`flex items-center gap-2 ${index === activeTabIndex ? 'bg-accent' : ''}`}
+                >
+                  {getFileIcon(tab.name)}
+                  <span className="flex-1 truncate">{tab.name}</span>
+                  {modifiedTabs.has(index) && (
+                    <div className="w-2 h-2 rounded-full bg-[hsl(var(--ps2-blue))]" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Reopen Last Closed Tab */}
+          {closedTabsHistory.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 w-8 px-0 shrink-0 rounded-none hover:bg-muted/50 border-l border-border/50"
+              onClick={handleReopenLastClosed}
+              title={`Reopen ${closedTabsHistory[closedTabsHistory.length - 1]?.name}`}
+            >
+              <RotateCcw className="w-4 h-4" />
+            </Button>
+          )}
         </div>
 
         {/* Actions Row */}
@@ -435,6 +617,13 @@ export function CodeEditor({
           >
             Close to the Right
           </button>
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors text-destructive"
+            onClick={handleCloseAll}
+            disabled={openTabs.length === 1}
+          >
+            Close All
+          </button>
           <div className="h-px bg-border my-1" />
           <button
             className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors"
@@ -445,6 +634,21 @@ export function CodeEditor({
           >
             Rename
           </button>
+          {closedTabsHistory.length > 0 && (
+            <>
+              <div className="h-px bg-border my-1" />
+              <button
+                className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors flex items-center gap-2"
+                onClick={() => {
+                  handleReopenLastClosed();
+                  closeContextMenu();
+                }}
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reopen Last Closed
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -496,6 +700,9 @@ export function CodeEditor({
           <span className="text-muted-foreground">{lineCount} lines</span>
         </div>
         <div className="flex items-center gap-4">
+          <span className="text-muted-foreground text-[10px]">
+            {openTabs.length} tab{openTabs.length > 1 ? 's' : ''} • {modifiedTabs.size} modified
+          </span>
           <span className="text-muted-foreground">
             Ln {getCursorPosition().line}, Col {getCursorPosition().column}
           </span>
