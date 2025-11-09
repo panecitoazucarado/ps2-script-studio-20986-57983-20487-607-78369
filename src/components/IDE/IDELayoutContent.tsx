@@ -340,26 +340,9 @@ export function IDELayoutContent() {
           showPreview={showPreview && windows.preview.docked}
           showAIChat={windows.aiChat.visible}
           onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
-          onToggleAIChat={() => {
-            // Si IA Developer se va a abrir, cerrar Vista Previa
-            if (!windows.aiChat.visible) {
-              setShowPreview(false);
-            }
-            toggleWindowVisibility('aiChat');
-          }}
-          onTogglePreview={() => {
-            // Si Vista Previa se va a abrir, cerrar IA Developer
-            if (!showPreview) {
-              toggleWindowVisibility('aiChat');
-            }
-            setShowPreview(!showPreview);
-          }}
-          onToggleAIChatWindow={() => {
-            if (!windows.aiChat.visible) {
-              setShowPreview(false);
-            }
-            toggleWindowVisibility('aiChat');
-          }}
+          onToggleAIChat={() => toggleWindowVisibility('aiChat')}
+          onTogglePreview={() => setShowPreview(!showPreview)}
+          onToggleAIChatWindow={() => toggleWindowVisibility('aiChat')}
         />
 
         <div className="flex-1 overflow-hidden">
