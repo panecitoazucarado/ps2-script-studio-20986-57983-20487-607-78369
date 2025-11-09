@@ -29,7 +29,6 @@ export function IDELayoutContent() {
   const [isRunning, setIsRunning] = useState(false);
   const [showFileExplorer, setShowFileExplorer] = useState(true);
   const [showPreview, setShowPreview] = useState(true);
-  const [showAIChat, setShowAIChat] = useState(false);
   const [projectFiles, setProjectFiles] = useState<FileNode[]>([]);
   const [fileSystemVersion, setFileSystemVersion] = useState(0);
 
@@ -339,27 +338,26 @@ export function IDELayoutContent() {
         <IDEHeader 
           showFileExplorer={showFileExplorer && windows.fileExplorer.docked}
           showPreview={showPreview && windows.preview.docked}
-          showAIChat={showAIChat}
+          showAIChat={windows.aiChat.visible}
           onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
           onToggleAIChat={() => {
             // Si IA Developer se va a abrir, cerrar Vista Previa
-            if (!showAIChat) {
+            if (!windows.aiChat.visible) {
               setShowPreview(false);
             }
-            setShowAIChat(!showAIChat);
+            toggleWindowVisibility('aiChat');
           }}
           onTogglePreview={() => {
             // Si Vista Previa se va a abrir, cerrar IA Developer
             if (!showPreview) {
-              setShowAIChat(false);
+              toggleWindowVisibility('aiChat');
             }
             setShowPreview(!showPreview);
           }}
           onToggleAIChatWindow={() => {
-            if (!showAIChat) {
+            if (!windows.aiChat.visible) {
               setShowPreview(false);
             }
-            setShowAIChat(!showAIChat);
             toggleWindowVisibility('aiChat');
           }}
         />
@@ -393,7 +391,9 @@ export function IDELayoutContent() {
             onProjectLoad={setProjectFiles}
             onFileSystemUpdate={handleFileSystemUpdate}
             onAIConsult={(file, action) => {
-              setShowAIChat(true);
+              if (!windows.aiChat.visible) {
+                toggleWindowVisibility('aiChat');
+              }
               setShowPreview(false);
               console.log(`AI ${action} requested for:`, file.name);
             }}
@@ -481,7 +481,7 @@ export function IDELayoutContent() {
               </>
             )}
 
-            {showAIChat && windows.aiChat && windows.aiChat.docked && windows.aiChat.visible && (
+            {windows.aiChat && windows.aiChat.docked && windows.aiChat.visible && (
               <>
                 <ResizableHandle withHandle className="w-1.5 bg-border/50 hover:bg-ps2-purple/50 transition-all duration-200 data-[resize-handle-state=hover]:w-2 data-[resize-handle-state=drag]:w-2 data-[resize-handle-state=drag]:bg-ps2-purple group relative">
                   <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:w-1.5 bg-ps2-purple/20 group-hover:bg-ps2-purple/40 transition-all" />
@@ -492,7 +492,7 @@ export function IDELayoutContent() {
                   maxSize={70}
                   collapsible
                   collapsedSize={0}
-                  onCollapse={() => setShowAIChat(false)}
+                  onCollapse={() => toggleWindowVisibility('aiChat')}
                 >
                   <div className="h-full flex flex-col">
                     <div className="flex items-center justify-between bg-gradient-to-r from-ps2-purple/10 to-ps2-cyan/10 border-b border-border px-3 py-1.5">
@@ -504,7 +504,7 @@ export function IDELayoutContent() {
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
-                        onClick={() => setShowAIChat(false)}
+                        onClick={() => toggleWindowVisibility('aiChat')}
                       >
                         <X className="w-3.5 h-3.5" />
                       </Button>
@@ -548,7 +548,9 @@ export function IDELayoutContent() {
             onProjectLoad={setProjectFiles}
             onFileSystemUpdate={handleFileSystemUpdate}
             onAIConsult={(file, action) => {
-              setShowAIChat(true);
+              if (!windows.aiChat.visible) {
+                toggleWindowVisibility('aiChat');
+              }
               setShowPreview(false);
               console.log(`AI ${action} requested for:`, file.name);
             }}
@@ -575,7 +577,7 @@ export function IDELayoutContent() {
         <FloatingWindow
           id="aiChat"
           title="IA Developer - Asistente de Desarrollo"
-          onClose={() => setShowAIChat(false)}
+          onClose={() => toggleWindowVisibility('aiChat')}
         >
           <AIDeveloperChat 
             projectFiles={projectFiles}
