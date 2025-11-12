@@ -42,7 +42,7 @@ export function AIDeveloperChat({
 }: AIDeveloperChatProps) {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: '¡Hola! Soy tu asistente de desarrollo para PS2. Puedo ayudarte a crear archivos, carpetas, escribir código, optimizar tu proyecto y mucho más. ¿En qué estás trabajando hoy?',
+    content: '👋 ¡Hola! Soy tu **Asistente Experto de Desarrollo PS2** con capacidades avanzadas.\n\n🚀 **Puedo ayudarte con:**\n• Escribir código complejo y completo para ATHENA ENV\n• Crear arquitecturas avanzadas de juegos\n• Optimizar performance para PS2\n• Refactorizar y mejorar código existente\n• Explicar conceptos técnicos en profundidad\n• Debugging de problemas complejos\n\n💡 **Características especiales:**\n• Aprendo de tu código para adaptarme a tu estilo\n• Escribo código completo sin omisiones\n• Analizo todo el contexto de tu proyecto\n• Sin límites de longitud en las respuestas\n\n¿En qué proyecto estás trabajando? Puedes compartir código existente para que lo analice y aprenda de tu estilo. 🎮',
     timestamp: Date.now()
   }]);
   const [input, setInput] = useState('');
@@ -134,7 +134,7 @@ export function AIDeveloperChat({
       setCurrentConversationId(null);
       setMessages([{
         role: 'assistant',
-        content: '¡Hola! Soy tu asistente de desarrollo para PS2. Puedo ayudarte a crear archivos, carpetas, escribir código, optimizar tu proyecto y mucho más. ¿En qué estás trabajando hoy?',
+        content: '👋 ¡Hola! Soy tu **Asistente Experto de Desarrollo PS2** con capacidades avanzadas.\n\n🚀 **Puedo ayudarte con:**\n• Escribir código complejo y completo para ATHENA ENV\n• Crear arquitecturas avanzadas de juegos\n• Optimizar performance para PS2\n• Refactorizar y mejorar código existente\n• Explicar conceptos técnicos en profundidad\n• Debugging de problemas complejos\n\n💡 **Características especiales:**\n• Aprendo de tu código para adaptarme a tu estilo\n• Escribo código completo sin omisiones\n• Analizo todo el contexto de tu proyecto\n• Sin límites de longitud en las respuestas\n\n¿En qué proyecto estás trabajando? Puedes compartir código existente para que lo analice y aprenda de tu estilo. 🎮',
         timestamp: Date.now()
       }]);
     }
@@ -150,7 +150,7 @@ export function AIDeveloperChat({
     setCurrentConversationId(null);
     setMessages([{
       role: 'assistant',
-      content: '¡Hola! Soy tu asistente de desarrollo para PS2. Puedo ayudarte a crear archivos, carpetas, escribir código, optimizar tu proyecto y mucho más. ¿En qué estás trabajando hoy?',
+      content: '👋 ¡Hola! Soy tu **Asistente Experto de Desarrollo PS2** con capacidades avanzadas.\n\n🚀 **Puedo ayudarte con:**\n• Escribir código complejo y completo para ATHENA ENV\n• Crear arquitecturas avanzadas de juegos\n• Optimizar performance para PS2\n• Refactorizar y mejorar código existente\n• Explicar conceptos técnicos en profundidad\n• Debugging de problemas complejos\n\n💡 **Características especiales:**\n• Aprendo de tu código para adaptarme a tu estilo\n• Escribo código completo sin omisiones\n• Analizo todo el contexto de tu proyecto\n• Sin límites de longitud en las respuestas\n\n¿En qué proyecto estás trabajando? Puedes compartir código existente para que lo analice y aprenda de tu estilo. 🎮',
       timestamp: Date.now()
     }]);
     setShowConversations(false);
@@ -180,6 +180,22 @@ export function AIDeveloperChat({
     setIsLoading(true);
 
     try {
+      // Recolectar archivos abiertos con contenido (si están disponibles)
+      const openFilesWithContent = projectFiles
+        .filter(f => f.type === 'file' && f.content)
+        .map(f => ({
+          name: f.name,
+          path: f.path,
+          content: f.content.substring(0, 5000) // Primeros 5000 chars de cada archivo
+        }));
+
+      // Información del archivo actual si está disponible
+      const currentFileInfo = currentFile ? {
+        name: currentFile.name,
+        path: currentFile.path,
+        content: currentFile.content?.substring(0, 10000) // Primeros 10000 chars del archivo activo
+      } : null;
+
       const { data, error } = await supabase.functions.invoke('ai-developer-chat', {
         body: {
           messages: [...messages, userMessage].map(m => ({
@@ -190,7 +206,9 @@ export function AIDeveloperChat({
             name: f.name,
             path: f.path,
             type: f.type
-          }))
+          })),
+          openFiles: openFilesWithContent,
+          currentFileContent: currentFileInfo
         }
       });
 
