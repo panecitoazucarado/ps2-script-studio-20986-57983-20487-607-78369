@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Check, FileCode, Download } from 'lucide-react';
+import { Copy, Check, FileCode, Download, Eye, Code, AlertCircle, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface AICodeBlockProps {
@@ -12,9 +12,73 @@ interface AICodeBlockProps {
 
 export function AICodeBlock({ code, language, onApplyToFile }: AICodeBlockProps) {
   const [copied, setCopied] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
   const { toast } = useToast();
   
   const lines = code.split('\n');
+  
+  // Análisis avanzado de código
+  const codeAnalysis = useMemo(() => {
+    const analysis = {
+      complexity: 'baja',
+      functions: 0,
+      loops: 0,
+      conditionals: 0,
+      comments: 0,
+      suggestions: [] as string[]
+    };
+
+    let functionCount = 0;
+    let loopCount = 0;
+    let conditionalCount = 0;
+    let commentCount = 0;
+
+    lines.forEach(line => {
+      // Detectar funciones
+      if (/function\s+\w+|const\s+\w+\s*=\s*\(.*\)\s*=>|class\s+\w+/.test(line)) {
+        functionCount++;
+      }
+      // Detectar loops
+      if (/for\s*\(|while\s*\(|forEach|map\s*\(|filter\s*\(/.test(line)) {
+        loopCount++;
+      }
+      // Detectar condicionales
+      if (/if\s*\(|else|switch\s*\(|case\s+/.test(line)) {
+        conditionalCount++;
+      }
+      // Detectar comentarios
+      if (/\/\/|\/\*|\*\//.test(line)) {
+        commentCount++;
+      }
+    });
+
+    analysis.functions = functionCount;
+    analysis.loops = loopCount;
+    analysis.conditionals = conditionalCount;
+    analysis.comments = commentCount;
+
+    // Determinar complejidad
+    const totalComplexity = functionCount + loopCount * 2 + conditionalCount;
+    if (totalComplexity > 20) {
+      analysis.complexity = 'muy alta';
+      analysis.suggestions.push('Considera dividir en módulos más pequeños');
+    } else if (totalComplexity > 10) {
+      analysis.complexity = 'alta';
+      analysis.suggestions.push('El código es complejo, asegúrate de documentarlo bien');
+    } else if (totalComplexity > 5) {
+      analysis.complexity = 'media';
+    }
+
+    // Sugerencias adicionales
+    if (commentCount === 0 && lines.length > 20) {
+      analysis.suggestions.push('Agrega comentarios para explicar la lógica compleja');
+    }
+    if (loopCount > 3) {
+      analysis.suggestions.push('Revisa si puedes optimizar loops anidados');
+    }
+
+    return analysis;
+  }, [code, lines]);
   
   const handleCopy = async () => {
     try {
@@ -109,18 +173,35 @@ export function AICodeBlock({ code, language, onApplyToFile }: AICodeBlockProps)
   };
 
   return (
-    <div className="rounded-lg bg-ide-editor-bg border border-border overflow-hidden shadow-lg">
+    <div className="rounded-lg bg-ide-editor-bg border border-border overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b border-border backdrop-blur-sm">
+      <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-muted/50 to-muted/30 border-b border-border backdrop-blur-sm">
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className={`text-xs font-mono ${getLanguageColor(language)}`}>
+          <Badge variant="outline" className={`text-xs font-mono ${getLanguageColor(language)} shadow-sm`}>
+            <Code className="w-3 h-3 mr-1" />
             {language}
           </Badge>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Eye className="w-3 h-3" />
             {lines.length} líneas
           </span>
+          {codeAnalysis.complexity !== 'baja' && (
+            <Badge variant="outline" className="text-xs">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              Complejidad: {codeAnalysis.complexity}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowAnalysis(!showAnalysis)}
+            className="h-7 px-2 text-xs hover:bg-ps2-cyan/20 hover:text-ps2-cyan"
+          >
+            <Sparkles className="w-3 h-3 mr-1" />
+            {showAnalysis ? 'Ocultar' : 'Análisis'}
+          </Button>
           <Button
             size="sm"
             variant="ghost"
@@ -153,7 +234,7 @@ export function AICodeBlock({ code, language, onApplyToFile }: AICodeBlockProps)
               size="sm"
               variant="ghost"
               onClick={handleApply}
-              className="h-7 px-2 text-xs bg-ps2-purple/20 text-ps2-purple hover:bg-ps2-purple/30 border border-ps2-purple/30"
+              className="h-7 px-2 text-xs bg-gradient-to-r from-ps2-purple/20 to-ps2-cyan/20 text-ps2-purple hover:from-ps2-purple/30 hover:to-ps2-cyan/30 border border-ps2-purple/30 shadow-sm"
             >
               <FileCode className="w-3 h-3 mr-1" />
               Aplicar al archivo
@@ -161,6 +242,47 @@ export function AICodeBlock({ code, language, onApplyToFile }: AICodeBlockProps)
           )}
         </div>
       </div>
+
+      {/* Code Analysis Panel */}
+      {showAnalysis && (
+        <div className="px-4 py-3 bg-muted/30 border-b border-border">
+          <h4 className="text-xs font-semibold mb-2 flex items-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            Análisis de Código
+          </h4>
+          <div className="grid grid-cols-4 gap-3 mb-2">
+            <div className="text-xs">
+              <span className="text-muted-foreground">Funciones:</span>
+              <span className="ml-1 font-mono text-foreground">{codeAnalysis.functions}</span>
+            </div>
+            <div className="text-xs">
+              <span className="text-muted-foreground">Loops:</span>
+              <span className="ml-1 font-mono text-foreground">{codeAnalysis.loops}</span>
+            </div>
+            <div className="text-xs">
+              <span className="text-muted-foreground">Condicionales:</span>
+              <span className="ml-1 font-mono text-foreground">{codeAnalysis.conditionals}</span>
+            </div>
+            <div className="text-xs">
+              <span className="text-muted-foreground">Comentarios:</span>
+              <span className="ml-1 font-mono text-foreground">{codeAnalysis.comments}</span>
+            </div>
+          </div>
+          {codeAnalysis.suggestions.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs font-semibold text-muted-foreground mb-1">Sugerencias:</p>
+              <ul className="text-xs space-y-1">
+                {codeAnalysis.suggestions.map((suggestion, i) => (
+                  <li key={i} className="flex items-start gap-1">
+                    <span className="text-ps2-cyan">•</span>
+                    <span className="text-muted-foreground">{suggestion}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Code content with line numbers */}
       <div className="flex bg-ide-editor-bg">
@@ -169,7 +291,7 @@ export function AICodeBlock({ code, language, onApplyToFile }: AICodeBlockProps)
           {lines.map((_, index) => (
             <div
               key={index}
-              className="text-xs text-muted-foreground font-mono leading-6 text-right min-w-[2.5rem]"
+              className="text-xs text-muted-foreground font-mono leading-6 text-right min-w-[2.5rem] hover:text-foreground transition-colors"
             >
               {index + 1}
             </div>

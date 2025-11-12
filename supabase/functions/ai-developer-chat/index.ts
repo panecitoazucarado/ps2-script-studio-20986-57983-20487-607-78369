@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, projectFiles = [], currentFileContent = null, openFiles = [] } = await req.json();
+    const { messages, projectFiles = [], currentFileContent = null, openFiles = [], generateImage = false } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
@@ -29,6 +29,42 @@ serve(async (req) => {
     }
     if (currentFileContent) {
       projectContext += '\n\n📄 ARCHIVO ACTUALMENTE EN EDICIÓN:\n' + JSON.stringify(currentFileContent, null, 2);
+    }
+
+    // Si se detectó generación de imagen, usar modelo de imagen
+    if (generateImage) {
+      console.log('🎨 Generando imagen con IA...');
+      
+      const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash-image',
+          messages: messages,
+          modalities: ['image', 'text']
+        }),
+      });
+
+      if (!imageResponse.ok) {
+        throw new Error('Error al generar imagen');
+      }
+
+      const imageData = await imageResponse.json();
+      const generatedImages = imageData.choices?.[0]?.message?.images?.map((img: any) => img.image_url.url) || [];
+      
+      return new Response(
+        JSON.stringify({
+          response: imageData.choices?.[0]?.message?.content || '¡He generado la imagen que solicitaste!',
+          fileOperations: [],
+          images: generatedImages
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // System prompt ULTRA POTENTE para código complejo
@@ -139,15 +175,24 @@ modules.forEach(m => std.loadScript(\`\${PATHS.XMB}js/\${m}.js\`));
 
 💬 ESTILO DE COMUNICACIÓN:
 - Conversacional, claro y profesional en español
+- Comprende TODAS las expresiones humanas: coloquiales, técnicas, metáforas, jerga, etc.
+- Interpreta intenciones incluso con errores de escritura o frases incompletas
+- Responde de forma natural y adaptada al nivel técnico del usuario
+- Si detectas ambigüedad, pregunta para clarificar
 - Explica decisiones arquitectónicas importantes
 - Sugiere optimizaciones y mejores prácticas
 - Si detectas problemas potenciales, alertalos
 - Propón soluciones creativas a problemas complejos
 - Aprende del código que te muestran para mejorar futuras respuestas
 
+🎨 GENERACIÓN DE IMÁGENES:
+- Si el usuario menciona: "genera/crea/dibuja una imagen/foto/ilustración/logo/icono", activa generación de imagen
+- NO uses las herramientas de archivos, la imagen se genera automáticamente
+- Describe la imagen que generaste de forma creativa
+
 🚀 MODO OPERATIVO:
 1. Analiza profundamente el contexto del proyecto
-2. Comprende el problema o requerimiento completamente
+2. Comprende el problema o requerimiento completamente (incluso expresiones informales)
 3. Diseña mentalmente la solución óptima
 4. Escribe código COMPLETO y FUNCIONAL
 5. Usa herramientas de archivos cuando sea necesario crear/modificar archivos
@@ -310,7 +355,8 @@ modules.forEach(m => std.loadScript(\`\${PATHS.XMB}js/\${m}.js\`));
     return new Response(
       JSON.stringify({
         response: message.content || 'He procesado tu solicitud. ¿Hay algo más en lo que pueda ayudarte?',
-        fileOperations
+        fileOperations,
+        images: [] // Sin imágenes en respuestas normales
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
