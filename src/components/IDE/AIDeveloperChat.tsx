@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3, MessageSquare, Save, Copy, ThumbsUp, ThumbsDown, Reply, ImagePlus, Sparkles, Download } from 'lucide-react';
+import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3, MessageSquare, Save, Copy, ThumbsUp, ThumbsDown, Reply, ImagePlus, Sparkles, Download, Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/athena';
@@ -15,9 +15,10 @@ interface Message {
   content: string;
   timestamp: number;
   fileOperations?: FileOperation[];
-  images?: string[]; // URLs o base64 de imágenes generadas
+  images?: string[]; // URLs o base64 de imágenes generadas o cargadas
   likes?: number; // 1 = like, -1 = dislike, 0 = neutral
   replyTo?: number; // índice del mensaje al que responde
+  imageLikes?: { [key: number]: number }; // likes por imagen individual
 }
 
 interface FileOperation {
@@ -53,9 +54,11 @@ export function AIDeveloperChat({
   const [showConversations, setShowConversations] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number; messageIndex: number } | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number; messageIndex: number; imageIndex?: number } | null>(null);
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -181,7 +184,7 @@ export function AIDeveloperChat({
     }
   }, [contextMenuPosition]);
 
-  // Handle like/dislike
+  // Handle like/dislike for messages
   const handleLike = (index: number, value: 1 | -1) => {
     setMessages(prev => prev.map((msg, i) => 
       i === index ? { ...msg, likes: msg.likes === value ? 0 : value } : msg
@@ -192,10 +195,26 @@ export function AIDeveloperChat({
     });
   };
 
+  // Handle like/dislike for individual images
+  const handleImageLike = (messageIndex: number, imageIndex: number, value: 1 | -1) => {
+    setMessages(prev => prev.map((msg, i) => {
+      if (i === messageIndex) {
+        const currentLikes = msg.imageLikes || {};
+        const newLikes = { ...currentLikes, [imageIndex]: currentLikes[imageIndex] === value ? 0 : value };
+        return { ...msg, imageLikes: newLikes };
+      }
+      return msg;
+    }));
+    toast({
+      title: value === 1 ? "¡Imagen favorita!" : "Feedback registrado",
+      description: value === 1 ? "Guardaré tus preferencias de estilo" : "Tomaré nota de tus preferencias",
+    });
+  };
+
   // Handle context menu (right click)
-  const handleContextMenu = (e: React.MouseEvent, index: number) => {
+  const handleContextMenu = (e: React.MouseEvent, index: number, imageIndex?: number) => {
     e.preventDefault();
-    setContextMenuPosition({ x: e.clientX, y: e.clientY, messageIndex: index });
+    setContextMenuPosition({ x: e.clientX, y: e.clientY, messageIndex: index, imageIndex });
   };
 
   // Handle reply
@@ -208,34 +227,86 @@ export function AIDeveloperChat({
     });
   };
 
-  // Detectar si el usuario pide generar una imagen
-  const detectImageGeneration = (text: string): boolean => {
+  // Detectar si el usuario pide generar una imagen y cuántas
+  const detectImageGeneration = (text: string): { shouldGenerate: boolean; count: number } => {
     const imageKeywords = [
       'genera', 'crea', 'dibuja', 'diseña', 'imagen', 'foto', 'picture', 
       'ilustración', 'gráfico', 'visual', 'render', 'arte', 'logo', 'icono'
     ];
     const lowerText = text.toLowerCase();
-    return imageKeywords.some(keyword => lowerText.includes(keyword));
+    const shouldGenerate = imageKeywords.some(keyword => lowerText.includes(keyword));
+    
+    // Detectar cantidad de imágenes solicitadas
+    let count = 1;
+    const numberMatch = lowerText.match(/(\d+)\s*(imagen|imagenes|fotos?|pictures?)/);
+    if (numberMatch) {
+      count = Math.min(parseInt(numberMatch[1]), 4); // Max 4 imágenes
+    }
+    
+    return { shouldGenerate, count };
+  };
+
+  // Handle file upload
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newImages: string[] = [];
+    let processed = 0;
+
+    Array.from(files).forEach((file) => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            newImages.push(event.target.result as string);
+          }
+          processed++;
+          if (processed === files.length) {
+            setUploadedImages(prev => [...prev, ...newImages]);
+            toast({
+              title: "Imágenes cargadas",
+              description: `${newImages.length} imagen(es) lista(s) para enviar`,
+            });
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        processed++;
+      }
+    });
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeUploadedImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && uploadedImages.length === 0) || isLoading) return;
 
     const userMessage: Message = {
       role: 'user',
       content: input,
       timestamp: Date.now(),
-      replyTo: replyingTo !== null ? replyingTo : undefined
+      replyTo: replyingTo !== null ? replyingTo : undefined,
+      images: uploadedImages.length > 0 ? [...uploadedImages] : undefined
     };
 
     setMessages(prev => [...prev, userMessage]);
     const inputText = input;
+    const userImagesData = [...uploadedImages];
     setInput('');
     setReplyingTo(null);
+    setUploadedImages([]);
     setIsLoading(true);
 
-    // Detectar si debe generar imagen
-    const shouldGenerateImage = detectImageGeneration(inputText);
+    // Detectar si debe generar imagen y cuántas
+    const { shouldGenerate: shouldGenerateImage, count: imageCount } = detectImageGeneration(inputText);
     
     if (shouldGenerateImage) {
       setIsGeneratingImage(true);
@@ -271,7 +342,9 @@ export function AIDeveloperChat({
           })),
           openFiles: openFilesWithContent,
           currentFileContent: currentFileInfo,
-          generateImage: shouldGenerateImage
+          generateImage: shouldGenerateImage,
+          imageCount: imageCount,
+          userImages: userImagesData.length > 0 ? userImagesData : undefined
         }
       });
 
@@ -497,7 +570,7 @@ export function AIDeveloperChat({
                   className={`flex gap-3 ${
                     message.role === 'user' ? 'justify-end' : 'justify-start'
                   }`}
-                  onContextMenu={(e) => handleContextMenu(e, index)}
+                  onContextMenu={(e) => message.images && message.images.length === 0 ? handleContextMenu(e, index) : undefined}
                 >
                   {message.role === 'assistant' && (
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ps2-purple to-ps2-cyan flex items-center justify-center flex-shrink-0 shadow-lg">
@@ -527,36 +600,93 @@ export function AIDeveloperChat({
                             )
                           ))}
                           
-                          {/* Imágenes generadas */}
+                          {/* Imágenes generadas por la IA */}
                           {message.images && message.images.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2 mt-4">
+                            <div className="grid grid-cols-2 gap-3 mt-4">
                               {message.images.map((img, imgIdx) => (
-                                <div key={imgIdx} className="relative group">
+                                <div 
+                                  key={imgIdx} 
+                                  className="relative group"
+                                  onContextMenu={(e) => handleContextMenu(e, index, imgIdx)}
+                                >
                                   <img 
                                     src={img} 
                                     alt={`Generado ${imgIdx + 1}`}
-                                    className="rounded-lg border border-ps2-purple/30 w-full h-auto shadow-lg"
+                                    className="rounded-lg border border-ps2-purple/30 w-full h-auto shadow-lg cursor-pointer hover:border-ps2-purple/60 transition-all"
                                   />
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/70"
-                                    onClick={() => {
-                                      const a = document.createElement('a');
-                                      a.href = img;
-                                      a.download = `generado-${Date.now()}.png`;
-                                      a.click();
-                                    }}
-                                  >
-                                    <Download className="w-3 h-3" />
-                                  </Button>
+                                  
+                                  {/* Image controls overlay */}
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all rounded-lg flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="bg-black/50 hover:bg-black/70 text-white"
+                                      onClick={() => {
+                                        const a = document.createElement('a');
+                                        a.href = img;
+                                        a.download = `imagen-ai-${Date.now()}.png`;
+                                        a.click();
+                                      }}
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleImageLike(index, imgIdx, 1)}
+                                      className={`${
+                                        message.imageLikes?.[imgIdx] === 1 
+                                          ? 'bg-green-500/70 hover:bg-green-500/90 text-white' 
+                                          : 'bg-black/50 hover:bg-black/70 text-white'
+                                      }`}
+                                    >
+                                      <ThumbsUp className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleImageLike(index, imgIdx, -1)}
+                                      className={`${
+                                        message.imageLikes?.[imgIdx] === -1 
+                                          ? 'bg-red-500/70 hover:bg-red-500/90 text-white' 
+                                          : 'bg-black/50 hover:bg-black/70 text-white'
+                                      }`}
+                                    >
+                                      <ThumbsDown className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                  
+                                  {/* Like indicator badge */}
+                                  {message.imageLikes?.[imgIdx] === 1 && (
+                                    <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 shadow-lg">
+                                      <ThumbsUp className="w-3 h-3" />
+                                      Favorita
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
                           )}
                         </div>
                       ) : (
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                        <>
+                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                          
+                          {/* Imágenes cargadas por el usuario */}
+                          {message.role === 'user' && message.images && message.images.length > 0 && (
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                              {message.images.map((img, imgIdx) => (
+                                <div key={imgIdx} className="relative group">
+                                  <img 
+                                    src={img} 
+                                    alt={`Cargada ${imgIdx + 1}`}
+                                    className="rounded-lg border border-ps2-cyan/30 w-full h-auto shadow-md"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-xs text-muted-foreground">
@@ -625,10 +755,10 @@ export function AIDeveloperChat({
         </ScrollArea>
       </div>
 
-          <div className="border-t border-border p-4 bg-background">
+          <div className="border-t border-border p-4 bg-background space-y-3">
             {/* Reply indicator */}
             {replyingTo !== null && (
-              <div className="mb-2 flex items-center justify-between bg-muted/50 p-2 rounded-md">
+              <div className="flex items-center justify-between bg-muted/50 p-2 rounded-md">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Reply className="w-3 h-3" />
                   <span>Respondiendo: {messages[replyingTo]?.content.substring(0, 40)}...</span>
@@ -644,7 +774,49 @@ export function AIDeveloperChat({
               </div>
             )}
             
+            {/* Uploaded images preview */}
+            {uploadedImages.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-2 bg-muted/30 rounded-md">
+                {uploadedImages.map((img, idx) => (
+                  <div key={idx} className="relative group">
+                    <img 
+                      src={img} 
+                      alt={`Upload ${idx + 1}`} 
+                      className="w-16 h-16 object-cover rounded border border-border"
+                    />
+                    <button
+                      onClick={() => removeUploadedImage(idx)}
+                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                <div className="text-xs text-muted-foreground flex items-center px-2">
+                  {uploadedImages.length} imagen(es) lista(s)
+                </div>
+              </div>
+            )}
+            
             <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="h-[80px] w-[60px] flex-shrink-0 border-ps2-cyan/30 hover:bg-ps2-cyan/10"
+                title="Cargar imágenes"
+              >
+                <Upload className="w-5 h-5" />
+              </Button>
               <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -654,14 +826,14 @@ export function AIDeveloperChat({
                     handleSend();
                   }
                 }}
-                placeholder="Describe qué quieres crear, modificar, analizar, consultar o pídeme que genere una imagen..."
+                placeholder="Describe qué quieres crear, sube imágenes para transformarlas, o pídeme generar hasta 4 imágenes..."
                 disabled={isLoading}
                 className="flex-1 min-h-[80px] max-h-[200px] resize-none font-mono text-sm"
                 rows={3}
               />
               <Button
                 onClick={handleSend}
-                disabled={isLoading || !input.trim()}
+                disabled={isLoading || (!input.trim() && uploadedImages.length === 0)}
                 size="icon"
                 className="bg-gradient-to-r from-ps2-purple to-ps2-cyan hover:from-ps2-purple/90 hover:to-ps2-cyan/90 h-[80px] w-[80px] flex-shrink-0 shadow-lg"
               >
@@ -682,7 +854,11 @@ export function AIDeveloperChat({
                 </span>
                 <span className="flex items-center gap-1">
                   <ImagePlus className="w-3 h-3" />
-                  Generación de imágenes AI
+                  Genera hasta 4 imágenes
+                </span>
+                <span className="flex items-center gap-1">
+                  <Upload className="w-3 h-3" />
+                  Transforma tus imágenes
                 </span>
                 <span className="flex items-center gap-1">
                   <FileText className="w-3 h-3" />
@@ -698,31 +874,85 @@ export function AIDeveloperChat({
           {/* Context Menu */}
           {contextMenuPosition && (
             <div
-              className="fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[150px]"
+              className="fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[180px]"
               style={{ 
                 top: contextMenuPosition.y, 
                 left: contextMenuPosition.x 
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
-                onClick={() => handleReply(contextMenuPosition.messageIndex)}
-              >
-                <Reply className="w-3 h-3" />
-                Responder
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
-                onClick={() => {
-                  navigator.clipboard.writeText(messages[contextMenuPosition.messageIndex].content);
-                  setContextMenuPosition(null);
-                  toast({ title: "Copiado", description: "Mensaje copiado al portapapeles" });
-                }}
-              >
-                <Copy className="w-3 h-3" />
-                Copiar mensaje
-              </button>
+              {contextMenuPosition.imageIndex !== undefined ? (
+                // Image-specific context menu
+                <>
+                  <button
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                    onClick={() => {
+                      const msg = messages[contextMenuPosition.messageIndex];
+                      const imgUrl = msg.images?.[contextMenuPosition.imageIndex!];
+                      if (imgUrl) {
+                        setInput(`Genera más imágenes como esta, con el mismo estilo y características.`);
+                      }
+                      setContextMenuPosition(null);
+                    }}
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Generar similares
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                    onClick={() => {
+                      handleImageLike(contextMenuPosition.messageIndex, contextMenuPosition.imageIndex!, 1);
+                      setContextMenuPosition(null);
+                      toast({ 
+                        title: "Preferencia guardada", 
+                        description: "Generaré más imágenes con este estilo" 
+                      });
+                    }}
+                  >
+                    <ThumbsUp className="w-3 h-3" />
+                    Me gusta este estilo
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                    onClick={() => {
+                      const msg = messages[contextMenuPosition.messageIndex];
+                      const imgUrl = msg.images?.[contextMenuPosition.imageIndex!];
+                      if (imgUrl) {
+                        const a = document.createElement('a');
+                        a.href = imgUrl;
+                        a.download = `imagen-ai-${Date.now()}.png`;
+                        a.click();
+                      }
+                      setContextMenuPosition(null);
+                    }}
+                  >
+                    <Download className="w-3 h-3" />
+                    Descargar imagen
+                  </button>
+                </>
+              ) : (
+                // Message context menu
+                <>
+                  <button
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                    onClick={() => handleReply(contextMenuPosition.messageIndex)}
+                  >
+                    <Reply className="w-3 h-3" />
+                    Responder
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                    onClick={() => {
+                      navigator.clipboard.writeText(messages[contextMenuPosition.messageIndex].content);
+                      setContextMenuPosition(null);
+                      toast({ title: "Copiado", description: "Mensaje copiado al portapapeles" });
+                    }}
+                  >
+                    <Copy className="w-3 h-3" />
+                    Copiar mensaje
+                  </button>
+                </>
+              )}
             </div>
           )}
         </>

@@ -12,7 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, projectFiles = [], currentFileContent = null, openFiles = [], generateImage = false } = await req.json();
+    const { messages, projectFiles = [], currentFileContent = null, openFiles = [], generateImage = false, imageCount = 1, userImages = [] } = await req.json();
+    console.log('Received request - generateImage:', generateImage, 'imageCount:', imageCount, 'userImages:', userImages?.length || 0);
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
@@ -31,39 +32,132 @@ serve(async (req) => {
       projectContext += '\n\n📄 ARCHIVO ACTUALMENTE EN EDICIÓN:\n' + JSON.stringify(currentFileContent, null, 2);
     }
 
-    // Si se detectó generación de imagen, usar modelo de imagen
-    if (generateImage) {
-      console.log('🎨 Generando imagen con IA...');
+    // Si el usuario cargó imágenes, procesarlas con visión y posible transformación
+    if (userImages && userImages.length > 0) {
+      console.log('👁️ Analizando imágenes cargadas por el usuario...');
       
-      const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const userMessage = messages[messages.length - 1]?.content || '';
+      
+      // Construir contenido con texto e imágenes
+      const contentArray: any[] = [
+        {
+          type: 'text',
+          text: userMessage
+        }
+      ];
+      
+      userImages.forEach((imgUrl: string) => {
+        contentArray.push({
+          type: 'image_url',
+          image_url: { url: imgUrl }
+        });
+      });
+      
+      const visionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-image',
-          messages: messages,
-          modalities: ['image', 'text']
+          model: 'google/gemini-2.5-pro',
+          messages: [
+            { role: 'system', content: 'Eres un experto en análisis y transformación de imágenes. Entiendes todas las expresiones humanas y estilos artísticos.' },
+            { role: 'user', content: contentArray }
+          ],
+          max_tokens: 4000
         }),
       });
 
-      if (!imageResponse.ok) {
-        throw new Error('Error al generar imagen');
+      if (!visionResponse.ok) {
+        throw new Error('Error al analizar imagen');
       }
 
-      const imageData = await imageResponse.json();
-      const generatedImages = imageData.choices?.[0]?.message?.images?.map((img: any) => img.image_url.url) || [];
+      const visionData = await visionResponse.json();
+      const analysisResponse = visionData.choices?.[0]?.message?.content || 'He analizado tu imagen.';
+      
+      // Detectar si requiere transformación/generación
+      const needsTransformation = /convierte|transforma|estilo|anime|ghibli|pixar|cartoon|realista/i.test(userMessage);
+      
+      if (needsTransformation) {
+        console.log('🎨 Generando imagen transformada...');
+        const transformPrompt = `${userMessage}. Genera una imagen con el estilo solicitado basándote en las características de la imagen proporcionada.`;
+        
+        const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash-image',
+            messages: [{ role: 'user', content: transformPrompt }],
+            modalities: ['image', 'text']
+          }),
+        });
+
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          const generatedImages = imageData.choices?.[0]?.message?.images?.map((img: any) => img.image_url.url) || [];
+          
+          return new Response(
+            JSON.stringify({
+              response: analysisResponse,
+              images: generatedImages,
+              fileOperations: []
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
       
       return new Response(
         JSON.stringify({
-          response: imageData.choices?.[0]?.message?.content || '¡He generado la imagen que solicitaste!',
+          response: analysisResponse,
+          images: [],
+          fileOperations: []
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Si se detectó generación de imagen (sin imágenes de usuario), generar múltiples
+    if (generateImage) {
+      console.log(`🎨 Generando ${imageCount} imagen(es) con IA...`);
+      
+      const numImages = Math.min(Math.max(1, imageCount), 4);
+      const generatedImages: string[] = [];
+      
+      for (let i = 0; i < numImages; i++) {
+        console.log(`Generando imagen ${i + 1}/${numImages}...`);
+        
+        const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash-image',
+            messages: messages,
+            modalities: ['image', 'text']
+          }),
+        });
+
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          const images = imageData.choices?.[0]?.message?.images?.map((img: any) => img.image_url.url) || [];
+          generatedImages.push(...images);
+        }
+      }
+      
+      return new Response(
+        JSON.stringify({
+          response: `He generado ${generatedImages.length} imagen(es) para ti.`,
           fileOperations: [],
           images: generatedImages
         }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
