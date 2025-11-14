@@ -58,6 +58,8 @@ export function AIDeveloperChat({
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [imageGenerationProgress, setImageGenerationProgress] = useState<{ current: number; total: number; progress: number }[]>([]);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -310,6 +312,28 @@ export function AIDeveloperChat({
     
     if (shouldGenerateImage) {
       setIsGeneratingImage(true);
+      // Inicializar progreso para cada imagen
+      const progressArray = Array.from({ length: imageCount }, (_, i) => ({
+        current: i + 1,
+        total: imageCount,
+        progress: 0
+      }));
+      setImageGenerationProgress(progressArray);
+      
+      // Simular progreso visual
+      progressArray.forEach((_, index) => {
+        let currentProgress = 0;
+        const interval = setInterval(() => {
+          currentProgress += Math.random() * 15;
+          if (currentProgress > 95) {
+            clearInterval(interval);
+            return;
+          }
+          setImageGenerationProgress(prev => 
+            prev.map((p, i) => i === index ? { ...p, progress: Math.min(currentProgress, 95) } : p)
+          );
+        }, 300);
+      });
     }
 
     try {
@@ -402,6 +426,7 @@ export function AIDeveloperChat({
     } finally {
       setIsLoading(false);
       setIsGeneratingImage(false);
+      setImageGenerationProgress([]);
     }
   };
 
@@ -612,7 +637,8 @@ export function AIDeveloperChat({
                                   <img 
                                     src={img} 
                                     alt={`Generado ${imgIdx + 1}`}
-                                    className="rounded-lg border border-ps2-purple/30 w-full h-auto shadow-lg cursor-pointer hover:border-ps2-purple/60 transition-all"
+                                    className="rounded-lg border border-ps2-purple/30 w-full h-auto shadow-lg cursor-pointer hover:border-ps2-purple/60 transition-all hover:scale-105"
+                                    onClick={() => setSelectedImage(img)}
                                   />
                                   
                                   {/* Image controls overlay */}
@@ -741,13 +767,41 @@ export function AIDeveloperChat({
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ps2-purple to-ps2-cyan flex items-center justify-center flex-shrink-0 animate-pulse shadow-lg">
                   <Bot className="w-5 h-5 text-white" />
                 </div>
-                <div className="rounded-lg px-4 py-3 bg-muted border border-border/50 shadow-sm">
-                  <div className="flex items-center gap-2">
+                <div className="rounded-lg px-4 py-3 bg-muted border border-border/50 shadow-sm max-w-[85%]">
+                  <div className="flex items-center gap-2 mb-3">
                     <Loader2 className="w-4 h-4 animate-spin text-ps2-purple" />
                     <span className="text-sm text-muted-foreground">
-                      {isGeneratingImage ? 'Generando imagen...' : 'Pensando...'}
+                      {isGeneratingImage ? 'Creando imágenes...' : 'Pensando...'}
                     </span>
                   </div>
+                  
+                  {/* Vista previa de progreso de generación */}
+                  {isGeneratingImage && imageGenerationProgress.length > 0 && (
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      {imageGenerationProgress.map((prog, idx) => (
+                        <div key={idx} className="relative">
+                          <div className="aspect-square rounded-lg border border-ps2-purple/30 bg-gradient-to-br from-ps2-purple/5 to-ps2-cyan/5 overflow-hidden">
+                            {/* Efecto de generación animado */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-ps2-purple/20 to-transparent animate-shimmer" />
+                            
+                            {/* Progreso */}
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
+                              <Sparkles className="w-8 h-8 text-ps2-purple animate-pulse" />
+                              <div className="w-full bg-background/50 rounded-full h-2 overflow-hidden">
+                                <div 
+                                  className="h-full bg-gradient-to-r from-ps2-purple to-ps2-cyan transition-all duration-300 ease-out"
+                                  style={{ width: `${prog.progress}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                Imagen {prog.current}/{prog.total} • {Math.round(prog.progress)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -953,6 +1007,47 @@ export function AIDeveloperChat({
                   </button>
                 </>
               )}
+            </div>
+          )}
+          
+          {/* Visor de imagen en grande */}
+          {selectedImage && (
+            <div 
+              className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+              onClick={() => setSelectedImage(null)}
+            >
+              <div className="relative max-w-[90vw] max-h-[90vh]">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute -top-12 right-0 text-white hover:bg-white/20"
+                  onClick={() => setSelectedImage(null)}
+                >
+                  <X className="w-6 h-6" />
+                </Button>
+                <img 
+                  src={selectedImage} 
+                  alt="Vista completa"
+                  className="max-w-full max-h-[90vh] rounded-lg shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const a = document.createElement('a');
+                      a.href = selectedImage;
+                      a.download = `imagen-ai-${Date.now()}.png`;
+                      a.click();
+                    }}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Descargar
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </>
