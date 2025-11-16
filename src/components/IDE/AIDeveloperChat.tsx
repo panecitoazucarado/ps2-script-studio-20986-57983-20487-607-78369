@@ -276,8 +276,8 @@ export function AIDeveloperChat({
         };
 
         if (file.type.startsWith('image/')) {
-          // Para imágenes, usar base64
-          const base64 = await readFileAsBase64(file);
+          // Comprimir y redimensionar imágenes para evitar errores por tamaño
+          const base64 = await compressImageFile(file, 1280, 0.82);
           fileData.data = base64;
           fileData.preview = base64;
         } else if (file.type === 'application/pdf' || 
@@ -339,10 +339,42 @@ export function AIDeveloperChat({
     });
   };
 
+  const compressImageFile = (file: File, maxDimension: number = 1280, quality: number = 0.82): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      try {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.naturalWidth;
+          let height = img.naturalHeight;
+          const largest = Math.max(width, height);
+          const scale = largest > maxDimension ? maxDimension / largest : 1;
+
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(width * scale);
+          canvas.height = Math.round(height * scale);
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            // Fallback sin compresión
+            readFileAsBase64(file).then(resolve).catch(reject);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const output = canvas.toDataURL('image/jpeg', quality);
+          resolve(output);
+        };
+        img.onerror = () => reject(new Error('No se pudo cargar la imagen para compresión'));
+        img.src = URL.createObjectURL(file);
+      } catch (e) {
+        // Fallback sin compresión
+        readFileAsBase64(file).then(resolve).catch(reject);
+      }
+    });
+  };
+
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleFileUpload(e.target.files);
   };
-
   const removeUploadedFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
