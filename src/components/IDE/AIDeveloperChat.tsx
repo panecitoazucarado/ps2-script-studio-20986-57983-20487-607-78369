@@ -511,6 +511,12 @@ export function AIDeveloperChat({
             description: 'No hay suficientes créditos para generar/analizar imágenes. Agrega créditos y vuelve a intentar.',
             variant: 'destructive',
           });
+          // Mensaje amigable en el chat
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: '⚠️ No hay créditos suficientes para procesar tu solicitud de imagen. Agrega créditos y vuelve a intentar, o envía tu mensaje sin imágenes para continuar con ayuda de texto.',
+            timestamp: Date.now()
+          }]);
           setIsLoading(false);
           setIsGeneratingImage(false);
           setImageGenerationProgress([]);
@@ -536,6 +542,11 @@ export function AIDeveloperChat({
           toast({ title: 'Límite de uso alcanzado', description: 'Has alcanzado el límite de solicitudes. Por favor, intenta más tarde.', variant: 'destructive' });
         } else if (/Payment required|payment_required|Not enough credits|402/i.test(derr)) {
           toast({ title: 'Créditos agotados', description: 'Por favor, agrega créditos en tu espacio de trabajo y vuelve a intentar.', variant: 'destructive' });
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: '⚠️ No hay créditos suficientes para procesar tu solicitud de imagen. Agrega créditos y vuelve a intentar, o envía tu mensaje sin imágenes para continuar con ayuda de texto.',
+            timestamp: Date.now()
+          }]);
         } else {
           throw new Error(derr);
         }
