@@ -12,8 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, projectFiles = [], currentFileContent = null, openFiles = [], generateImage = false, imageCount = 1, userImages = [] } = await req.json();
-    console.log('Received request - generateImage:', generateImage, 'imageCount:', imageCount, 'userImages:', userImages?.length || 0);
+    const { messages, projectFiles = [], currentFileContent = null, openFiles = [], generateImage = false, imageCount = 1, userImages = [], userFiles = [] } = await req.json();
+    console.log('Received request - generateImage:', generateImage, 'imageCount:', imageCount, 'userImages:', userImages?.length || 0, 'userFiles:', userFiles?.length || 0);
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
@@ -30,6 +30,9 @@ serve(async (req) => {
     }
     if (currentFileContent) {
       projectContext += '\n\n📄 ARCHIVO ACTUALMENTE EN EDICIÓN:\n' + JSON.stringify(currentFileContent, null, 2);
+    }
+    if (userFiles && userFiles.length > 0) {
+      projectContext += '\n\n📎 ARCHIVOS ADJUNTOS POR EL USUARIO:\n' + JSON.stringify(userFiles.map((f: any) => ({ name: f.name, type: f.type, content: f.content.substring(0, 2000) })), null, 2);
     }
 
     // Si el usuario cargó imágenes, procesarlas con visión y posible transformación
@@ -77,7 +80,7 @@ serve(async (req) => {
       const analysisResponse = visionData.choices?.[0]?.message?.content || 'He analizado tu imagen.';
       
       // Detectar si requiere transformación/generación
-      const needsTransformation = /convierte|transforma|estilo|anime|ghibli|pixar|cartoon|realista/i.test(userMessage);
+      const needsTransformation = /convierte|transforma|estilo|anime|ghibli|pixar|cartoon|realista|elimina.*fondo|quita.*fondo|sin fondo|background.*remov|borra.*fondo|retoca|mejora|editor|photoshop/i.test(userMessage);
       
       if (needsTransformation) {
         console.log('🎨 Generando imagen transformada...');
