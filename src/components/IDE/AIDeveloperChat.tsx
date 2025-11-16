@@ -502,23 +502,42 @@ export function AIDeveloperChat({
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        const status = (error as any).status || (error as any)?.context?.response?.status;
+        const msg = (error as any).message || '';
+        if (status === 402 || /payment_required|Not enough credits|402/i.test(msg)) {
+          toast({
+            title: 'Créditos agotados',
+            description: 'No hay suficientes créditos para generar/analizar imágenes. Agrega créditos y vuelve a intentar.',
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          setIsGeneratingImage(false);
+          setImageGenerationProgress([]);
+          return;
+        }
+        if (status === 429 || /Rate limits exceeded|429/i.test(msg)) {
+          toast({
+            title: 'Límite de uso alcanzado',
+            description: 'Has alcanzado el límite de solicitudes. Intenta más tarde.',
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          setIsGeneratingImage(false);
+          setImageGenerationProgress([]);
+          return;
+        }
+        throw error;
+      }
 
       if (data.error) {
-        if (data.error.includes('Rate limits exceeded')) {
-          toast({
-            title: "Límite de uso alcanzado",
-            description: "Has alcanzado el límite de solicitudes. Por favor, intenta más tarde.",
-            variant: "destructive"
-          });
-        } else if (data.error.includes('Payment required')) {
-          toast({
-            title: "Créditos agotados",
-            description: "Por favor, agrega créditos en la configuración de tu espacio de trabajo.",
-            variant: "destructive"
-          });
+        const derr = String(data.error);
+        if (/Rate limits exceeded|429/i.test(derr)) {
+          toast({ title: 'Límite de uso alcanzado', description: 'Has alcanzado el límite de solicitudes. Por favor, intenta más tarde.', variant: 'destructive' });
+        } else if (/Payment required|payment_required|Not enough credits|402/i.test(derr)) {
+          toast({ title: 'Créditos agotados', description: 'Por favor, agrega créditos en tu espacio de trabajo y vuelve a intentar.', variant: 'destructive' });
         } else {
-          throw new Error(data.error);
+          throw new Error(derr);
         }
         setIsLoading(false);
         return;
