@@ -3,12 +3,20 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3, MessageSquare, Save, Copy, ThumbsUp, ThumbsDown, Reply, ImagePlus, Sparkles, Download, Upload, X } from 'lucide-react';
+import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3, MessageSquare, Save, Copy, ThumbsUp, ThumbsDown, Reply, ImagePlus, Sparkles, Download, Upload, X, FileCode, File } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/athena';
 import { AICodeBlock } from './AICodeBlock';
 import { ConversationManager, Conversation } from './ConversationManager';
+
+interface UploadedFile {
+  name: string;
+  type: string;
+  size: number;
+  data: string; // base64 or text content
+  preview?: string; // for images
+}
 
 interface Message {
   role: 'user' | 'assistant';
@@ -19,6 +27,7 @@ interface Message {
   likes?: number; // 1 = like, -1 = dislike, 0 = neutral
   replyTo?: number; // índice del mensaje al que responde
   imageLikes?: { [key: number]: number }; // likes por imagen individual
+  attachedFiles?: UploadedFile[]; // archivos adjuntos en el mensaje
 }
 
 interface FileOperation {
@@ -57,11 +66,13 @@ export function AIDeveloperChat({
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number; messageIndex: number; imageIndex?: number } | null>(null);
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [imageGenerationProgress, setImageGenerationProgress] = useState<{ current: number; total: number; progress: number }[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   // Load conversations from localStorage
@@ -248,34 +259,60 @@ export function AIDeveloperChat({
     return { shouldGenerate, count };
   };
 
-  // Handle file upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+  // Handle file upload with support for multiple file types
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
 
-    const newImages: string[] = [];
-    let processed = 0;
+    const newFiles: UploadedFile[] = [];
+    const filesArray = Array.from(files);
 
-    Array.from(files).forEach((file) => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target?.result) {
-            newImages.push(event.target.result as string);
-          }
-          processed++;
-          if (processed === files.length) {
-            setUploadedImages(prev => [...prev, ...newImages]);
-            toast({
-              title: "Imágenes cargadas",
-              description: `${newImages.length} imagen(es) lista(s) para enviar`,
-            });
-          }
+    for (const file of filesArray) {
+      try {
+        const fileData: UploadedFile = {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: ''
         };
-        reader.readAsDataURL(file);
-      } else {
-        processed++;
+
+        if (file.type.startsWith('image/')) {
+          // Para imágenes, usar base64
+          const base64 = await readFileAsBase64(file);
+          fileData.data = base64;
+          fileData.preview = base64;
+        } else if (file.type === 'application/pdf' || 
+                   file.type.startsWith('text/') || 
+                   file.name.endsWith('.js') || 
+                   file.name.endsWith('.ts') || 
+                   file.name.endsWith('.tsx') || 
+                   file.name.endsWith('.jsx') ||
+                   file.name.endsWith('.cpp') ||
+                   file.name.endsWith('.c') ||
+                   file.name.endsWith('.h')) {
+          // Para archivos de texto y código
+          const text = await readFileAsText(file);
+          fileData.data = text;
+        } else {
+          // Para otros archivos, convertir a base64
+          const base64 = await readFileAsBase64(file);
+          fileData.data = base64;
+        }
+
+        newFiles.push(fileData);
+      } catch (error) {
+        console.error('Error reading file:', error);
+        toast({
+          title: "Error al cargar archivo",
+          description: `No se pudo cargar ${file.name}`,
+          variant: "destructive"
+        });
       }
+    }
+
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    toast({
+      title: "Archivos cargados",
+      description: `${newFiles.length} archivo(s) listo(s) para enviar`,
     });
 
     // Reset input
@@ -284,27 +321,78 @@ export function AIDeveloperChat({
     }
   };
 
-  const removeUploadedImage = (index: number) => {
-    setUploadedImages(prev => prev.filter((_, i) => i !== index));
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileUpload(e.target.files);
+  };
+
+  const removeUploadedFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget === dropZoneRef.current) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    handleFileUpload(files);
   };
 
   const handleSend = async () => {
-    if ((!input.trim() && uploadedImages.length === 0) || isLoading) return;
+    if ((!input.trim() && uploadedFiles.length === 0) || isLoading) return;
 
     const userMessage: Message = {
       role: 'user',
       content: input,
       timestamp: Date.now(),
       replyTo: replyingTo !== null ? replyingTo : undefined,
-      images: uploadedImages.length > 0 ? [...uploadedImages] : undefined
+      attachedFiles: uploadedFiles.length > 0 ? [...uploadedFiles] : undefined
     };
 
     setMessages(prev => [...prev, userMessage]);
     const inputText = input;
-    const userImagesData = [...uploadedImages];
+    const userFilesData = [...uploadedFiles];
     setInput('');
     setReplyingTo(null);
-    setUploadedImages([]);
+    setUploadedFiles([]);
     setIsLoading(true);
 
     // Detectar si debe generar imagen y cuántas
@@ -353,6 +441,15 @@ export function AIDeveloperChat({
         content: currentFile.content?.substring(0, 10000) // Primeros 10000 chars del archivo activo
       } : null;
 
+      // Extraer imágenes y otros archivos
+      const userImages = userFilesData
+        .filter(f => f.type.startsWith('image/'))
+        .map(f => f.data);
+      
+      const otherFiles = userFilesData
+        .filter(f => !f.type.startsWith('image/'))
+        .map(f => ({ name: f.name, type: f.type, content: f.data }));
+
       const { data, error } = await supabase.functions.invoke('ai-developer-chat', {
         body: {
           messages: [...messages, userMessage].map(m => ({
@@ -368,7 +465,8 @@ export function AIDeveloperChat({
           currentFileContent: currentFileInfo,
           generateImage: shouldGenerateImage,
           imageCount: imageCount,
-          userImages: userImagesData.length > 0 ? userImagesData : undefined
+          userImages: userImages.length > 0 ? userImages : undefined,
+          userFiles: otherFiles.length > 0 ? otherFiles : undefined
         }
       });
 
@@ -695,24 +793,42 @@ export function AIDeveloperChat({
                           )}
                         </div>
                       ) : (
-                        <>
+                        <div className="space-y-2">
                           <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
                           
-                          {/* Imágenes cargadas por el usuario */}
-                          {message.role === 'user' && message.images && message.images.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2 mt-3">
-                              {message.images.map((img, imgIdx) => (
-                                <div key={imgIdx} className="relative group">
-                                  <img 
-                                    src={img} 
-                                    alt={`Cargada ${imgIdx + 1}`}
-                                    className="rounded-lg border border-ps2-cyan/30 w-full h-auto shadow-md"
-                                  />
+                          {/* Archivos adjuntos del usuario */}
+                          {message.attachedFiles && message.attachedFiles.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-border/30">
+                              {message.attachedFiles.map((file, fileIdx) => (
+                                <div key={fileIdx} className="relative group">
+                                  {file.preview ? (
+                                    <div className="relative">
+                                      <img 
+                                        src={file.preview} 
+                                        alt={file.name}
+                                        className="w-24 h-24 object-cover rounded border-2 border-ps2-cyan/30 shadow cursor-pointer hover:scale-105 transition-transform"
+                                        onClick={() => setSelectedImage(file.preview!)}
+                                      />
+                                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[9px] px-1 truncate">
+                                        {file.name}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="w-20 h-20 flex flex-col items-center justify-center bg-muted/50 border border-border/50 rounded shadow-sm">
+                                      {file.type.includes('pdf') ? (
+                                        <FileText className="w-5 h-5 text-red-500 mb-1" />
+                                      ) : (
+                                        <FileCode className="w-5 h-5 text-blue-500 mb-1" />
+                                      )}
+                                      <span className="text-[8px] text-center px-1 truncate w-full">{file.name}</span>
+                                      <span className="text-[7px] text-muted-foreground">{(file.size / 1024).toFixed(1)}KB</span>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
                           )}
-                        </>
+                        </div>
                       )}
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-xs text-muted-foreground">
@@ -828,77 +944,128 @@ export function AIDeveloperChat({
               </div>
             )}
             
-            {/* Uploaded images preview */}
-            {uploadedImages.length > 0 && (
-              <div className="flex flex-wrap gap-2 p-2 bg-muted/30 rounded-md">
-                {uploadedImages.map((img, idx) => (
+            {/* Uploaded files preview */}
+            {uploadedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-3 bg-gradient-to-r from-muted/40 to-muted/20 rounded-lg border border-border/50">
+                {uploadedFiles.map((file, idx) => (
                   <div key={idx} className="relative group">
-                    <img 
-                      src={img} 
-                      alt={`Upload ${idx + 1}`} 
-                      className="w-16 h-16 object-cover rounded border border-border"
-                    />
+                    {file.preview ? (
+                      <div className="relative">
+                        <img 
+                          src={file.preview} 
+                          alt={file.name} 
+                          className="w-20 h-20 object-cover rounded-md border-2 border-border/50 shadow-sm"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-1 py-0.5 truncate rounded-b-md">
+                          {file.name}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 flex flex-col items-center justify-center bg-muted border-2 border-border/50 rounded-md shadow-sm">
+                        {file.type.includes('pdf') ? (
+                          <FileText className="w-6 h-6 text-red-500 mb-1" />
+                        ) : file.type.includes('code') || file.name.match(/\.(js|ts|tsx|jsx|cpp|c|h)$/) ? (
+                          <FileCode className="w-6 h-6 text-blue-500 mb-1" />
+                        ) : (
+                          <File className="w-6 h-6 text-muted-foreground mb-1" />
+                        )}
+                        <span className="text-[9px] text-center px-1 truncate w-full">{file.name}</span>
+                      </div>
+                    )}
                     <button
-                      onClick={() => removeUploadedImage(idx)}
-                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeUploadedFile(idx)}
+                      className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:scale-110"
+                      title="Eliminar archivo"
                     >
                       <X className="w-3 h-3" />
                     </button>
                   </div>
                 ))}
-                <div className="text-xs text-muted-foreground flex items-center px-2">
-                  {uploadedImages.length} imagen(es) lista(s)
+                <div className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-md text-xs text-muted-foreground">
+                  <Sparkles className="w-3 h-3" />
+                  {uploadedFiles.length} archivo(s) listo(s)
                 </div>
               </div>
             )}
             
-            <div className="flex gap-2">
+            {/* Drag and Drop Zone */}
+            <div 
+              ref={dropZoneRef}
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`relative border-2 border-dashed rounded-lg transition-all ${
+                isDragging 
+                  ? 'border-ps2-cyan bg-ps2-cyan/10 scale-[1.02]' 
+                  : 'border-border/30 bg-muted/10'
+              }`}
+            >
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,.pdf,.txt,.js,.ts,.tsx,.jsx,.cpp,.c,.h,.css,.html,.json,.md"
                 multiple
-                onChange={handleFileUpload}
+                onChange={handleFileInputChange}
                 className="hidden"
               />
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading}
-                className="h-[80px] w-[60px] flex-shrink-0 border-ps2-cyan/30 hover:bg-ps2-cyan/10"
-                title="Cargar imágenes"
-              >
-                <Upload className="w-5 h-5" />
-              </Button>
-              <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder="Describe qué quieres crear, sube imágenes para transformarlas, o pídeme generar hasta 4 imágenes..."
-                disabled={isLoading}
-                className="flex-1 min-h-[80px] max-h-[200px] resize-none font-mono text-sm"
-                rows={3}
-              />
-              <Button
-                onClick={handleSend}
-                disabled={isLoading || (!input.trim() && uploadedImages.length === 0)}
-                size="icon"
-                className="bg-gradient-to-r from-ps2-purple to-ps2-cyan hover:from-ps2-purple/90 hover:to-ps2-cyan/90 h-[80px] w-[80px] flex-shrink-0 shadow-lg"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : isGeneratingImage ? (
-                  <Sparkles className="w-6 h-6" />
-                ) : (
-                  <Send className="w-6 h-6" />
-                )}
-              </Button>
+              
+              {isDragging ? (
+                <div className="flex flex-col items-center justify-center py-8 px-4">
+                  <Upload className="w-12 h-12 text-ps2-cyan animate-bounce mb-2" />
+                  <p className="text-sm font-medium text-ps2-cyan">¡Suelta tus archivos aquí!</p>
+                  <p className="text-xs text-muted-foreground mt-1">Imágenes, PDFs, código...</p>
+                </div>
+              ) : (
+                <div className="flex gap-2 p-2">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isLoading}
+                    className="h-[80px] w-[60px] flex-shrink-0 border-ps2-cyan/30 hover:bg-ps2-cyan/10 hover:border-ps2-cyan/50 transition-all"
+                    title="Cargar archivos"
+                  >
+                    <div className="flex flex-col items-center gap-1">
+                      <Upload className="w-5 h-5" />
+                      <span className="text-[9px]">Archivos</span>
+                    </div>
+                  </Button>
+                  <div className="flex-1 flex flex-col gap-1">
+                    <Textarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+                      placeholder="💬 Describe qué quieres crear o editar...
+📁 Click en 'Archivos' o arrastra archivos aquí (imágenes, PDFs, código)
+🎨 Sube una imagen y pídeme: 'Conviértela a anime', 'Elimina el fondo', 'Hazla estilo Ghibli'
+✨ O pídeme: 'Genera 4 imágenes de un atardecer cyberpunk'"
+                      disabled={isLoading}
+                      className="flex-1 min-h-[80px] max-h-[200px] resize-none font-mono text-sm bg-background/50"
+                      rows={3}
+                    />
+                  </div>
+                  <Button
+                    onClick={handleSend}
+                    disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
+                    size="icon"
+                    className="bg-gradient-to-r from-ps2-purple to-ps2-cyan hover:from-ps2-purple/90 hover:to-ps2-cyan/90 h-[80px] w-[80px] flex-shrink-0 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : isGeneratingImage ? (
+                      <Sparkles className="w-6 h-6 animate-pulse" />
+                    ) : (
+                      <Send className="w-6 h-6" />
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="mt-3 flex items-center justify-between text-xs">
               <div className="flex items-center gap-3 text-muted-foreground">
