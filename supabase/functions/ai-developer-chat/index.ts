@@ -74,6 +74,18 @@ serve(async (req) => {
       if (!visionResponse.ok) {
         const errorText = await visionResponse.text();
         console.error('❌ Error en API de visión:', visionResponse.status, errorText);
+        if (visionResponse.status === 429) {
+          return new Response(
+            JSON.stringify({ error: 'Rate limits exceeded, please try again later.' }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (visionResponse.status === 402) {
+          return new Response(
+            JSON.stringify({ error: 'Payment required, please add funds to your Lovable AI workspace.' }),
+            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
         throw new Error(`Error al analizar imagen: ${visionResponse.status} - ${errorText}`);
       }
 
@@ -165,7 +177,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-image',
+            model: 'google/gemini-2.5-flash-image-preview',
             messages: messages,
             modalities: ['image', 'text']
           }),
@@ -173,8 +185,23 @@ serve(async (req) => {
 
         if (imageResponse.ok) {
           const imageData = await imageResponse.json();
-          const images = imageData.choices?.[0]?.message?.images?.map((img: any) => img.image_url.url) || [];
+          const images = imageData.choices?.[0]?.message?.images?.map((img: any) => img.image_url?.url).filter(Boolean) || [];
           generatedImages.push(...images);
+        } else {
+          const errorText = await imageResponse.text();
+          console.error('❌ Error al generar imagen (bulk):', imageResponse.status, errorText);
+          if (imageResponse.status === 429) {
+            return new Response(
+              JSON.stringify({ error: 'Rate limits exceeded, please try again later.' }),
+              { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          if (imageResponse.status === 402) {
+            return new Response(
+              JSON.stringify({ error: 'Payment required, please add funds to your Lovable AI workspace.' }),
+              { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
       }
       
