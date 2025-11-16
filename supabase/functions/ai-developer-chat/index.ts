@@ -41,11 +41,11 @@ serve(async (req) => {
       
       const userMessage = messages[messages.length - 1]?.content || '';
       
-      // Construir contenido con texto e imágenes
+      // Construir contenido con texto e imágenes para el modelo de visión
       const contentArray: any[] = [
         {
           type: 'text',
-          text: userMessage
+          text: userMessage || 'Analiza esta imagen y describe lo que ves.'
         }
       ];
       
@@ -56,6 +56,7 @@ serve(async (req) => {
         });
       });
       
+      console.log('📤 Enviando imagen al modelo de visión...');
       const visionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -63,29 +64,38 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-pro',
+          model: 'google/gemini-2.5-flash',
           messages: [
-            { role: 'system', content: 'Eres un experto en análisis y transformación de imágenes. Entiendes todas las expresiones humanas y estilos artísticos.' },
             { role: 'user', content: contentArray }
-          ],
-          max_tokens: 4000
+          ]
         }),
       });
 
       if (!visionResponse.ok) {
-        throw new Error('Error al analizar imagen');
+        const errorText = await visionResponse.text();
+        console.error('❌ Error en API de visión:', visionResponse.status, errorText);
+        throw new Error(`Error al analizar imagen: ${visionResponse.status} - ${errorText}`);
       }
 
+      console.log('✅ Imagen analizada correctamente');
       const visionData = await visionResponse.json();
       const analysisResponse = visionData.choices?.[0]?.message?.content || 'He analizado tu imagen.';
+      console.log('📝 Análisis:', analysisResponse.substring(0, 100) + '...');
       
       // Detectar si requiere transformación/generación
       const needsTransformation = /convierte|transforma|estilo|anime|ghibli|pixar|cartoon|realista|elimina.*fondo|quita.*fondo|sin fondo|background.*remov|borra.*fondo|retoca|mejora|editor|photoshop/i.test(userMessage);
       
       if (needsTransformation) {
-        console.log('🎨 Generando imagen transformada...');
-        const transformPrompt = `${userMessage}. Genera una imagen con el estilo solicitado basándote en las características de la imagen proporcionada.`;
+        console.log('🎨 Generando imagen transformada con estilo solicitado...');
         
+        // Crear un prompt más detallado basado en el análisis
+        const transformPrompt = `Basándote en la siguiente descripción de una imagen: "${analysisResponse.substring(0, 300)}", 
+        crea una nueva imagen con este estilo solicitado por el usuario: "${userMessage}".
+        
+        Debes mantener los elementos principales de la imagen original (personas, objetos, composición) 
+        pero aplicar el estilo artístico solicitado. Ultra high resolution.`;
+        
+        console.log('📤 Solicitando generación de imagen...');
         const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -93,30 +103,44 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-image',
-            messages: [{ role: 'user', content: transformPrompt }],
+            model: 'google/gemini-2.5-flash-image-preview',
+            messages: [{ 
+              role: 'user', 
+              content: transformPrompt 
+            }],
             modalities: ['image', 'text']
           }),
         });
 
         if (imageResponse.ok) {
+          console.log('✅ Imagen transformada generada');
           const imageData = await imageResponse.json();
-          const generatedImages = imageData.choices?.[0]?.message?.images?.map((img: any) => img.image_url.url) || [];
+          const generatedImages = imageData.choices?.[0]?.message?.images?.map((img: any) => img.image_url?.url).filter(Boolean) || [];
           
-          return new Response(
-            JSON.stringify({
-              response: analysisResponse,
-              images: generatedImages,
-              fileOperations: []
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          if (generatedImages.length > 0) {
+            console.log('🎉 Imágenes generadas exitosamente:', generatedImages.length);
+            return new Response(
+              JSON.stringify({
+                response: `✨ He transformado tu imagen según tu solicitud: "${userMessage}".\n\n📸 Análisis de la imagen original: ${analysisResponse.substring(0, 200)}...`,
+                images: generatedImages,
+                fileOperations: []
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          } else {
+            console.log('⚠️ No se generaron imágenes en la respuesta');
+          }
+        } else {
+          const errorText = await imageResponse.text();
+          console.error('❌ Error al generar imagen:', imageResponse.status, errorText);
         }
       }
       
+      // Si no requiere transformación o falló la generación, devolver análisis
+      console.log('📋 Devolviendo análisis de imagen sin transformación');
       return new Response(
         JSON.stringify({
-          response: analysisResponse,
+          response: `📸 Análisis de tu imagen:\n\n${analysisResponse}`,
           images: [],
           fileOperations: []
         }),
