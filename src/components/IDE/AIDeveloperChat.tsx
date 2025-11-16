@@ -55,7 +55,7 @@ export function AIDeveloperChat({
 }: AIDeveloperChatProps) {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: '👋 ¡Hola! Soy tu **Asistente Experto de Desarrollo PS2** con capacidades avanzadas.\n\n🚀 **Puedo ayudarte con:**\n• Escribir código complejo y completo para ATHENA ENV\n• Crear arquitecturas avanzadas de juegos\n• Optimizar performance para PS2\n• Refactorizar y mejorar código existente\n• Explicar conceptos técnicos en profundidad\n• Debugging de problemas complejos\n\n💡 **Características especiales:**\n• Aprendo de tu código para adaptarme a tu estilo\n• Escribo código completo sin omisiones\n• Analizo todo el contexto de tu proyecto\n• Sin límites de longitud en las respuestas\n\n¿En qué proyecto estás trabajando? Puedes compartir código existente para que lo analice y aprenda de tu estilo. 🎮',
+    content: 'Mensaje de bienvenida (no se muestra directamente)',
     timestamp: Date.now()
   }]);
   const [input, setInput] = useState('');
@@ -156,7 +156,7 @@ export function AIDeveloperChat({
       setCurrentConversationId(null);
       setMessages([{
         role: 'assistant',
-        content: '👋 ¡Hola! Soy tu **Asistente Experto de Desarrollo PS2** con capacidades avanzadas.\n\n🚀 **Puedo ayudarte con:**\n• Escribir código complejo y completo para ATHENA ENV\n• Crear arquitecturas avanzadas de juegos\n• Optimizar performance para PS2\n• Refactorizar y mejorar código existente\n• Explicar conceptos técnicos en profundidad\n• Debugging de problemas complejos\n\n💡 **Características especiales:**\n• Aprendo de tu código para adaptarme a tu estilo\n• Escribo código completo sin omisiones\n• Analizo todo el contexto de tu proyecto\n• Sin límites de longitud en las respuestas\n\n¿En qué proyecto estás trabajando? Puedes compartir código existente para que lo analice y aprenda de tu estilo. 🎮',
+        content: 'Mensaje de bienvenida (no se muestra directamente)',
         timestamp: Date.now()
       }]);
     }
@@ -172,14 +172,10 @@ export function AIDeveloperChat({
     setCurrentConversationId(null);
     setMessages([{
       role: 'assistant',
-      content: '👋 ¡Hola! Soy tu **Asistente Experto de Desarrollo PS2** con capacidades avanzadas.\n\n🚀 **Puedo ayudarte con:**\n• Escribir código complejo y completo para ATHENA ENV\n• Crear arquitecturas avanzadas de juegos\n• Optimizar performance para PS2\n• Refactorizar y mejorar código existente\n• Explicar conceptos técnicos en profundidad\n• Debugging de problemas complejos\n\n💡 **Características especiales:**\n• Aprendo de tu código para adaptarme a tu estilo\n• Escribo código completo sin omisiones\n• Analizo todo el contexto de tu proyecto\n• Sin límites de longitud en las respuestas\n\n¿En qué proyecto estás trabajando? Puedes compartir código existente para que lo analice y aprenda de tu estilo. 🎮',
+      content: 'Mensaje de bienvenida (no se muestra directamente)',
       timestamp: Date.now()
     }]);
     setShowConversations(false);
-    toast({
-      title: "Nueva conversación",
-      description: "Se ha iniciado una nueva conversación",
-    });
   };
 
   useEffect(() => {
@@ -202,10 +198,6 @@ export function AIDeveloperChat({
     setMessages(prev => prev.map((msg, i) => 
       i === index ? { ...msg, likes: msg.likes === value ? 0 : value } : msg
     ));
-    toast({
-      title: value === 1 ? "¡Gracias por tu feedback!" : "Feedback registrado",
-      description: value === 1 ? "Nos alegra que te haya gustado la respuesta" : "Trabajaremos para mejorar",
-    });
   };
 
   // Handle like/dislike for individual images
@@ -218,10 +210,6 @@ export function AIDeveloperChat({
       }
       return msg;
     }));
-    toast({
-      title: value === 1 ? "¡Imagen favorita!" : "Feedback registrado",
-      description: value === 1 ? "Guardaré tus preferencias de estilo" : "Tomaré nota de tus preferencias",
-    });
   };
 
   // Handle context menu (right click)
@@ -234,10 +222,6 @@ export function AIDeveloperChat({
   const handleReply = (index: number) => {
     setReplyingTo(index);
     setContextMenuPosition(null);
-    toast({
-      title: "Respondiendo",
-      description: `Respondiendo al mensaje: "${messages[index].content.substring(0, 50)}..."`,
-    });
   };
 
   // Detectar si el usuario pide generar una imagen y cuántas
@@ -681,8 +665,11 @@ export function AIDeveloperChat({
     return parts.length > 0 ? parts : [{ type: 'text', content }];
   };
 
+  // Welcome state - show only when no messages yet
+  const showWelcome = messages.length === 1 && messages[0].role === 'assistant' && !isLoading;
+
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col relative overflow-hidden bg-gradient-to-br from-background via-background to-background/95">
       {showConversations ? (
         <ConversationManager
           conversations={conversations}
@@ -694,470 +681,443 @@ export function AIDeveloperChat({
         />
       ) : (
         <>
-          {/* Header with actions */}
-          <div className="flex items-center justify-between p-3 border-b border-border bg-muted/30">
-            <div className="flex items-center gap-2">
-              <Bot className="w-5 h-5 text-ps2-purple" />
-              <h3 className="font-semibold text-sm">IA Developer</h3>
-              {currentFile && (
-                <Badge variant="outline" className="text-xs">
-                  {currentFile.name}
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleCopyConversation}
-                disabled={messages.length <= 1}
-                className="h-7 px-2 text-xs hover:bg-green-500/20 hover:text-green-500"
-              >
-                <Copy className="w-3.5 h-3.5 mr-1" />
-                Copiar Chat
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={saveCurrentConversation}
-                disabled={messages.length <= 1}
-                className="h-7 px-2 text-xs hover:bg-ps2-purple/20 hover:text-ps2-purple"
-              >
-                <Save className="w-3.5 h-3.5 mr-1" />
-                Guardar
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setShowConversations(true)}
-                className="h-7 px-2 text-xs hover:bg-ps2-cyan/20 hover:text-ps2-cyan"
-              >
-                <MessageSquare className="w-3.5 h-3.5 mr-1" />
-                Historial ({conversations.length})
-              </Button>
+          {/* Compact Header with Glass Effect */}
+          <div className="glass-panel border-b-0 rounded-b-xl mx-2 mt-2 backdrop-blur-xl">
+            <div className="flex items-center justify-between p-2 px-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-ps2-purple to-ps2-cyan flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-white" />
+                </div>
+                {currentFile && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-background/40 border-border/50">
+                    {currentFile.name}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleCopyConversation}
+                  disabled={messages.length <= 1}
+                  className="h-7 w-7 p-0 hover:bg-white/10 disabled:opacity-30"
+                  title="Copiar chat"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={saveCurrentConversation}
+                  disabled={messages.length <= 1}
+                  className="h-7 w-7 p-0 hover:bg-white/10 disabled:opacity-30"
+                  title="Guardar"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowConversations(true)}
+                  className="h-7 w-7 p-0 hover:bg-white/10 relative"
+                  title="Historial"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  {conversations.length > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-ps2-purple rounded-full text-[8px] flex items-center justify-center">
+                      {conversations.length}
+                    </span>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full p-4" ref={scrollRef}>
-          <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div key={index} className="space-y-2">
-                {/* Reply indicator */}
-                {message.replyTo !== undefined && (
-                  <div className="ml-12 text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                    <Reply className="w-3 h-3" />
-                    Respondiendo a: {messages[message.replyTo]?.content.substring(0, 50)}...
-                  </div>
-                )}
-                
-                <div
-                  className={`flex gap-3 ${
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
-                  onContextMenu={(e) => message.images && message.images.length === 0 ? handleContextMenu(e, index) : undefined}
-                >
-                  {message.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ps2-purple to-ps2-cyan flex items-center justify-center flex-shrink-0 shadow-lg">
-                      <Bot className="w-5 h-5 text-white" />
+          {/* Main Content Area */}
+          <div className="flex-1 overflow-hidden relative">
+            <ScrollArea className="h-full" ref={scrollRef}>
+              {showWelcome ? (
+                /* Welcome Screen */
+                <div className="h-full flex items-center justify-center p-6 animate-float-in">
+                  <div className="max-w-2xl w-full text-center space-y-6">
+                    <div className="inline-block p-4 rounded-full glass-panel">
+                      <Sparkles className="w-12 h-12 text-ps2-purple" />
                     </div>
-                  )}
-                  <div className="space-y-2 max-w-[85%]">
-                    <div
-                      className={`rounded-lg px-4 py-3 ${
-                        message.role === 'user'
-                          ? 'bg-gradient-to-r from-ps2-cyan/20 to-ps2-cyan/10 text-foreground border border-ps2-cyan/30'
-                          : 'bg-muted text-foreground border border-border/50'
-                      } max-w-full overflow-x-auto shadow-sm hover:shadow-md transition-shadow`}
-                    >
-                      {message.role === 'assistant' ? (
-                        <div className="space-y-4">
-                          {formatCodeBlock(message.content).map((part, i) => (
-                            part.type === 'code' ? (
-                              <AICodeBlock
-                                key={i}
-                                code={part.content}
-                                language={part.language}
-                                onApplyToFile={onApplyCode}
-                              />
-                            ) : (
-                              <p key={i} className="text-sm whitespace-pre-wrap leading-relaxed">{part.content}</p>
-                            )
-                          ))}
-                          
-                          {/* Imágenes generadas por la IA */}
-                          {message.images && message.images.length > 0 && (
-                            <div className="grid grid-cols-2 gap-3 mt-4">
-                              {message.images.map((img, imgIdx) => (
-                                <div 
-                                  key={imgIdx} 
-                                  className="relative group"
-                                  onContextMenu={(e) => handleContextMenu(e, index, imgIdx)}
-                                >
-                                  <img 
-                                    src={img} 
-                                    alt={`Generado ${imgIdx + 1}`}
-                                    className="rounded-lg border border-ps2-purple/30 w-full h-auto shadow-lg cursor-pointer hover:border-ps2-purple/60 transition-all hover:scale-105"
-                                    onClick={() => setSelectedImage(img)}
-                                  />
-                                  
-                                  {/* Image controls overlay */}
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all rounded-lg flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="bg-black/50 hover:bg-black/70 text-white"
-                                      onClick={() => {
-                                        const a = document.createElement('a');
-                                        a.href = img;
-                                        a.download = `imagen-ai-${Date.now()}.png`;
-                                        a.click();
-                                      }}
-                                    >
-                                      <Download className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleImageLike(index, imgIdx, 1)}
-                                      className={`${
-                                        message.imageLikes?.[imgIdx] === 1 
-                                          ? 'bg-green-500/70 hover:bg-green-500/90 text-white' 
-                                          : 'bg-black/50 hover:bg-black/70 text-white'
-                                      }`}
-                                    >
-                                      <ThumbsUp className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleImageLike(index, imgIdx, -1)}
-                                      className={`${
-                                        message.imageLikes?.[imgIdx] === -1 
-                                          ? 'bg-red-500/70 hover:bg-red-500/90 text-white' 
-                                          : 'bg-black/50 hover:bg-black/70 text-white'
-                                      }`}
-                                    >
-                                      <ThumbsDown className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                  
-                                  {/* Like indicator badge */}
-                                  {message.imageLikes?.[imgIdx] === 1 && (
-                                    <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 shadow-lg">
-                                      <ThumbsUp className="w-3 h-3" />
-                                      Favorita
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                          
-                          {/* Archivos adjuntos del usuario */}
-                          {message.attachedFiles && message.attachedFiles.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-border/30">
-                              {message.attachedFiles.map((file, fileIdx) => (
-                                <div key={fileIdx} className="relative group">
-                                  {file.preview ? (
-                                    <div className="relative">
-                                      <img 
-                                        src={file.preview} 
-                                        alt={file.name}
-                                        className="w-24 h-24 object-cover rounded border-2 border-ps2-cyan/30 shadow cursor-pointer hover:scale-105 transition-transform"
-                                        onClick={() => setSelectedImage(file.preview!)}
-                                      />
-                                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[9px] px-1 truncate">
-                                        {file.name}
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="w-20 h-20 flex flex-col items-center justify-center bg-muted/50 border border-border/50 rounded shadow-sm">
-                                      {file.type.includes('pdf') ? (
-                                        <FileText className="w-5 h-5 text-red-500 mb-1" />
-                                      ) : (
-                                        <FileCode className="w-5 h-5 text-blue-500 mb-1" />
-                                      )}
-                                      <span className="text-[8px] text-center px-1 truncate w-full">{file.name}</span>
-                                      <span className="text-[7px] text-muted-foreground">{(file.size / 1024).toFixed(1)}KB</span>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                    <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-ps2-purple via-ps2-cyan to-ps2-blue bg-clip-text text-transparent">
+                      Hola, ¿qué tienes en mente hoy?
+                    </h1>
+                    <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                      Soy tu asistente de desarrollo. Puedo ayudarte con código, imágenes, arquitectura y mucho más.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                /* Messages */
+                <div className="p-3 md:p-4 space-y-3">
+                  {messages.slice(1).map((message, index) => (
+                    <div key={index} className="animate-float-in" style={{ animationDelay: `${index * 0.05}s` }}>
+                      {/* Reply indicator */}
+                      {message.replyTo !== undefined && (
+                        <div className="ml-10 mb-1 text-[10px] text-muted-foreground flex items-center gap-1">
+                          <Reply className="w-2.5 h-2.5" />
+                          {messages[message.replyTo]?.content.substring(0, 40)}...
                         </div>
                       )}
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(message.timestamp).toLocaleTimeString()}
-                        </span>
-                        
-                        {/* Like/Dislike buttons for assistant messages */}
+                      
+                      <div
+                        className={`flex gap-2 md:gap-3 ${
+                          message.role === 'user' ? 'justify-end' : 'justify-start'
+                        }`}
+                        onContextMenu={(e) => message.images && message.images.length === 0 ? handleContextMenu(e, index + 1) : undefined}
+                      >
                         {message.role === 'assistant' && (
-                          <div className="flex items-center gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleLike(index, 1)}
-                              className={`h-6 px-2 ${message.likes === 1 ? 'text-green-500 bg-green-500/20' : 'text-muted-foreground hover:text-green-500'}`}
-                            >
-                              <ThumbsUp className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleLike(index, -1)}
-                              className={`h-6 px-2 ${message.likes === -1 ? 'text-red-500 bg-red-500/20' : 'text-muted-foreground hover:text-red-500'}`}
-                            >
-                              <ThumbsDown className="w-3 h-3" />
-                            </Button>
+                          <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-ps2-purple to-ps2-cyan flex items-center justify-center flex-shrink-0 shadow-lg">
+                            <Bot className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                          </div>
+                        )}
+                        <div className="space-y-1.5 max-w-[85%] md:max-w-[75%]">
+                          <div
+                            className={`rounded-2xl px-3 py-2 md:px-4 md:py-3 text-sm transition-all ${
+                              message.role === 'user'
+                                ? 'glass-panel bg-gradient-to-r from-ps2-cyan/10 to-ps2-purple/10 border-ps2-cyan/20'
+                                : 'glass-panel border-border/30'
+                            }`}
+                          >
+                          {message.role === 'assistant' ? (
+                            <div className="space-y-3">
+                              {formatCodeBlock(message.content).map((part, i) => (
+                                part.type === 'code' ? (
+                                  <AICodeBlock
+                                    key={i}
+                                    code={part.content}
+                                    language={part.language}
+                                    onApplyToFile={onApplyCode}
+                                  />
+                                ) : (
+                                  <p key={i} className="text-xs md:text-sm whitespace-pre-wrap leading-relaxed">{part.content}</p>
+                                )
+                              ))}
+                              
+                              {/* Imágenes generadas por la IA */}
+                              {message.images && message.images.length > 0 && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                                  {message.images.map((img, imgIdx) => (
+                                    <div 
+                                      key={imgIdx} 
+                                      className="relative group glass-panel p-1.5"
+                                      onContextMenu={(e) => handleContextMenu(e, index + 1, imgIdx)}
+                                    >
+                                      <img 
+                                        src={img} 
+                                        alt={`Generado ${imgIdx + 1}`}
+                                        className="rounded-lg w-full h-auto cursor-pointer transition-transform hover:scale-[1.02]"
+                                        onClick={() => setSelectedImage(img)}
+                                      />
+                                      
+                                      {/* Image controls overlay */}
+                                      <div className="absolute inset-1.5 bg-black/0 group-hover:bg-black/50 transition-all rounded-lg flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="glass-button h-8 w-8 p-0"
+                                          onClick={() => {
+                                            const a = document.createElement('a');
+                                            a.href = img;
+                                            a.download = `imagen-ai-${Date.now()}.png`;
+                                            a.click();
+                                          }}
+                                        >
+                                          <Download className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => handleImageLike(index + 1, imgIdx, 1)}
+                                          className={`h-8 w-8 p-0 ${
+                                            message.imageLikes?.[imgIdx] === 1 
+                                              ? 'bg-green-500/70 hover:bg-green-500/90' 
+                                              : 'glass-button'
+                                          }`}
+                                        >
+                                          <ThumbsUp className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => handleImageLike(index + 1, imgIdx, -1)}
+                                          className={`h-8 w-8 p-0 ${
+                                            message.imageLikes?.[imgIdx] === -1 
+                                              ? 'bg-red-500/70 hover:bg-red-500/90' 
+                                              : 'glass-button'
+                                          }`}
+                                        >
+                                          <ThumbsDown className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </div>
+                                      
+                                      {/* Like indicator badge */}
+                                      {message.imageLikes?.[imgIdx] === 1 && (
+                                        <div className="absolute top-3 left-3 bg-green-500 text-white px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">
+                                          <ThumbsUp className="w-2.5 h-2.5" />
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-xs md:text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                              
+                              {/* Archivos adjuntos del usuario */}
+                              {message.attachedFiles && message.attachedFiles.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border/20">
+                                  {message.attachedFiles.map((file, fileIdx) => (
+                                    <div key={fileIdx} className="glass-panel p-1">
+                                      {file.preview ? (
+                                        <div className="relative">
+                                          <img 
+                                            src={file.preview} 
+                                            alt={file.name}
+                                            className="w-16 h-16 object-cover rounded cursor-pointer hover:scale-105 transition-transform"
+                                            onClick={() => setSelectedImage(file.preview!)}
+                                          />
+                                        </div>
+                                      ) : (
+                                        <div className="w-14 h-14 flex flex-col items-center justify-center">
+                                          {file.type.includes('pdf') ? (
+                                            <FileText className="w-4 h-4 text-red-400 mb-0.5" />
+                                          ) : (
+                                            <FileCode className="w-4 h-4 text-blue-400 mb-0.5" />
+                                          )}
+                                          <span className="text-[8px] text-center truncate w-full">{file.name.substring(0, 8)}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between mt-1.5 px-1">
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            
+                            {/* Like/Dislike buttons for assistant messages */}
+                            {message.role === 'assistant' && (
+                              <div className="flex items-center gap-0.5">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleLike(index + 1, 1)}
+                                  className={`h-5 w-5 p-0 ${message.likes === 1 ? 'text-green-400 bg-green-500/10' : 'text-muted-foreground/50 hover:text-green-400'}`}
+                                >
+                                  <ThumbsUp className="w-2.5 h-2.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleLike(index + 1, -1)}
+                                  className={`h-5 w-5 p-0 ${message.likes === -1 ? 'text-red-400 bg-red-500/10' : 'text-muted-foreground/50 hover:text-red-400'}`}
+                                >
+                                  <ThumbsDown className="w-2.5 h-2.5" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* File Operations */}
+                        {message.fileOperations && message.fileOperations.length > 0 && (
+                          <div className="flex flex-wrap gap-1 ml-9">
+                            {message.fileOperations.map((op, opIndex) => (
+                              <div key={opIndex}>
+                                {renderFileOperationBadge(op)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {message.role === 'user' && (
+                        <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-ps2-cyan to-blue-500 flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  ))}
+                  {isLoading && (
+                    <div className="flex gap-2 md:gap-3 justify-start animate-float-in">
+                      <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-ps2-purple to-ps2-cyan flex items-center justify-center flex-shrink-0 animate-pulse">
+                        <Bot className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                      </div>
+                      <div className="glass-panel rounded-2xl px-3 py-2 md:px-4 md:py-3 max-w-[75%]">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-ps2-purple" />
+                          <span className="text-xs text-muted-foreground">
+                            {isGeneratingImage ? 'Creando...' : 'Pensando...'}
+                          </span>
+                        </div>
+                        
+                        {/* Vista previa de progreso de generación */}
+                        {isGeneratingImage && imageGenerationProgress.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            {imageGenerationProgress.map((prog, idx) => (
+                              <div key={idx} className="relative aspect-square rounded-lg glass-panel overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-ps2-purple/20 to-transparent animate-shimmer" />
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-2">
+                                  <Sparkles className="w-6 h-6 text-ps2-purple animate-pulse" />
+                                  <div className="w-full bg-background/30 rounded-full h-1.5 overflow-hidden">
+                                    <div 
+                                      className="h-full bg-gradient-to-r from-ps2-purple to-ps2-cyan transition-all duration-300"
+                                      style={{ width: `${prog.progress}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[9px] text-muted-foreground">
+                                    {prog.current}/{prog.total} • {Math.round(prog.progress)}%
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
                     </div>
-                    
-                    {/* File Operations */}
-                    {message.fileOperations && message.fileOperations.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pl-2">
-                        {message.fileOperations.map((op, opIndex) => (
-                          <div key={opIndex}>
-                            {renderFileOperationBadge(op)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {message.role === 'user' && (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ps2-cyan to-blue-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                      <User className="w-5 h-5 text-white" />
-                    </div>
                   )}
                 </div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex gap-3 justify-start">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ps2-purple to-ps2-cyan flex items-center justify-center flex-shrink-0 animate-pulse shadow-lg">
-                  <Bot className="w-5 h-5 text-white" />
-                </div>
-                <div className="rounded-lg px-4 py-3 bg-muted border border-border/50 shadow-sm max-w-[85%]">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Loader2 className="w-4 h-4 animate-spin text-ps2-purple" />
-                    <span className="text-sm text-muted-foreground">
-                      {isGeneratingImage ? 'Creando imágenes...' : 'Pensando...'}
-                    </span>
-                  </div>
-                  
-                  {/* Vista previa de progreso de generación */}
-                  {isGeneratingImage && imageGenerationProgress.length > 0 && (
-                    <div className="grid grid-cols-2 gap-3 mt-3">
-                      {imageGenerationProgress.map((prog, idx) => (
-                        <div key={idx} className="relative">
-                          <div className="aspect-square rounded-lg border border-ps2-purple/30 bg-gradient-to-br from-ps2-purple/5 to-ps2-cyan/5 overflow-hidden">
-                            {/* Efecto de generación animado */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-ps2-purple/20 to-transparent animate-shimmer" />
-                            
-                            {/* Progreso */}
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-                              <Sparkles className="w-8 h-8 text-ps2-purple animate-pulse" />
-                              <div className="w-full bg-background/50 rounded-full h-2 overflow-hidden">
-                                <div 
-                                  className="h-full bg-gradient-to-r from-ps2-purple to-ps2-cyan transition-all duration-300 ease-out"
-                                  style={{ width: `${prog.progress}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                Imagen {prog.current}/{prog.total} • {Math.round(prog.progress)}%
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+              )}
+            </ScrollArea>
           </div>
-        </ScrollArea>
-      </div>
 
-          <div className="border-t border-border p-4 bg-background space-y-3">
+          {/* Compact Input Area with Glass Effect */}
+          <div className="p-2 md:p-3 space-y-2">
             {/* Reply indicator */}
             {replyingTo !== null && (
-              <div className="flex items-center justify-between bg-muted/50 p-2 rounded-md">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Reply className="w-3 h-3" />
-                  <span>Respondiendo: {messages[replyingTo]?.content.substring(0, 40)}...</span>
+              <div className="glass-panel flex items-center justify-between p-1.5 rounded-lg mx-1">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <Reply className="w-2.5 h-2.5" />
+                  <span>{messages[replyingTo]?.content.substring(0, 30)}...</span>
                 </div>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => setReplyingTo(null)}
-                  className="h-6 px-2"
+                  className="h-5 px-1.5 text-[10px]"
                 >
-                  Cancelar
+                  <X className="w-3 h-3" />
                 </Button>
               </div>
             )}
             
             {/* Uploaded files preview */}
             {uploadedFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2 p-3 bg-gradient-to-r from-muted/40 to-muted/20 rounded-lg border border-border/50">
+              <div className="glass-panel p-2 rounded-lg mx-1 flex flex-wrap gap-1.5">
                 {uploadedFiles.map((file, idx) => (
                   <div key={idx} className="relative group">
                     {file.preview ? (
-                      <div className="relative">
+                      <div className="relative glass-panel p-0.5 rounded">
                         <img 
                           src={file.preview} 
                           alt={file.name} 
-                          className="w-20 h-20 object-cover rounded-md border-2 border-border/50 shadow-sm"
+                          className="w-12 h-12 object-cover rounded"
                         />
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-1 py-0.5 truncate rounded-b-md">
-                          {file.name}
-                        </div>
                       </div>
                     ) : (
-                      <div className="w-20 h-20 flex flex-col items-center justify-center bg-muted border-2 border-border/50 rounded-md shadow-sm">
+                      <div className="w-12 h-12 glass-panel flex flex-col items-center justify-center rounded">
                         {file.type.includes('pdf') ? (
-                          <FileText className="w-6 h-6 text-red-500 mb-1" />
-                        ) : file.type.includes('code') || file.name.match(/\.(js|ts|tsx|jsx|cpp|c|h)$/) ? (
-                          <FileCode className="w-6 h-6 text-blue-500 mb-1" />
+                          <FileText className="w-4 h-4 text-red-400" />
                         ) : (
-                          <File className="w-6 h-6 text-muted-foreground mb-1" />
+                          <FileCode className="w-4 h-4 text-blue-400" />
                         )}
-                        <span className="text-[9px] text-center px-1 truncate w-full">{file.name}</span>
                       </div>
                     )}
                     <button
                       onClick={() => removeUploadedFile(idx)}
-                      className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:scale-110"
-                      title="Eliminar archivo"
+                      className="absolute -top-1 -right-1 bg-destructive text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-all"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-2.5 h-2.5" />
                     </button>
                   </div>
                 ))}
-                <div className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-md text-xs text-muted-foreground">
-                  <Sparkles className="w-3 h-3" />
-                  {uploadedFiles.length} archivo(s) listo(s)
-                </div>
               </div>
             )}
             
-            {/* Drag and Drop Zone */}
+            {/* Modern Glass Input */}
             <div 
               ref={dropZoneRef}
               onDragEnter={handleDragEnter}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`relative border-2 border-dashed rounded-lg transition-all ${
-                isDragging 
-                  ? 'border-ps2-cyan bg-ps2-cyan/10 scale-[1.02]' 
-                  : 'border-border/30 bg-muted/10'
+              className={`glass-panel mx-1 rounded-2xl transition-all ${
+                isDragging ? 'scale-[1.02] border-ps2-cyan/50' : ''
               }`}
             >
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,.pdf,.txt,.js,.ts,.tsx,.jsx,.cpp,.c,.h,.css,.html,.json,.md"
+                accept="image/*,video/*,.pdf,.txt,.js,.ts,.tsx,.jsx,.cpp,.c,.h,.css,.html,.json,.md"
                 multiple
                 onChange={handleFileInputChange}
                 className="hidden"
               />
               
               {isDragging ? (
-                <div className="flex flex-col items-center justify-center py-8 px-4">
-                  <Upload className="w-12 h-12 text-ps2-cyan animate-bounce mb-2" />
-                  <p className="text-sm font-medium text-ps2-cyan">¡Suelta tus archivos aquí!</p>
-                  <p className="text-xs text-muted-foreground mt-1">Imágenes, PDFs, código...</p>
+                <div className="flex flex-col items-center justify-center py-12 px-4">
+                  <div className="glass-panel p-4 rounded-full mb-3">
+                    <Upload className="w-8 h-8 text-ps2-cyan animate-bounce" />
+                  </div>
+                  <p className="text-sm font-medium text-ps2-cyan">Suelta aquí</p>
                 </div>
               ) : (
                 <div className="flex gap-2 p-2">
                   <Button
                     size="icon"
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isLoading}
-                    className="h-[80px] w-[60px] flex-shrink-0 border-ps2-cyan/30 hover:bg-ps2-cyan/10 hover:border-ps2-cyan/50 transition-all"
-                    title="Cargar archivos"
+                    className="glass-button h-10 w-10 rounded-xl flex-shrink-0"
+                    title="Adjuntar"
                   >
-                    <div className="flex flex-col items-center gap-1">
-                      <Upload className="w-5 h-5" />
-                      <span className="text-[9px]">Archivos</span>
-                    </div>
+                    <ImagePlus className="w-4 h-4" />
                   </Button>
-                  <div className="flex-1 flex flex-col gap-1">
-                    <Textarea
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSend();
-                        }
-                      }}
-                      placeholder="💬 Describe qué quieres crear o editar...
-📁 Click en 'Archivos' o arrastra archivos aquí (imágenes, PDFs, código)
-🎨 Sube una imagen y pídeme: 'Conviértela a anime', 'Elimina el fondo', 'Hazla estilo Ghibli'
-✨ O pídeme: 'Genera 4 imágenes de un atardecer cyberpunk'"
-                      disabled={isLoading}
-                      className="flex-1 min-h-[80px] max-h-[200px] resize-none font-mono text-sm bg-background/50"
-                      rows={3}
-                    />
-                  </div>
+                  <Textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder="Envía un mensaje..."
+                    disabled={isLoading}
+                    className="flex-1 glass-input min-h-[40px] max-h-[120px] resize-none text-sm rounded-xl border-0 focus-visible:ring-0 placeholder:text-muted-foreground/50"
+                    rows={1}
+                  />
                   <Button
                     onClick={handleSend}
                     disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
                     size="icon"
-                    className="bg-gradient-to-r from-ps2-purple to-ps2-cyan hover:from-ps2-purple/90 hover:to-ps2-cyan/90 h-[80px] w-[80px] flex-shrink-0 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                    className="glass-button h-10 w-10 rounded-xl flex-shrink-0"
                   >
                     {isLoading ? (
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    ) : isGeneratingImage ? (
-                      <Sparkles className="w-6 h-6 animate-pulse" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <Send className="w-6 h-6" />
+                      <Send className="w-4 h-4" />
                     )}
                   </Button>
                 </div>
               )}
             </div>
-            <div className="mt-3 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Code2 className="w-3 h-3" />
-                  Código completo sin límites
-                </span>
-                <span className="flex items-center gap-1">
-                  <ImagePlus className="w-3 h-3" />
-                  Genera hasta 4 imágenes
-                </span>
-                <span className="flex items-center gap-1">
-                  <Upload className="w-3 h-3" />
-                  Transforma tus imágenes
-                </span>
-                <span className="flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
-                  {projectFiles.length} archivos
-                </span>
-              </div>
-              <span className="text-muted-foreground">
-                Shift + Enter para nueva línea • Click derecho para responder
-              </span>
-            </div>
           </div>
           
-          {/* Context Menu */}
+          {/* Context Menu with Glass Effect */}
           {contextMenuPosition && (
             <div
-              className="fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[180px]"
+              className="fixed z-50 glass-panel rounded-xl shadow-2xl py-1 min-w-[160px] animate-float-in"
               style={{ 
                 top: contextMenuPosition.y, 
                 left: contextMenuPosition.x 
@@ -1165,10 +1125,9 @@ export function AIDeveloperChat({
               onClick={(e) => e.stopPropagation()}
             >
               {contextMenuPosition.imageIndex !== undefined ? (
-                // Image-specific context menu
                 <>
                   <button
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                    className="w-full px-3 py-2 text-left text-xs hover:bg-white/10 flex items-center gap-2 transition-colors rounded-lg mx-1"
                     onClick={() => {
                       const msg = messages[contextMenuPosition.messageIndex];
                       const imgUrl = msg.images?.[contextMenuPosition.imageIndex!];
@@ -1182,7 +1141,7 @@ export function AIDeveloperChat({
                     Generar similares
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                    className="w-full px-3 py-2 text-left text-xs hover:bg-white/10 flex items-center gap-2 transition-colors rounded-lg mx-1"
                     onClick={() => {
                       handleImageLike(contextMenuPosition.messageIndex, contextMenuPosition.imageIndex!, 1);
                       setContextMenuPosition(null);
@@ -1193,10 +1152,10 @@ export function AIDeveloperChat({
                     }}
                   >
                     <ThumbsUp className="w-3 h-3" />
-                    Me gusta este estilo
+                    Me gusta
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                    className="w-full px-3 py-2 text-left text-xs hover:bg-white/10 flex items-center gap-2 transition-colors rounded-lg mx-1"
                     onClick={() => {
                       const msg = messages[contextMenuPosition.messageIndex];
                       const imgUrl = msg.images?.[contextMenuPosition.imageIndex!];
@@ -1210,60 +1169,59 @@ export function AIDeveloperChat({
                     }}
                   >
                     <Download className="w-3 h-3" />
-                    Descargar imagen
+                    Descargar
                   </button>
                 </>
               ) : (
-                // Message context menu
                 <>
                   <button
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                    className="w-full px-3 py-2 text-left text-xs hover:bg-white/10 flex items-center gap-2 transition-colors rounded-lg mx-1"
                     onClick={() => handleReply(contextMenuPosition.messageIndex)}
                   >
                     <Reply className="w-3 h-3" />
                     Responder
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                    className="w-full px-3 py-2 text-left text-xs hover:bg-white/10 flex items-center gap-2 transition-colors rounded-lg mx-1"
                     onClick={() => {
                       navigator.clipboard.writeText(messages[contextMenuPosition.messageIndex].content);
                       setContextMenuPosition(null);
-                      toast({ title: "Copiado", description: "Mensaje copiado al portapapeles" });
+                      toast({ title: "Copiado", description: "Mensaje copiado" });
                     }}
                   >
                     <Copy className="w-3 h-3" />
-                    Copiar mensaje
+                    Copiar
                   </button>
                 </>
               )}
             </div>
           )}
           
-          {/* Visor de imagen en grande */}
+          {/* Image Viewer with Glass Effect */}
           {selectedImage && (
             <div 
-              className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+              className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-float-in"
               onClick={() => setSelectedImage(null)}
             >
               <div className="relative max-w-[90vw] max-h-[90vh]">
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="absolute -top-12 right-0 text-white hover:bg-white/20"
+                  className="glass-button absolute -top-12 right-0 rounded-full"
                   onClick={() => setSelectedImage(null)}
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5" />
                 </Button>
                 <img 
                   src={selectedImage} 
                   alt="Vista completa"
-                  className="max-w-full max-h-[90vh] rounded-lg shadow-2xl"
+                  className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl glass-panel"
                   onClick={(e) => e.stopPropagation()}
                 />
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
                   <Button
                     size="sm"
-                    className="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm"
+                    className="glass-button rounded-full px-4"
                     onClick={(e) => {
                       e.stopPropagation();
                       const a = document.createElement('a');
@@ -1272,7 +1230,7 @@ export function AIDeveloperChat({
                       a.click();
                     }}
                   >
-                    <Download className="w-4 h-4 mr-2" />
+                    <Download className="w-3.5 h-3.5 mr-1.5" />
                     Descargar
                   </Button>
                 </div>
