@@ -140,6 +140,68 @@ All colors MUST be HSL.
   animation: shimmer 2s infinite;
 }
 
+/* Liquid Glass Effects */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-input:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: hsl(var(--ps2-purple) / 0.5);
+  box-shadow: 0 0 0 3px rgba(156, 81, 255, 0.1);
+}
+
+.glass-button {
+  background: linear-gradient(135deg, rgba(156, 81, 255, 0.2), rgba(66, 165, 245, 0.2));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(156, 81, 255, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(156, 81, 255, 0.3), rgba(66, 165, 245, 0.3));
+  border-color: rgba(156, 81, 255, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(156, 81, 255, 0.3);
+}
+
+.glass-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+@keyframes float-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-float-in {
+  animation: float-in 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 @layer components {
   /* IDE Components */
   .ide-sidebar {
