@@ -70,7 +70,15 @@ export function AIDeveloperChat({
   const [imageGenerationProgress, setImageGenerationProgress] = useState<{ current: number; total: number; progress: number }[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
    const [isDragging, setIsDragging] = useState(false);
-   const [aiUnavailable, setAiUnavailable] = useState(false);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [usageStats, setUsageStats] = useState({
+    model: 'google/gemini-2.5-flash',
+    imagesGenerated: 0,
+    maxImages: 4,
+    dailyTokensUsed: 0,
+    dailyTokensLimit: 100000
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -394,11 +402,6 @@ export function AIDeveloperChat({
   };
 
   const handleSend = async () => {
-    if (aiUnavailable) {
-      toast({ title: 'IA no disponible', description: 'Créditos agotados. Agrega créditos y vuelve a intentar.', variant: 'destructive' });
-      setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ La IA está temporalmente deshabilitada por créditos agotados.', timestamp: Date.now() }]);
-      return;
-    }
     if ((!input.trim() && uploadedFiles.length === 0) || isLoading) return;
 
     const userMessage: Message = {
@@ -1085,7 +1088,7 @@ export function AIDeveloperChat({
                     size="icon"
                     variant="ghost"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isLoading || aiUnavailable}
+                    disabled={isLoading}
                     className="glass-button h-10 w-10 rounded-xl flex-shrink-0"
                     title="Adjuntar"
                   >
@@ -1101,13 +1104,13 @@ export function AIDeveloperChat({
                       }
                     }}
                     placeholder="Envía un mensaje..."
-                    disabled={isLoading || aiUnavailable}
+                    disabled={isLoading}
                     className="flex-1 glass-input min-h-[40px] max-h-[120px] resize-none text-sm rounded-xl border-0 focus-visible:ring-0 placeholder:text-muted-foreground/50"
                     rows={1}
                   />
                   <Button
                     onClick={handleSend}
-                    disabled={isLoading || aiUnavailable || (!input.trim() && uploadedFiles.length === 0)}
+                    disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
                     size="icon"
                     className="glass-button h-10 w-10 rounded-xl flex-shrink-0"
                   >
