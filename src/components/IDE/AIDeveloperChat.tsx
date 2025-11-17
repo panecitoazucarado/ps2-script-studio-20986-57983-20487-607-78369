@@ -69,7 +69,8 @@ export function AIDeveloperChat({
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [imageGenerationProgress, setImageGenerationProgress] = useState<{ current: number; total: number; progress: number }[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+   const [isDragging, setIsDragging] = useState(false);
+   const [aiUnavailable, setAiUnavailable] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -393,6 +394,11 @@ export function AIDeveloperChat({
   };
 
   const handleSend = async () => {
+    if (aiUnavailable) {
+      toast({ title: 'IA no disponible', description: 'Créditos agotados. Agrega créditos y vuelve a intentar.', variant: 'destructive' });
+      setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ La IA está temporalmente deshabilitada por créditos agotados.', timestamp: Date.now() }]);
+      return;
+    }
     if ((!input.trim() && uploadedFiles.length === 0) || isLoading) return;
 
     const userMessage: Message = {
@@ -504,6 +510,7 @@ export function AIDeveloperChat({
           setIsLoading(false);
           setIsGeneratingImage(false);
           setImageGenerationProgress([]);
+          setAiUnavailable(true);
           return;
         }
         if (status === 429 || /Rate limits exceeded|429/i.test(msg)) {
@@ -531,6 +538,7 @@ export function AIDeveloperChat({
             content: '⚠️ No hay créditos suficientes para procesar tu solicitud de imagen. Agrega créditos y vuelve a intentar, o envía tu mensaje sin imágenes para continuar con ayuda de texto.',
             timestamp: Date.now()
           }]);
+          setAiUnavailable(true);
         } else {
           throw new Error(derr);
         }
@@ -1077,7 +1085,7 @@ export function AIDeveloperChat({
                     size="icon"
                     variant="ghost"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isLoading}
+                    disabled={isLoading || aiUnavailable}
                     className="glass-button h-10 w-10 rounded-xl flex-shrink-0"
                     title="Adjuntar"
                   >
@@ -1093,13 +1101,13 @@ export function AIDeveloperChat({
                       }
                     }}
                     placeholder="Envía un mensaje..."
-                    disabled={isLoading}
+                    disabled={isLoading || aiUnavailable}
                     className="flex-1 glass-input min-h-[40px] max-h-[120px] resize-none text-sm rounded-xl border-0 focus-visible:ring-0 placeholder:text-muted-foreground/50"
                     rows={1}
                   />
                   <Button
                     onClick={handleSend}
-                    disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
+                    disabled={isLoading || aiUnavailable || (!input.trim() && uploadedFiles.length === 0)}
                     size="icon"
                     className="glass-button h-10 w-10 rounded-xl flex-shrink-0"
                   >
