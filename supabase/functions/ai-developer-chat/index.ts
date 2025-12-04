@@ -94,20 +94,38 @@ serve(async (req) => {
       const analysisResponse = visionData.choices?.[0]?.message?.content || 'He analizado tu imagen.';
       console.log('📝 Análisis:', analysisResponse.substring(0, 100) + '...');
       
-      // Detectar si requiere transformación/generación
-      const needsTransformation = /convierte|transforma|estilo|anime|ghibli|pixar|cartoon|realista|elimina.*fondo|quita.*fondo|sin fondo|background.*remov|borra.*fondo|retoca|mejora|editor|photoshop/i.test(userMessage);
+      // Detectar si requiere transformación/generación de imagen basada en la original
+      const needsTransformation = /convierte|transforma|estilo|anime|ghibli|pixar|cartoon|realista|elimina.*fondo|quita.*fondo|sin fondo|background.*remov|borra.*fondo|retoca|mejora|editor|photoshop|genera.*mismo|crea.*igual|igual.*pero|mismo.*pero|cambia|modifica|edita|reemplaza|sustituye|pon|añade|agrega|quita|remueve|logo|icono|similar|parecido|como.*este|basado.*en|inspirado/i.test(userMessage);
       
       if (needsTransformation) {
-        console.log('🎨 Generando imagen transformada con estilo solicitado...');
+        console.log('🎨 Transformando imagen con IA (pasando imagen original)...');
         
-        // Crear un prompt más detallado basado en el análisis
-        const transformPrompt = `Basándote en la siguiente descripción de una imagen: "${analysisResponse.substring(0, 300)}", 
-        crea una nueva imagen con este estilo solicitado por el usuario: "${userMessage}".
+        // Construir el contenido con la imagen original + instrucciones del usuario
+        const editContent: any[] = [
+          {
+            type: 'text',
+            text: `INSTRUCCIÓN DEL USUARIO: ${userMessage}
+
+CONTEXTO DE LA IMAGEN ORIGINAL (análisis): ${analysisResponse.substring(0, 500)}
+
+IMPORTANTE: 
+- Debes respetar EXACTAMENTE los elementos visuales de la imagen original (formas, colores, estilo, composición)
+- Aplica SOLO los cambios que el usuario solicita, manteniendo todo lo demás igual
+- Si pide cambiar texto, mantén el mismo estilo tipográfico y posición
+- Si pide eliminar fondo, conserva solo el sujeto principal con transparencia o fondo sólido
+- Genera una imagen de alta calidad que sea fiel a la original pero con las modificaciones pedidas`
+          }
+        ];
         
-        Debes mantener los elementos principales de la imagen original (personas, objetos, composición) 
-        pero aplicar el estilo artístico solicitado. Ultra high resolution.`;
+        // Agregar TODAS las imágenes del usuario como referencia
+        userImages.forEach((imgUrl: string) => {
+          editContent.push({
+            type: 'image_url',
+            image_url: { url: imgUrl }
+          });
+        });
         
-        console.log('📤 Solicitando generación de imagen...');
+        console.log('📤 Enviando imagen original + instrucciones al modelo de edición...');
         const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -118,7 +136,7 @@ serve(async (req) => {
             model: 'google/gemini-2.5-flash-image-preview',
             messages: [{ 
               role: 'user', 
-              content: transformPrompt 
+              content: editContent
             }],
             modalities: ['image', 'text']
           }),
@@ -128,27 +146,48 @@ serve(async (req) => {
           console.log('✅ Imagen transformada generada');
           const imageData = await imageResponse.json();
           const generatedImages = imageData.choices?.[0]?.message?.images?.map((img: any) => img.image_url?.url).filter(Boolean) || [];
+          const textResponse = imageData.choices?.[0]?.message?.content || '';
           
           if (generatedImages.length > 0) {
-            console.log('🎉 Imágenes generadas exitosamente:', generatedImages.length);
+            console.log('🎉 Imágenes editadas exitosamente:', generatedImages.length);
             return new Response(
               JSON.stringify({
-                response: `✨ He transformado tu imagen según tu solicitud: "${userMessage}".\n\n📸 Análisis de la imagen original: ${analysisResponse.substring(0, 200)}...`,
+                response: `✨ He editado tu imagen según tu solicitud.\n\n${textResponse ? `💬 ${textResponse}` : ''}`,
                 images: generatedImages,
                 fileOperations: []
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           } else {
-            console.log('⚠️ No se generaron imágenes en la respuesta');
+            console.log('⚠️ No se generaron imágenes, devolviendo respuesta de texto');
+            return new Response(
+              JSON.stringify({
+                response: textResponse || `He analizado tu imagen pero no pude generar la transformación solicitada. ${analysisResponse}`,
+                images: [],
+                fileOperations: []
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
           }
         } else {
           const errorText = await imageResponse.text();
-          console.error('❌ Error al generar imagen:', imageResponse.status, errorText);
+          console.error('❌ Error al editar imagen:', imageResponse.status, errorText);
+          if (imageResponse.status === 429) {
+            return new Response(
+              JSON.stringify({ error: 'Rate limits exceeded, please try again later.' }),
+              { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          if (imageResponse.status === 402) {
+            return new Response(
+              JSON.stringify({ error: 'Payment required, please add funds to your Lovable AI workspace.' }),
+              { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
       }
       
-      // Si no requiere transformación o falló la generación, devolver análisis
+      // Si no requiere transformación, devolver solo el análisis
       console.log('📋 Devolviendo análisis de imagen sin transformación');
       return new Response(
         JSON.stringify({
