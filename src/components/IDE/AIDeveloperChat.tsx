@@ -97,13 +97,15 @@ export function AIDeveloperChat({
     }
   }, []);
 
-  // Save current conversation
+  // Save current conversation (without base64 images to avoid QuotaExceededError)
   const saveCurrentConversation = () => {
     if (messages.length <= 1) return; // Don't save if only welcome message
 
-    const conversationTitle = messages.length > 1 
+    // Get existing conversation title if renaming, otherwise use first user message
+    const existingConv = conversations.find(c => c.id === currentConversationId);
+    const conversationTitle = existingConv?.title || (messages.length > 1 
       ? messages[1].content.substring(0, 50) + (messages[1].content.length > 50 ? '...' : '')
-      : 'Nueva conversación';
+      : 'Nueva conversación');
 
     const conversation: Conversation = {
       id: currentConversationId || Date.now().toString(),
@@ -113,35 +115,113 @@ export function AIDeveloperChat({
     };
 
     const updatedConversations = currentConversationId
-      ? conversations.map(c => c.id === currentConversationId ? conversation : c)
+      ? conversations.map(c => c.id === currentConversationId ? { ...conversation, title: c.title } : c)
       : [...conversations, conversation];
 
+    // Clean messages to avoid localStorage quota issues - remove base64 images
+    const cleanedMessages = messages.map(msg => ({
+      ...msg,
+      images: msg.images?.map(img => 
+        img.startsWith('data:') ? '[imagen generada]' : img
+      ),
+      attachedFiles: msg.attachedFiles?.map(file => ({
+        ...file,
+        data: file.data.length > 10000 ? '[archivo grande]' : file.data,
+        preview: undefined
+      }))
+    }));
+
+    try {
+      setConversations(updatedConversations);
+      localStorage.setItem('ai-conversations', JSON.stringify(updatedConversations));
+      localStorage.setItem(`conversation-${conversation.id}`, JSON.stringify(cleanedMessages));
+      
+      if (!currentConversationId) {
+        setCurrentConversationId(conversation.id);
+      }
+
+      toast({
+        title: "Conversación guardada",
+        description: "Tu conversación ha sido guardada exitosamente",
+      });
+    } catch (error) {
+      console.error('Error saving conversation:', error);
+      // If still too large, try saving without any file data
+      const minimalMessages = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+        fileOperations: msg.fileOperations,
+        images: msg.images?.length ? ['[imagen generada]'] : undefined,
+        likes: msg.likes,
+        replyTo: msg.replyTo
+      }));
+      
+      try {
+        localStorage.setItem(`conversation-${conversation.id}`, JSON.stringify(minimalMessages));
+        toast({
+          title: "Conversación guardada",
+          description: "Guardada sin archivos adjuntos por límite de espacio",
+        });
+      } catch (e) {
+        toast({
+          title: "Error",
+          description: "No se pudo guardar la conversación - espacio insuficiente",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  // Rename conversation
+  const renameConversation = (id: string, newTitle: string) => {
+    const updatedConversations = conversations.map(c => 
+      c.id === id ? { ...c, title: newTitle } : c
+    );
     setConversations(updatedConversations);
     localStorage.setItem('ai-conversations', JSON.stringify(updatedConversations));
-    localStorage.setItem(`conversation-${conversation.id}`, JSON.stringify(messages));
-    
-    if (!currentConversationId) {
-      setCurrentConversationId(conversation.id);
-    }
-
     toast({
-      title: "Conversación guardada",
-      description: "Tu conversación ha sido guardada exitosamente",
+      title: "Nombre actualizado",
+      description: "El nombre de la conversación ha sido cambiado",
     });
   };
 
-  // Load conversation
+  // Load conversation - normalize for current interface version
   const loadConversation = (id: string) => {
     const saved = localStorage.getItem(`conversation-${id}`);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setMessages(parsed);
+        
+        // Normalize messages for current interface
+        const normalizedMessages: Message[] = parsed.map((msg: any) => ({
+          role: msg.role || 'assistant',
+          content: msg.content || '',
+          timestamp: msg.timestamp || Date.now(),
+          fileOperations: msg.fileOperations || [],
+          // Handle placeholder images or keep real URLs
+          images: msg.images?.filter((img: string) => img && img !== '[imagen generada]') || [],
+          likes: msg.likes || 0,
+          replyTo: msg.replyTo,
+          imageLikes: msg.imageLikes || {},
+          attachedFiles: msg.attachedFiles?.filter((f: any) => f.data && f.data !== '[archivo grande]') || []
+        }));
+        
+        // Ensure we have at least the welcome message structure
+        if (normalizedMessages.length === 0) {
+          normalizedMessages.push({
+            role: 'assistant',
+            content: 'Conversación restaurada',
+            timestamp: Date.now()
+          });
+        }
+        
+        setMessages(normalizedMessages);
         setCurrentConversationId(id);
         setShowConversations(false);
         toast({
           title: "Conversación cargada",
-          description: "Se ha restaurado la conversación seleccionada",
+          description: `Se ha restaurado la conversación (${normalizedMessages.length} mensajes)`,
         });
       } catch (error) {
         console.error('Error loading conversation:', error);
@@ -151,6 +231,12 @@ export function AIDeveloperChat({
           variant: "destructive"
         });
       }
+    } else {
+      toast({
+        title: "Error",
+        description: "No se encontró la conversación guardada",
+        variant: "destructive"
+      });
     }
   };
 
@@ -741,6 +827,7 @@ export function AIDeveloperChat({
           onSelectConversation={loadConversation}
           onNewConversation={startNewConversation}
           onDeleteConversation={deleteConversation}
+          onRenameConversation={renameConversation}
           onClose={() => setShowConversations(false)}
         />
       ) : (
