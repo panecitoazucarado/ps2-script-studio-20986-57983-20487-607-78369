@@ -235,21 +235,74 @@ export function AIDeveloperChat({
 
   // Detectar si el usuario pide generar una imagen y cuántas
   const detectImageGeneration = (text: string): { shouldGenerate: boolean; count: number } => {
-    const imageKeywords = [
-      'genera', 'crea', 'dibuja', 'diseña', 'imagen', 'foto', 'picture', 
-      'ilustración', 'gráfico', 'visual', 'render', 'arte', 'logo', 'icono'
-    ];
-    const lowerText = text.toLowerCase();
-    const shouldGenerate = imageKeywords.some(keyword => lowerText.includes(keyword));
+    const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     
-    // Detectar cantidad de imágenes solicitadas
+    // Keywords que indican generación de imagen
+    const imageKeywords = [
+      'genera', 'crea', 'dibuja', 'diseña', 'hazme', 'haz', 'creame', 'generame',
+      'imagen', 'foto', 'picture', 'ilustracion', 'grafico', 'visual', 'render', 
+      'arte', 'logo', 'icono', 'banner', 'poster', 'portada', 'thumbnail',
+      'make me', 'create', 'generate', 'draw', 'design'
+    ];
+    
+    const shouldGenerate = imageKeywords.some(keyword => lowerText.includes(keyword));
+    if (!shouldGenerate) return { shouldGenerate: false, count: 0 };
+    
+    // Detectar cantidad - PRIORIDAD: números explícitos primero
     let count = 1;
-    const numberMatch = lowerText.match(/(\d+)\s*(imagen|imagenes|fotos?|pictures?)/);
-    if (numberMatch) {
-      count = Math.min(parseInt(numberMatch[1]), 4); // Max 4 imágenes
+    
+    // Patrones para números explícitos
+    const explicitNumberPatterns = [
+      /(\d+)\s*(imagenes?|fotos?|logos?|iconos?|banners?|pictures?|images?)/i,
+      /genera(?:me)?\s+(\d+)/i,
+      /crea(?:me)?\s+(\d+)/i,
+      /haz(?:me)?\s+(\d+)/i,
+    ];
+    
+    for (const pattern of explicitNumberPatterns) {
+      const match = lowerText.match(pattern);
+      if (match) {
+        count = Math.min(Math.max(parseInt(match[1]), 1), 4);
+        return { shouldGenerate, count };
+      }
     }
     
-    return { shouldGenerate, count };
+    // Patrones para palabras numéricas
+    const wordNumbers: Record<string, number> = {
+      'una': 1, 'uno': 1, 'un': 1, 'one': 1, 'a ': 1,
+      'dos': 2, 'two': 2, 'par de': 2, 'couple': 2,
+      'tres': 3, 'three': 3,
+      'cuatro': 4, 'four': 4,
+    };
+    
+    for (const [word, num] of Object.entries(wordNumbers)) {
+      if (lowerText.includes(word)) {
+        count = num;
+        break;
+      }
+    }
+    
+    // Detectar plural sin número = asumir múltiples (2)
+    const pluralPatterns = ['imagenes', 'fotos', 'logos', 'iconos', 'pictures', 'images'];
+    const singularPatterns = ['imagen', 'foto', 'logo', 'icono', 'picture', 'image'];
+    
+    const hasPlural = pluralPatterns.some(p => lowerText.includes(p));
+    const hasSingular = singularPatterns.some(p => {
+      const idx = lowerText.indexOf(p);
+      // Verificar que no sea parte de un plural
+      return idx !== -1 && !pluralPatterns.some(pl => lowerText.includes(pl));
+    });
+    
+    // Si menciona "algunas", "varias", "varias" = 3
+    if (/algunas?|varias?|several|multiple/i.test(lowerText)) {
+      count = 3;
+    } else if (hasPlural && count === 1) {
+      count = 2; // Plural sin número específico = 2
+    } else if (hasSingular) {
+      count = 1;
+    }
+    
+    return { shouldGenerate, count: Math.min(Math.max(count, 1), 4) };
   };
 
   // Handle file upload with support for multiple file types
@@ -809,69 +862,81 @@ export function AIDeveloperChat({
                                 )
                               ))}
                               
-                              {/* Imágenes generadas por la IA */}
+                              {/* Imágenes generadas por la IA - Layout responsivo según cantidad */}
                               {message.images && message.images.length > 0 && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                                <div className={`mt-4 ${
+                                  message.images.length === 1 
+                                    ? 'w-full' 
+                                    : message.images.length === 2 
+                                      ? 'grid grid-cols-2 gap-3' 
+                                      : message.images.length === 3 
+                                        ? 'grid grid-cols-3 gap-3' 
+                                        : 'grid grid-cols-2 gap-3'
+                                }`}>
                                   {message.images.map((img, imgIdx) => (
                                     <div 
                                       key={imgIdx} 
-                                      className="relative group glass-panel p-1.5"
+                                      className={`relative group overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-purple-500/10 p-[2px] ${
+                                        message.images.length === 1 ? 'w-full max-w-lg mx-auto' : ''
+                                      }`}
                                       onContextMenu={(e) => handleContextMenu(e, index + 1, imgIdx)}
                                     >
-                                      <img 
-                                        src={img} 
-                                        alt={`Generado ${imgIdx + 1}`}
-                                        className="rounded-lg w-full h-auto cursor-pointer transition-transform hover:scale-[1.02]"
-                                        onClick={() => setSelectedImage(img)}
-                                      />
-                                      
-                                      {/* Image controls overlay */}
-                                      <div className="absolute inset-1.5 bg-black/0 group-hover:bg-black/50 transition-all rounded-lg flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          className="glass-button h-8 w-8 p-0"
-                                          onClick={() => {
-                                            const a = document.createElement('a');
-                                            a.href = img;
-                                            a.download = `imagen-ai-${Date.now()}.png`;
-                                            a.click();
-                                          }}
-                                        >
-                                          <Download className="w-3.5 h-3.5" />
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => handleImageLike(index + 1, imgIdx, 1)}
-                                          className={`h-8 w-8 p-0 ${
-                                            message.imageLikes?.[imgIdx] === 1 
-                                              ? 'bg-green-500/70 hover:bg-green-500/90' 
-                                              : 'glass-button'
+                                      <div className="relative rounded-[14px] overflow-hidden bg-background/80 backdrop-blur-xl">
+                                        <img 
+                                          src={img} 
+                                          alt={`Generado ${imgIdx + 1}`}
+                                          className={`w-full h-auto cursor-pointer transition-all duration-300 hover:scale-[1.03] ${
+                                            message.images.length === 1 ? 'max-h-[400px] object-contain' : 'aspect-square object-cover'
                                           }`}
-                                        >
-                                          <ThumbsUp className="w-3.5 h-3.5" />
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => handleImageLike(index + 1, imgIdx, -1)}
-                                          className={`h-8 w-8 p-0 ${
-                                            message.imageLikes?.[imgIdx] === -1 
-                                              ? 'bg-red-500/70 hover:bg-red-500/90' 
-                                              : 'glass-button'
-                                          }`}
-                                        >
-                                          <ThumbsDown className="w-3.5 h-3.5" />
-                                        </Button>
-                                      </div>
-                                      
-                                      {/* Like indicator badge */}
-                                      {message.imageLikes?.[imgIdx] === 1 && (
-                                        <div className="absolute top-3 left-3 bg-green-500 text-white px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">
-                                          <ThumbsUp className="w-2.5 h-2.5" />
+                                          onClick={() => setSelectedImage(img)}
+                                        />
+                                        
+                                        {/* Gradient overlay on hover */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
+                                        
+                                        {/* Image controls - Modern floating style */}
+                                        <div className="absolute bottom-0 left-0 right-0 p-3 flex items-center justify-center gap-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                                          <button
+                                            onClick={() => {
+                                              const a = document.createElement('a');
+                                              a.href = img;
+                                              a.download = `imagen-ai-${Date.now()}.png`;
+                                              a.click();
+                                            }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-medium hover:bg-white/30 transition-colors"
+                                          >
+                                            <Download className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleImageLike(index + 1, imgIdx, 1)}
+                                            className={`p-2 rounded-full backdrop-blur-md transition-colors ${
+                                              message.imageLikes?.[imgIdx] === 1 
+                                                ? 'bg-emerald-500/80 text-white' 
+                                                : 'bg-white/20 text-white hover:bg-emerald-500/50'
+                                            }`}
+                                          >
+                                            <ThumbsUp className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleImageLike(index + 1, imgIdx, -1)}
+                                            className={`p-2 rounded-full backdrop-blur-md transition-colors ${
+                                              message.imageLikes?.[imgIdx] === -1 
+                                                ? 'bg-red-500/80 text-white' 
+                                                : 'bg-white/20 text-white hover:bg-red-500/50'
+                                            }`}
+                                          >
+                                            <ThumbsDown className="w-3.5 h-3.5" />
+                                          </button>
                                         </div>
-                                      )}
+                                        
+                                        {/* Like indicator badge - Copilot style */}
+                                        {message.imageLikes?.[imgIdx] === 1 && (
+                                          <div className="absolute top-3 right-3 bg-emerald-500/90 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-[10px] font-medium flex items-center gap-1 shadow-lg">
+                                            <ThumbsUp className="w-3 h-3" />
+                                            <span>Favorita</span>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
@@ -961,40 +1026,95 @@ export function AIDeveloperChat({
                   ))}
                   {isLoading && (
                     <div className="flex gap-2 md:gap-3 justify-start animate-float-in">
-                      <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-ps2-purple to-ps2-cyan flex items-center justify-center flex-shrink-0 animate-pulse">
-                        <Bot className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                      <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30">
+                        <Bot className="w-4 h-4 md:w-5 md:h-5 text-white animate-pulse" />
                       </div>
-                      <div className="glass-panel rounded-2xl px-3 py-2 md:px-4 md:py-3 max-w-[75%]">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-ps2-purple" />
-                          <span className="text-xs text-muted-foreground">
-                            {isGeneratingImage ? 'Creando...' : 'Pensando...'}
-                          </span>
-                        </div>
-                        
-                        {/* Vista previa de progreso de generación */}
-                        {isGeneratingImage && imageGenerationProgress.length > 0 && (
-                          <div className="grid grid-cols-2 gap-2 mt-2">
-                            {imageGenerationProgress.map((prog, idx) => (
-                              <div key={idx} className="relative aspect-square rounded-lg glass-panel overflow-hidden">
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-ps2-purple/20 to-transparent animate-shimmer" />
-                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-2">
-                                  <Sparkles className="w-6 h-6 text-ps2-purple animate-pulse" />
-                                  <div className="w-full bg-background/30 rounded-full h-1.5 overflow-hidden">
+                      
+                      {isGeneratingImage && imageGenerationProgress.length > 0 ? (
+                        /* Modern Image Generation Preview - Copilot Style */
+                        <div className={`${
+                          imageGenerationProgress.length === 1 
+                            ? 'w-full max-w-sm' 
+                            : imageGenerationProgress.length === 2 
+                              ? 'grid grid-cols-2 gap-3 max-w-lg' 
+                              : imageGenerationProgress.length === 3 
+                                ? 'grid grid-cols-3 gap-3 max-w-xl' 
+                                : 'grid grid-cols-2 gap-3 max-w-lg'
+                        }`}>
+                          {imageGenerationProgress.map((prog, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600/20 via-cyan-500/10 to-purple-600/20 p-[1px] ${
+                                imageGenerationProgress.length === 1 ? 'aspect-[4/3]' : 'aspect-square'
+                              }`}
+                            >
+                              <div className="absolute inset-0 rounded-2xl overflow-hidden">
+                                {/* Animated gradient background */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-blue-950/90 to-slate-900/95" />
+                                
+                                {/* Animated shimmer effect */}
+                                <div className="absolute inset-0 overflow-hidden">
+                                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                                </div>
+                                
+                                {/* Glowing orbs */}
+                                <div className="absolute top-1/4 left-1/4 w-24 h-24 bg-blue-500/30 rounded-full blur-3xl animate-pulse" />
+                                <div className="absolute bottom-1/4 right-1/4 w-20 h-20 bg-cyan-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }} />
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-purple-500/20 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
+                              </div>
+                              
+                              {/* Content */}
+                              <div className="relative h-full flex flex-col items-center justify-center gap-3 p-4">
+                                {/* Rotating ring */}
+                                <div className="relative">
+                                  <div className="w-14 h-14 rounded-full border-2 border-blue-400/30 border-t-blue-400 animate-spin" />
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <Sparkles className="w-6 h-6 text-blue-400" />
+                                  </div>
+                                </div>
+                                
+                                {/* Progress info */}
+                                <div className="text-center space-y-2 w-full px-2">
+                                  <p className="text-sm font-medium text-blue-100">
+                                    Imaginando...
+                                  </p>
+                                  
+                                  {/* Progress bar */}
+                                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                                     <div 
-                                      className="h-full bg-gradient-to-r from-ps2-purple to-ps2-cyan transition-all duration-300"
+                                      className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 rounded-full transition-all duration-500 ease-out"
                                       style={{ width: `${prog.progress}%` }}
                                     />
                                   </div>
-                                  <span className="text-[9px] text-muted-foreground">
-                                    {prog.current}/{prog.total} • {Math.round(prog.progress)}%
-                                  </span>
+                                  
+                                  {/* Stats */}
+                                  <div className="flex items-center justify-center gap-2 text-xs text-blue-200/70">
+                                    <span className="font-mono">{Math.round(prog.progress)}%</span>
+                                    {imageGenerationProgress.length > 1 && (
+                                      <>
+                                        <span className="w-1 h-1 rounded-full bg-blue-400/50" />
+                                        <span>{prog.current} de {prog.total}</span>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            ))}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        /* Text thinking indicator */
+                        <div className="rounded-2xl px-4 py-3 bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl border border-white/10 shadow-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="flex gap-1">
+                              <div className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                              <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                              <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
+                            <span className="text-sm text-muted-foreground">Pensando...</span>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
