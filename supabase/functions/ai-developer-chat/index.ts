@@ -12,8 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, projectFiles = [], currentFileContent = null, openFiles = [], generateImage = false, imageCount = 1, userImages = [], userFiles = [] } = await req.json();
-    console.log('Received request - generateImage:', generateImage, 'imageCount:', imageCount, 'userImages:', userImages?.length || 0, 'userFiles:', userFiles?.length || 0);
+    const { messages, projectFiles = [], currentFileContent = null, openFiles = [], generateImage = false, imageCount = 1, userImages = [], imageMasks = [], userFiles = [] } = await req.json();
+    console.log('Received request - generateImage:', generateImage, 'imageCount:', imageCount, 'userImages:', userImages?.length || 0, 'imageMasks:', imageMasks?.filter(Boolean)?.length || 0, 'userFiles:', userFiles?.length || 0);
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
@@ -95,16 +95,31 @@ serve(async (req) => {
       console.log('📝 Análisis:', analysisResponse.substring(0, 100) + '...');
       
       // Detectar si requiere transformación/generación de imagen basada en la original
-      const needsTransformation = /convierte|transforma|estilo|anime|ghibli|pixar|cartoon|realista|elimina.*fondo|quita.*fondo|sin fondo|background.*remov|borra.*fondo|retoca|mejora|editor|photoshop|genera.*mismo|crea.*igual|igual.*pero|mismo.*pero|cambia|modifica|edita|reemplaza|sustituye|pon|añade|agrega|quita|remueve|logo|icono|similar|parecido|como.*este|basado.*en|inspirado/i.test(userMessage);
+      // Si hay máscaras de edición, el usuario ya pintó las áreas que quiere modificar
+      const hasMasks = imageMasks && imageMasks.some((m: string | null) => m);
+      const needsTransformation = hasMasks || /convierte|transforma|estilo|anime|ghibli|pixar|cartoon|realista|elimina.*fondo|quita.*fondo|sin fondo|background.*remov|borra.*fondo|retoca|mejora|editor|photoshop|genera.*mismo|crea.*igual|igual.*pero|mismo.*pero|cambia|modifica|edita|reemplaza|sustituye|pon|añade|agrega|quita|remueve|logo|icono|similar|parecido|como.*este|basado.*en|inspirado/i.test(userMessage);
       
       if (needsTransformation) {
         console.log('🎨 Transformando imagen con IA (pasando imagen original)...');
+        console.log('🖌️ Máscaras de edición disponibles:', hasMasks ? 'Sí' : 'No');
+        
+        // Construir instrucciones según si hay máscaras o no
+        let transformInstructions = '';
+        if (hasMasks) {
+          transformInstructions = `
+EL USUARIO HA PINTADO ÁREAS EN LA IMAGEN:
+- Las áreas pintadas/marcadas con colores indican las zonas que el usuario quiere que modifiques
+- Las áreas NO pintadas deben permanecer intactas
+- El color de las marcas indica las áreas de interés, NO el color final deseado
+- Enfócate en modificar SOLO las áreas marcadas según la instrucción del usuario`;
+        }
         
         // Construir el contenido con la imagen original + instrucciones del usuario
         const editContent: any[] = [
           {
             type: 'text',
             text: `INSTRUCCIÓN DEL USUARIO: ${userMessage}
+${transformInstructions}
 
 CONTEXTO DE LA IMAGEN ORIGINAL (análisis): ${analysisResponse.substring(0, 500)}
 
@@ -117,8 +132,17 @@ IMPORTANTE:
           }
         ];
         
-        // Agregar TODAS las imágenes del usuario como referencia
-        userImages.forEach((imgUrl: string) => {
+        // Agregar imagen con máscara si existe, o la original
+        userImages.forEach((imgUrl: string, index: number) => {
+          // Si hay máscara para esta imagen, agregar primero la imagen con máscara
+          if (imageMasks && imageMasks[index]) {
+            editContent.push({
+              type: 'image_url',
+              image_url: { url: imageMasks[index] }
+            });
+            console.log(`📍 Agregada máscara de edición para imagen ${index + 1}`);
+          }
+          // Siempre agregar la imagen original
           editContent.push({
             type: 'image_url',
             image_url: { url: imgUrl }

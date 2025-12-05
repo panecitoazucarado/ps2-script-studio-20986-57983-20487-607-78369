@@ -3,12 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3, MessageSquare, Save, Copy, ThumbsUp, ThumbsDown, Reply, ImagePlus, Sparkles, Download, Upload, X, FileCode, File } from 'lucide-react';
+import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3, MessageSquare, Save, Copy, ThumbsUp, ThumbsDown, Reply, ImagePlus, Sparkles, Download, Upload, X, FileCode, File, Paintbrush } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/athena';
 import { AICodeBlock } from './AICodeBlock';
 import { ConversationManager, Conversation } from './ConversationManager';
+import { ImagePaintEditor } from './ImagePaintEditor';
 
 interface UploadedFile {
   name: string;
@@ -69,9 +70,11 @@ export function AIDeveloperChat({
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [imageGenerationProgress, setImageGenerationProgress] = useState<{ current: number; total: number; progress: number }[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-   const [isDragging, setIsDragging] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [aiUnavailable, setAiUnavailable] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [editingImageIndex, setEditingImageIndex] = useState<number | null>(null);
+  const [editedMaskData, setEditedMaskData] = useState<{ [key: number]: string }>({});
   const [usageStats, setUsageStats] = useState({
     model: 'google/gemini-2.5-flash',
     imagesGenerated: 0,
@@ -610,6 +613,11 @@ export function AIDeveloperChat({
         .filter(f => f.type.startsWith('image/'))
         .map(f => f.data);
       
+      // Get mask data for edited images
+      const imageMasks = userFilesData
+        .filter(f => f.type.startsWith('image/'))
+        .map((_, idx) => editedMaskData[idx] || null);
+      
       const otherFiles = userFilesData
         .filter(f => !f.type.startsWith('image/'))
         .map(f => ({ name: f.name, type: f.type, content: f.data }));
@@ -630,9 +638,13 @@ export function AIDeveloperChat({
           generateImage: shouldGenerateImage,
           imageCount: imageCount,
           userImages: userImages.length > 0 ? userImages : undefined,
+          imageMasks: imageMasks.some(m => m) ? imageMasks : undefined,
           userFiles: otherFiles.length > 0 ? otherFiles : undefined
         }
       });
+
+      // Clear mask data after sending
+      setEditedMaskData({});
 
       if (error) {
         const status = (error as any).status || (error as any)?.context?.response?.status;
@@ -1231,31 +1243,52 @@ export function AIDeveloperChat({
             
             {/* Uploaded files preview */}
             {uploadedFiles.length > 0 && (
-              <div className="glass-panel p-2 rounded-lg mx-1 flex flex-wrap gap-1.5">
+              <div className="glass-panel p-2 rounded-lg mx-1 flex flex-wrap gap-2">
                 {uploadedFiles.map((file, idx) => (
                   <div key={idx} className="relative group">
                     {file.preview ? (
-                      <div className="relative glass-panel p-0.5 rounded">
+                      <div className="relative glass-panel p-0.5 rounded-lg overflow-hidden">
                         <img 
                           src={file.preview} 
                           alt={file.name} 
-                          className="w-12 h-12 object-cover rounded"
+                          className={`w-16 h-16 object-cover rounded-lg transition-all ${
+                            editedMaskData[idx] ? 'ring-2 ring-blue-500' : ''
+                          }`}
                         />
+                        {/* Edit badge if mask applied */}
+                        {editedMaskData[idx] && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-500/80 to-transparent px-1 py-0.5">
+                            <span className="text-[8px] text-white font-medium">Editada</span>
+                          </div>
+                        )}
+                        {/* Edit button on hover */}
+                        <button
+                          onClick={() => setEditingImageIndex(idx)}
+                          className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            <Paintbrush className="w-4 h-4 text-white" />
+                            <span className="text-[9px] text-white font-medium">Editar</span>
+                          </div>
+                        </button>
                       </div>
                     ) : (
-                      <div className="w-12 h-12 glass-panel flex flex-col items-center justify-center rounded">
+                      <div className="w-16 h-16 glass-panel flex flex-col items-center justify-center rounded-lg">
                         {file.type.includes('pdf') ? (
-                          <FileText className="w-4 h-4 text-red-400" />
+                          <FileText className="w-5 h-5 text-red-400" />
                         ) : (
-                          <FileCode className="w-4 h-4 text-blue-400" />
+                          <FileCode className="w-5 h-5 text-blue-400" />
                         )}
+                        <span className="text-[8px] text-muted-foreground mt-1 truncate max-w-[50px]">
+                          {file.name.split('.').pop()}
+                        </span>
                       </div>
                     )}
                     <button
                       onClick={() => removeUploadedFile(idx)}
-                      className="absolute -top-1 -right-1 bg-destructive text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-all"
+                      className="absolute -top-1.5 -right-1.5 bg-destructive text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-all shadow-lg"
                     >
-                      <X className="w-2.5 h-2.5" />
+                      <X className="w-3 h-3" />
                     </button>
                   </div>
                 ))}
@@ -1428,7 +1461,7 @@ export function AIDeveloperChat({
                   className="glass-button absolute -top-12 right-0 rounded-full"
                   onClick={() => setSelectedImage(null)}
                 >
-                  <X className="w-5 h-5" />
+                <X className="w-5 h-5" />
                 </Button>
                 <img 
                   src={selectedImage} 
@@ -1454,6 +1487,29 @@ export function AIDeveloperChat({
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Image Paint Editor */}
+          {editingImageIndex !== null && uploadedFiles[editingImageIndex]?.preview && (
+            <ImagePaintEditor
+              imageUrl={uploadedFiles[editingImageIndex].preview!}
+              onSave={(editedImageUrl, maskDataUrl) => {
+                // Update the file preview with edited image
+                setUploadedFiles(prev => prev.map((file, idx) => 
+                  idx === editingImageIndex 
+                    ? { ...file, preview: editedImageUrl, data: editedImageUrl }
+                    : file
+                ));
+                // Store mask data for AI processing
+                setEditedMaskData(prev => ({ ...prev, [editingImageIndex]: maskDataUrl }));
+                setEditingImageIndex(null);
+                toast({
+                  title: "Imagen editada",
+                  description: "Las marcas se enviarán junto con tu mensaje a la IA",
+                });
+              }}
+              onCancel={() => setEditingImageIndex(null)}
+            />
           )}
         </>
       )}
