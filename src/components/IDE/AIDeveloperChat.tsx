@@ -67,6 +67,7 @@ export function AIDeveloperChat({
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number; messageIndex: number; imageIndex?: number } | null>(null);
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [imageGenerationProgress, setImageGenerationProgress] = useState<{ current: number; total: number; progress: number }[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -322,27 +323,69 @@ export function AIDeveloperChat({
     setContextMenuPosition(null);
   };
 
+  // Detectar si el usuario pide generar CÓDIGO
+  const detectCodeGeneration = (text: string): boolean => {
+    const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
+    // Keywords fuertes que indican código
+    const codeKeywords = [
+      'codigo', 'code', 'script', 'funcion', 'function', 'algoritmo', 'algorithm',
+      'programa', 'program', 'clase', 'class', 'metodo', 'method', 'variable',
+      'implementa', 'implement', 'desarrolla', 'develop', 'escribe.*codigo',
+      'javascript', 'typescript', 'python', 'java', 'c\\+\\+', 'html', 'css',
+      'react', 'vue', 'angular', 'node', 'express', 'sql', 'json', 'api',
+      'archivo.*\\.js', 'archivo.*\\.ts', 'archivo.*\\.py', 'archivo.*\\.cpp',
+      '\\.js', '\\.ts', '\\.py', '\\.cpp', '\\.c', '\\.h', '\\.java', '\\.html', '\\.css',
+      'calculadora.*en', 'en.*javascript', 'en.*python', 'en.*java', 'en.*c\\+\\+',
+      'loop', 'bucle', 'array', 'objeto', 'string', 'number', 'boolean',
+      'if.*else', 'switch', 'for.*loop', 'while.*loop', 'try.*catch',
+      'import', 'export', 'module', 'package', 'library', 'framework'
+    ];
+    
+    return codeKeywords.some(keyword => new RegExp(keyword, 'i').test(lowerText));
+  };
+
   // Detectar si el usuario pide generar una imagen y cuántas
   const detectImageGeneration = (text: string): { shouldGenerate: boolean; count: number } => {
     const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     
-    // Keywords que indican generación de imagen
+    // PRIMERO: Si detectamos que es una solicitud de código, NO generar imagen
+    if (detectCodeGeneration(text)) {
+      return { shouldGenerate: false, count: 0 };
+    }
+    
+    // Keywords que indican generación de imagen VISUAL (no código)
     const imageKeywords = [
-      'genera', 'crea', 'dibuja', 'diseña', 'hazme', 'haz', 'creame', 'generame',
       'imagen', 'foto', 'picture', 'ilustracion', 'grafico', 'visual', 'render', 
-      'arte', 'logo', 'icono', 'banner', 'poster', 'portada', 'thumbnail',
-      'make me', 'create', 'generate', 'draw', 'design'
+      'arte', 'dibujo', 'drawing', 'pintura', 'painting', 'banner', 'poster', 
+      'portada', 'thumbnail', 'wallpaper', 'fondo de pantalla', 'avatar',
+      'retrato', 'portrait', 'paisaje', 'landscape', 'escena', 'scene'
     ];
     
-    const shouldGenerate = imageKeywords.some(keyword => lowerText.includes(keyword));
+    // Verbos de creación visual
+    const visualVerbs = [
+      'dibuja', 'draw', 'pinta', 'paint', 'ilustra', 'illustrate',
+      'renderiza', 'render', 'visualiza', 'visualize'
+    ];
+    
+    // Debe tener keyword de imagen O verbo visual
+    const hasImageKeyword = imageKeywords.some(keyword => lowerText.includes(keyword));
+    const hasVisualVerb = visualVerbs.some(verb => lowerText.includes(verb));
+    
+    // Contexto que indica imagen visual explícita
+    const explicitImageContext = /genera(me)?\s+(una?\s+)?(imagen|foto|ilustracion|dibujo|arte)/i.test(lowerText) ||
+                                 /crea(me)?\s+(una?\s+)?(imagen|foto|ilustracion|dibujo|arte)/i.test(lowerText) ||
+                                 /haz(me)?\s+(una?\s+)?(imagen|foto|ilustracion|dibujo|arte)/i.test(lowerText);
+    
+    const shouldGenerate = hasImageKeyword || hasVisualVerb || explicitImageContext;
     if (!shouldGenerate) return { shouldGenerate: false, count: 0 };
     
-    // Detectar cantidad - PRIORIDAD: números explícitos primero
+    // Detectar cantidad
     let count = 1;
     
     // Patrones para números explícitos
     const explicitNumberPatterns = [
-      /(\d+)\s*(imagenes?|fotos?|logos?|iconos?|banners?|pictures?|images?)/i,
+      /(\d+)\s*(imagenes?|fotos?|ilustraciones?|dibujos?|pictures?|images?)/i,
       /genera(?:me)?\s+(\d+)/i,
       /crea(?:me)?\s+(\d+)/i,
       /haz(?:me)?\s+(\d+)/i,
@@ -358,7 +401,7 @@ export function AIDeveloperChat({
     
     // Patrones para palabras numéricas
     const wordNumbers: Record<string, number> = {
-      'una': 1, 'uno': 1, 'un': 1, 'one': 1, 'a ': 1,
+      'una': 1, 'uno': 1, 'un': 1, 'one': 1,
       'dos': 2, 'two': 2, 'par de': 2, 'couple': 2,
       'tres': 3, 'three': 3,
       'cuatro': 4, 'four': 4,
@@ -371,24 +414,14 @@ export function AIDeveloperChat({
       }
     }
     
-    // Detectar plural sin número = asumir múltiples (2)
-    const pluralPatterns = ['imagenes', 'fotos', 'logos', 'iconos', 'pictures', 'images'];
-    const singularPatterns = ['imagen', 'foto', 'logo', 'icono', 'picture', 'image'];
-    
+    // Detectar plural
+    const pluralPatterns = ['imagenes', 'fotos', 'ilustraciones', 'dibujos', 'pictures', 'images'];
     const hasPlural = pluralPatterns.some(p => lowerText.includes(p));
-    const hasSingular = singularPatterns.some(p => {
-      const idx = lowerText.indexOf(p);
-      // Verificar que no sea parte de un plural
-      return idx !== -1 && !pluralPatterns.some(pl => lowerText.includes(pl));
-    });
     
-    // Si menciona "algunas", "varias", "varias" = 3
     if (/algunas?|varias?|several|multiple/i.test(lowerText)) {
       count = 3;
     } else if (hasPlural && count === 1) {
-      count = 2; // Plural sin número específico = 2
-    } else if (hasSingular) {
-      count = 1;
+      count = 2;
     }
     
     return { shouldGenerate, count: Math.min(Math.max(count, 1), 4) };
@@ -564,9 +597,11 @@ export function AIDeveloperChat({
 
     // Detectar si debe generar imagen y cuántas
     const { shouldGenerate: shouldGenerateImage, count: imageCount } = detectImageGeneration(inputText);
+    const shouldGenerateCode = detectCodeGeneration(inputText);
     
     if (shouldGenerateImage) {
       setIsGeneratingImage(true);
+      setIsGeneratingCode(false);
       // Inicializar progreso para cada imagen
       const progressArray = Array.from({ length: imageCount }, (_, i) => ({
         current: i + 1,
@@ -589,6 +624,9 @@ export function AIDeveloperChat({
           );
         }, 300);
       });
+    } else if (shouldGenerateCode) {
+      setIsGeneratingCode(true);
+      setIsGeneratingImage(false);
     }
 
     try {
@@ -732,6 +770,7 @@ export function AIDeveloperChat({
     } finally {
       setIsLoading(false);
       setIsGeneratingImage(false);
+      setIsGeneratingCode(false);
       setImageGenerationProgress([]);
     }
   };
@@ -1200,6 +1239,51 @@ export function AIDeveloperChat({
                               </div>
                             </div>
                           ))}
+                        </div>
+                      ) : isGeneratingCode ? (
+                        /* Code Generation Indicator - VS Code/Cursor Style */
+                        <div className="w-full max-w-md rounded-2xl overflow-hidden bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
+                          {/* Header bar like VS Code */}
+                          <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/80 border-b border-slate-700/50">
+                            <div className="flex gap-1.5">
+                              <div className="w-3 h-3 rounded-full bg-red-500/70" />
+                              <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
+                              <div className="w-3 h-3 rounded-full bg-green-500/70" />
+                            </div>
+                            <span className="text-xs text-slate-400 font-mono ml-2">Desarrollando código...</span>
+                          </div>
+                          
+                          {/* Code animation area */}
+                          <div className="p-4 space-y-3">
+                            {/* Typing animation lines */}
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-emerald-400 font-mono text-xs">1</span>
+                                <div className="h-3 bg-gradient-to-r from-emerald-500/30 to-transparent rounded animate-pulse w-3/4" />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-emerald-400 font-mono text-xs">2</span>
+                                <div className="h-3 bg-gradient-to-r from-blue-500/30 to-transparent rounded animate-pulse w-1/2" style={{ animationDelay: '0.1s' }} />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-emerald-400 font-mono text-xs">3</span>
+                                <div className="h-3 bg-gradient-to-r from-purple-500/30 to-transparent rounded animate-pulse w-2/3" style={{ animationDelay: '0.2s' }} />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-emerald-400 font-mono text-xs">4</span>
+                                <div className="h-3 bg-gradient-to-r from-cyan-500/30 to-transparent rounded animate-pulse w-4/5" style={{ animationDelay: '0.3s' }} />
+                              </div>
+                            </div>
+                            
+                            {/* Status indicator */}
+                            <div className="flex items-center gap-2 pt-2 border-t border-slate-700/50">
+                              <Code2 className="w-4 h-4 text-emerald-400 animate-pulse" />
+                              <span className="text-xs text-slate-400">Analizando y generando código profesional</span>
+                              <div className="ml-auto flex gap-0.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         /* Text thinking indicator */
