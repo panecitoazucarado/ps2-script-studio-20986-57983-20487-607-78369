@@ -3,13 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3, MessageSquare, Save, Copy, ThumbsUp, ThumbsDown, Reply, ImagePlus, Sparkles, Download, Upload, X, FileCode, File, Paintbrush } from 'lucide-react';
+import { Send, Bot, User, Loader2, Code2, FileText, FolderPlus, Trash2, Edit3, MessageSquare, Save, Copy, ThumbsUp, ThumbsDown, Reply, ImagePlus, Sparkles, Download, Upload, X, FileCode, File, Paintbrush, Brain } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/athena';
 import { AICodeBlock } from './AICodeBlock';
 import { ConversationManager, Conversation } from './ConversationManager';
 import { ImagePaintEditor } from './ImagePaintEditor';
+import { AIThinkingProcess, ThinkingProcessData, parseThinkingProcess } from './AIThinkingProcess';
 
 interface UploadedFile {
   name: string;
@@ -83,6 +84,9 @@ export function AIDeveloperChat({
     dailyTokensUsed: 0,
     dailyTokensLimit: 100000
   });
+  const [thinkingProcess, setThinkingProcess] = useState<ThinkingProcessData | null>(null);
+  const [isThinkingExpanded, setIsThinkingExpanded] = useState(true);
+  const [showThinkingProcess, setShowThinkingProcess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -602,6 +606,7 @@ export function AIDeveloperChat({
     if (shouldGenerateImage) {
       setIsGeneratingImage(true);
       setIsGeneratingCode(false);
+      setShowThinkingProcess(false);
       // Inicializar progreso para cada imagen
       const progressArray = Array.from({ length: imageCount }, (_, i) => ({
         current: i + 1,
@@ -627,6 +632,54 @@ export function AIDeveloperChat({
     } else if (shouldGenerateCode) {
       setIsGeneratingCode(true);
       setIsGeneratingImage(false);
+      setShowThinkingProcess(true);
+      
+      // Initialize thinking process with analyzing state
+      setThinkingProcess({
+        userRequest: inputText,
+        analysis: [],
+        tasks: [],
+        fileChanges: [],
+        suggestions: []
+      });
+      
+      // Simulate progressive thinking updates
+      setTimeout(() => {
+        setThinkingProcess(prev => prev ? {
+          ...prev,
+          analysis: [`Analizando solicitud: "${inputText.substring(0, 60)}${inputText.length > 60 ? '...' : ''}"`]
+        } : null);
+      }, 500);
+      
+      setTimeout(() => {
+        setThinkingProcess(prev => prev ? {
+          ...prev,
+          analysis: [
+            ...prev.analysis,
+            'Identificando tipo de código requerido...',
+            'Determinando estructura y arquitectura...'
+          ]
+        } : null);
+      }, 1200);
+      
+      setTimeout(() => {
+        const tasks = [];
+        if (/calculadora|calculator/i.test(inputText)) {
+          tasks.push(
+            { id: '1', title: 'Analizar requisitos de calculadora', status: 'in-progress' as const, description: 'Determinar operaciones necesarias' },
+            { id: '2', title: 'Diseñar estructura del código', status: 'pending' as const },
+            { id: '3', title: 'Implementar operaciones matemáticas', status: 'pending' as const },
+            { id: '4', title: 'Generar código final', status: 'pending' as const }
+          );
+        } else {
+          tasks.push(
+            { id: '1', title: 'Comprender solicitud', status: 'in-progress' as const },
+            { id: '2', title: 'Planificar implementación', status: 'pending' as const },
+            { id: '3', title: 'Generar código', status: 'pending' as const }
+          );
+        }
+        setThinkingProcess(prev => prev ? { ...prev, tasks } : null);
+      }, 1800);
     }
 
     try {
@@ -738,6 +791,26 @@ export function AIDeveloperChat({
         return;
       }
 
+      // If code was generated, complete the thinking process
+      if (shouldGenerateCode && thinkingProcess) {
+        // Mark all tasks as completed
+        setThinkingProcess(prev => prev ? {
+          ...prev,
+          tasks: prev.tasks.map(t => ({ ...t, status: 'completed' as const })),
+          fileChanges: data.fileOperations?.map((op: any) => ({
+            path: op.path || op.newPath || '',
+            type: op.operation === 'create_file' ? 'create' as const : 
+                  op.operation === 'delete_file' ? 'delete' as const : 'modify' as const,
+            additions: 0,
+            deletions: 0
+          })) || [],
+          suggestions: [
+            'Revisa el código generado antes de aplicarlo',
+            'Puedes modificar y adaptar según tus necesidades'
+          ]
+        } : null);
+      }
+
       const assistantMessage: Message = {
         role: 'assistant',
         content: data.response,
@@ -772,6 +845,13 @@ export function AIDeveloperChat({
       setIsGeneratingImage(false);
       setIsGeneratingCode(false);
       setImageGenerationProgress([]);
+      // Keep thinking process visible for a moment after completion
+      if (shouldGenerateCode) {
+        setTimeout(() => {
+          setShowThinkingProcess(false);
+          setThinkingProcess(null);
+        }, 3000);
+      }
     }
   };
 
@@ -1240,10 +1320,19 @@ export function AIDeveloperChat({
                             </div>
                           ))}
                         </div>
+                      ) : isGeneratingCode && showThinkingProcess ? (
+                        /* AI Thinking Process - Cursor/Trae Style */
+                        <div className="w-full max-w-lg">
+                          <AIThinkingProcess
+                            data={thinkingProcess}
+                            isThinking={isLoading}
+                            isExpanded={isThinkingExpanded}
+                            onToggleExpand={() => setIsThinkingExpanded(!isThinkingExpanded)}
+                          />
+                        </div>
                       ) : isGeneratingCode ? (
-                        /* Code Generation Indicator - VS Code/Cursor Style */
+                        /* Fallback Code Generation Indicator */
                         <div className="w-full max-w-md rounded-2xl overflow-hidden bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
-                          {/* Header bar like VS Code */}
                           <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/80 border-b border-slate-700/50">
                             <div className="flex gap-1.5">
                               <div className="w-3 h-3 rounded-full bg-red-500/70" />
@@ -1252,10 +1341,7 @@ export function AIDeveloperChat({
                             </div>
                             <span className="text-xs text-slate-400 font-mono ml-2">Desarrollando código...</span>
                           </div>
-                          
-                          {/* Code animation area */}
                           <div className="p-4 space-y-3">
-                            {/* Typing animation lines */}
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
                                 <span className="text-emerald-400 font-mono text-xs">1</span>
@@ -1274,8 +1360,6 @@ export function AIDeveloperChat({
                                 <div className="h-3 bg-gradient-to-r from-cyan-500/30 to-transparent rounded animate-pulse w-4/5" style={{ animationDelay: '0.3s' }} />
                               </div>
                             </div>
-                            
-                            {/* Status indicator */}
                             <div className="flex items-center gap-2 pt-2 border-t border-slate-700/50">
                               <Code2 className="w-4 h-4 text-emerald-400 animate-pulse" />
                               <span className="text-xs text-slate-400">Analizando y generando código profesional</span>
