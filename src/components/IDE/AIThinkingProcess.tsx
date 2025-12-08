@@ -1,517 +1,567 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   ChevronDown, 
   ChevronRight, 
   CheckCircle2, 
-  Circle, 
   Loader2, 
   Brain, 
   FileCode, 
-  FolderOpen, 
-  GitBranch, 
   Sparkles,
-  Code2,
-  FileText,
-  Settings2,
-  Zap,
-  Target,
-  ListTodo,
-  Eye,
-  Lightbulb
+  GitCompare,
+  Check,
+  X,
+  Clock,
+  Pencil,
+  History,
+  RotateCcw
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-
-export interface ThinkingTask {
-  id: string;
-  title: string;
-  status: 'pending' | 'in-progress' | 'completed';
-  description?: string;
-  subtasks?: ThinkingTask[];
-}
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export interface FileChange {
   path: string;
   type: 'create' | 'modify' | 'delete';
   additions?: number;
   deletions?: number;
+  originalContent?: string;
+  newContent?: string;
+  accepted?: boolean;
+}
+
+export interface ThinkingStep {
+  id: string;
+  title: string;
+  content: string;
+  timestamp: number;
+  isComplete: boolean;
 }
 
 export interface ThinkingProcessData {
   userRequest: string;
-  analysis: string[];
-  tasks: ThinkingTask[];
+  thinkingSteps: ThinkingStep[];
   fileChanges: FileChange[];
-  architecture?: string;
-  suggestions?: string[];
+  isComplete: boolean;
 }
 
 interface AIThinkingProcessProps {
   data: ThinkingProcessData | null;
   isThinking: boolean;
-  isExpanded?: boolean;
-  onToggleExpand?: () => void;
+  onAcceptChange?: (fileIndex: number) => void;
+  onRejectChange?: (fileIndex: number) => void;
+  onOpenDiff?: (file: FileChange) => void;
+  onRevertToVersion?: (versionId: string) => void;
 }
+
+// Simulated thinking text generator for Cursor-like effect
+const thinkingTexts = [
+  "Analizando la estructura del proyecto y los archivos existentes...",
+  "Identificando dependencias y patrones de código actuales...",
+  "Evaluando la mejor aproximación para implementar esta funcionalidad...",
+  "Considerando las mejores prácticas y convenciones del proyecto...",
+  "Planificando los cambios necesarios en el código...",
+  "Determinando qué archivos necesitan ser modificados o creados...",
+  "Estructurando la implementación de manera modular y mantenible...",
+  "Verificando compatibilidad con el código existente...",
+];
 
 export function AIThinkingProcess({ 
   data, 
-  isThinking, 
-  isExpanded = true, 
-  onToggleExpand 
+  isThinking,
+  onAcceptChange,
+  onRejectChange,
+  onOpenDiff,
+  onRevertToVersion
 }: AIThinkingProcessProps) {
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    analysis: true,
-    tasks: true,
-    files: true,
-    suggestions: false
-  });
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [currentThinkingText, setCurrentThinkingText] = useState('');
+  const [thinkingTextIndex, setThinkingTextIndex] = useState(0);
+  const [charIndex, setCharIndex] = useState(0);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const thinkingRef = useRef<HTMLDivElement>(null);
 
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  // Animate task completion
-  const [animatedTasks, setAnimatedTasks] = useState<Set<string>>(new Set());
-  
+  // Typewriter effect for thinking text
   useEffect(() => {
-    if (data?.tasks) {
-      data.tasks.forEach((task, index) => {
-        if (task.status === 'completed' && !animatedTasks.has(task.id)) {
-          setTimeout(() => {
-            setAnimatedTasks(prev => new Set([...prev, task.id]));
-          }, index * 200);
-        }
-      });
+    if (!isThinking) return;
+
+    const targetText = thinkingTexts[thinkingTextIndex % thinkingTexts.length];
+    
+    if (charIndex < targetText.length) {
+      const timer = setTimeout(() => {
+        setCurrentThinkingText(targetText.substring(0, charIndex + 1));
+        setCharIndex(prev => prev + 1);
+      }, 20 + Math.random() * 30); // Variable typing speed for realism
+      return () => clearTimeout(timer);
+    } else {
+      // Wait and move to next text
+      const timer = setTimeout(() => {
+        setThinkingTextIndex(prev => prev + 1);
+        setCharIndex(0);
+        setCurrentThinkingText('');
+      }, 1500);
+      return () => clearTimeout(timer);
     }
-  }, [data?.tasks]);
+  }, [isThinking, thinkingTextIndex, charIndex]);
+
+  // Reset on new thinking process
+  useEffect(() => {
+    if (isThinking) {
+      setThinkingTextIndex(0);
+      setCharIndex(0);
+      setCurrentThinkingText('');
+    }
+  }, [data?.userRequest]);
+
+  // Auto-scroll thinking content
+  useEffect(() => {
+    if (thinkingRef.current && isThinking) {
+      thinkingRef.current.scrollTop = thinkingRef.current.scrollHeight;
+    }
+  }, [currentThinkingText, data?.thinkingSteps]);
 
   if (!data && !isThinking) return null;
 
-  const completedTasks = data?.tasks?.filter(t => t.status === 'completed').length || 0;
-  const totalTasks = data?.tasks?.length || 0;
-
-  const getStatusIcon = (status: ThinkingTask['status']) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
-      case 'in-progress':
-        return <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
-      default:
-        return <Circle className="w-4 h-4 text-slate-500" />;
-    }
-  };
-
-  const getFileIcon = (type: FileChange['type']) => {
-    switch (type) {
-      case 'create':
-        return <FileCode className="w-3.5 h-3.5 text-emerald-400" />;
-      case 'modify':
-        return <FileText className="w-3.5 h-3.5 text-amber-400" />;
-      case 'delete':
-        return <FileText className="w-3.5 h-3.5 text-red-400" />;
-    }
-  };
+  const completedSteps = data?.thinkingSteps?.filter(s => s.isComplete).length || 0;
+  const totalSteps = data?.thinkingSteps?.length || 0;
+  const hasFileChanges = data?.fileChanges && data.fileChanges.length > 0;
 
   return (
-    <div className="rounded-xl bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 border border-slate-700/50 overflow-hidden shadow-xl backdrop-blur-xl">
+    <div className="rounded-xl bg-gradient-to-br from-slate-900/98 via-slate-800/98 to-slate-900/98 border border-slate-700/50 overflow-hidden shadow-2xl backdrop-blur-xl">
       {/* Header - Cursor/Trae Style */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-800/60 border-b border-slate-700/50">
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-800/70 border-b border-slate-700/50">
         <div className="flex items-center gap-3">
           <div className="relative">
             {isThinking ? (
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                <Brain className="w-4 h-4 text-white animate-pulse" />
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                <Brain className="w-5 h-5 text-white animate-pulse" />
+              </div>
+            ) : data?.isComplete ? (
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <CheckCircle2 className="w-5 h-5 text-white" />
               </div>
             ) : (
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white" />
               </div>
             )}
             {isThinking && (
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-blue-400 rounded-full animate-ping" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-purple-400 rounded-full animate-ping" />
             )}
           </div>
           
-          <div>
-            <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-              {isThinking ? 'Analizando solicitud...' : 'Proceso de pensamiento'}
-              {!isThinking && totalTasks > 0 && (
-                <Badge variant="outline" className="text-[10px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                  {completedTasks}/{totalTasks} completadas
-                </Badge>
+          <div className="flex flex-col">
+            <button 
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-slate-400" />
               )}
-            </h3>
-            {data?.userRequest && (
-              <p className="text-xs text-slate-400 truncate max-w-[300px]">
-                "{data.userRequest.substring(0, 50)}{data.userRequest.length > 50 ? '...' : ''}"
-              </p>
-            )}
+              <span className="text-sm font-medium text-slate-200">
+                Thought process
+              </span>
+            </button>
           </div>
         </div>
         
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleExpand}
-          className="h-7 px-2 text-slate-400 hover:text-slate-200"
-        >
-          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Version History Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowVersionHistory(!showVersionHistory)}
+            className="h-7 px-2 text-slate-400 hover:text-slate-200 gap-1.5"
+          >
+            <History className="w-3.5 h-3.5" />
+            <span className="text-xs">Historial</span>
+          </Button>
+        </div>
       </div>
 
       {isExpanded && (
-        <div className="divide-y divide-slate-700/30">
-          {/* Analysis Section */}
-          {(data?.analysis?.length || isThinking) && (
-            <div className="p-4">
-              <button 
-                onClick={() => toggleSection('analysis')}
-                className="flex items-center gap-2 w-full text-left mb-3 group"
-              >
-                {expandedSections.analysis ? (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                )}
-                <Eye className="w-4 h-4 text-cyan-400" />
-                <span className="text-sm font-medium text-slate-300 group-hover:text-slate-100 transition-colors">
-                  Análisis de la solicitud
-                </span>
-              </button>
-              
-              {expandedSections.analysis && (
-                <div className="ml-6 space-y-2">
-                  {isThinking && !data?.analysis?.length ? (
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>Analizando tu solicitud...</span>
-                    </div>
-                  ) : (
-                    data?.analysis?.map((item, i) => (
-                      <div 
-                        key={i}
-                        className="flex items-start gap-2 text-xs text-slate-400 animate-in fade-in slide-in-from-left-2"
-                        style={{ animationDelay: `${i * 100}ms` }}
-                      >
-                        <span className="text-cyan-400 mt-0.5">•</span>
-                        <span>{item}</span>
-                      </div>
-                    ))
-                  )}
+        <div className="flex flex-col">
+          {/* Main Thinking Content - Cursor/Trae Style */}
+          <div className="p-4 border-b border-slate-700/30">
+            {/* Current Thinking Title */}
+            {isThinking && (
+              <div className="flex items-start gap-3 mb-3">
+                <div className="mt-1 flex-shrink-0">
+                  <div className="w-5 h-5 rounded-full border-2 border-purple-400/50 flex items-center justify-center">
+                    <Loader2 className="w-3 h-3 text-purple-400 animate-spin" />
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium text-slate-200 mb-1">
+                    {data?.thinkingSteps?.length 
+                      ? data.thinkingSteps[data.thinkingSteps.length - 1]?.title || 'Procesando solicitud'
+                      : 'Analizando tu solicitud'
+                    }
+                  </h4>
+                </div>
+              </div>
+            )}
 
-          {/* Tasks Section - Main Feature */}
-          {(data?.tasks?.length || isThinking) && (
-            <div className="p-4">
-              <button 
-                onClick={() => toggleSection('tasks')}
-                className="flex items-center gap-2 w-full text-left mb-3 group"
-              >
-                {expandedSections.tasks ? (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                )}
-                <ListTodo className="w-4 h-4 text-purple-400" />
-                <span className="text-sm font-medium text-slate-300 group-hover:text-slate-100 transition-colors">
-                  Tareas a realizar
-                </span>
-                {totalTasks > 0 && (
-                  <div className="ml-auto flex items-center gap-1">
-                    <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
-                        style={{ width: `${(completedTasks / totalTasks) * 100}%` }}
-                      />
+            {/* Thinking Text - Main Feature (Cursor-like) */}
+            <ScrollArea className="max-h-[200px]" ref={thinkingRef}>
+              <div className="space-y-3 pr-4">
+                {/* Previous completed thoughts */}
+                {data?.thinkingSteps?.slice(0, -1).map((step, index) => (
+                  <div key={step.id} className="flex items-start gap-3 opacity-70">
+                    <div className="mt-1 flex-shrink-0">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     </div>
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      {Math.round((completedTasks / totalTasks) * 100)}%
-                    </span>
+                    <div className="flex-1">
+                      <p className="text-xs text-slate-400 leading-relaxed">{step.content}</p>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Current thinking text with typewriter effect */}
+                {isThinking && (
+                  <div className="pl-8">
+                    <p className="text-sm text-slate-300 leading-relaxed font-light">
+                      {currentThinkingText}
+                      <span className="inline-block w-0.5 h-4 bg-purple-400 ml-0.5 animate-pulse" />
+                    </p>
                   </div>
                 )}
-              </button>
-              
-              {expandedSections.tasks && (
-                <div className="ml-6 space-y-2">
-                  {isThinking && !data?.tasks?.length ? (
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>Planificando tareas...</span>
-                    </div>
-                  ) : (
-                    data?.tasks?.map((task, i) => (
-                      <div 
-                        key={task.id}
-                        className={`flex items-start gap-2 p-2 rounded-lg transition-all duration-300 ${
-                          task.status === 'completed' 
-                            ? 'bg-emerald-500/5 border border-emerald-500/20' 
-                            : task.status === 'in-progress'
-                              ? 'bg-blue-500/5 border border-blue-500/20'
-                              : 'bg-slate-800/30 border border-transparent'
-                        }`}
-                        style={{ animationDelay: `${i * 150}ms` }}
-                      >
-                        <div className="mt-0.5">
-                          {getStatusIcon(task.status)}
-                        </div>
-                        <div className="flex-1">
-                          <p className={`text-xs font-medium ${
-                            task.status === 'completed' 
-                              ? 'text-emerald-300 line-through opacity-70' 
-                              : task.status === 'in-progress'
-                                ? 'text-blue-300'
-                                : 'text-slate-300'
-                          }`}>
-                            {task.title}
-                          </p>
-                          {task.description && (
-                            <p className="text-[10px] text-slate-500 mt-0.5">{task.description}</p>
-                          )}
-                          
-                          {/* Subtasks */}
-                          {task.subtasks && task.subtasks.length > 0 && (
-                            <div className="mt-2 ml-4 space-y-1 border-l border-slate-700/50 pl-3">
-                              {task.subtasks.map(subtask => (
-                                <div key={subtask.id} className="flex items-center gap-2">
-                                  {getStatusIcon(subtask.status)}
-                                  <span className={`text-[10px] ${
-                                    subtask.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-400'
-                                  }`}>
-                                    {subtask.title}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* File Changes Section */}
-          {data?.fileChanges && data.fileChanges.length > 0 && (
-            <div className="p-4">
-              <button 
-                onClick={() => toggleSection('files')}
-                className="flex items-center gap-2 w-full text-left mb-3 group"
-              >
-                {expandedSections.files ? (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                )}
-                <FolderOpen className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-medium text-slate-300 group-hover:text-slate-100 transition-colors">
-                  Archivos afectados
-                </span>
-                <Badge variant="outline" className="ml-auto text-[10px] bg-slate-700/50 text-slate-400 border-slate-600/50">
-                  {data.fileChanges.length} archivo(s)
-                </Badge>
-              </button>
-              
-              {expandedSections.files && (
-                <div className="ml-6 space-y-1.5">
-                  {data.fileChanges.map((file, i) => (
-                    <div 
-                      key={i}
-                      className="flex items-center justify-between p-2 rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors group"
-                    >
-                      <div className="flex items-center gap-2">
-                        {getFileIcon(file.type)}
-                        <span className="text-xs font-mono text-slate-300">{file.path}</span>
+                {/* AI's detailed reasoning from response */}
+                {data?.thinkingSteps?.length ? (
+                  <div className="pl-8 space-y-2">
+                    {data.thinkingSteps.slice(-1).map(step => (
+                      <div key={step.id} className="text-sm text-slate-300 leading-relaxed">
+                        <p className="whitespace-pre-wrap">{step.content}</p>
+                        {step.isComplete && (
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>Análisis completado</span>
+                          </div>
+                        )}
                       </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </ScrollArea>
+          </div>
+
+          {/* File Changes Section - Trae AI Style with Open Diff */}
+          {hasFileChanges && (
+            <div className="p-4 bg-slate-800/30">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <FileCode className="w-4 h-4 text-amber-400" />
+                  <span className="text-sm font-medium text-slate-300">
+                    Cambios propuestos
+                  </span>
+                  <Badge variant="outline" className="text-[10px] bg-slate-700/50 text-slate-400 border-slate-600/50">
+                    {data.fileChanges.length} archivo(s)
+                  </Badge>
+                </div>
+                
+                {/* Accept All / Reject All */}
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                    onClick={() => data.fileChanges.forEach((_, i) => onAcceptChange?.(i))}
+                  >
+                    <Check className="w-3 h-3 mr-1" />
+                    Aceptar todo
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    onClick={() => data.fileChanges.forEach((_, i) => onRejectChange?.(i))}
+                  >
+                    <X className="w-3 h-3 mr-1" />
+                    Rechazar
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {data.fileChanges.map((file, index) => (
+                  <div 
+                    key={index}
+                    className={`flex items-center justify-between p-3 rounded-lg transition-all group ${
+                      file.accepted === true 
+                        ? 'bg-emerald-500/10 border border-emerald-500/30' 
+                        : file.accepted === false
+                          ? 'bg-red-500/10 border border-red-500/30 opacity-50'
+                          : 'bg-slate-800/50 border border-slate-700/30 hover:bg-slate-800/70'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {/* File Type Icon */}
+                      <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${
+                        file.type === 'create' 
+                          ? 'bg-emerald-500/20' 
+                          : file.type === 'delete'
+                            ? 'bg-red-500/20'
+                            : 'bg-amber-500/20'
+                      }`}>
+                        <Pencil className={`w-3 h-3 ${
+                          file.type === 'create' 
+                            ? 'text-emerald-400' 
+                            : file.type === 'delete'
+                              ? 'text-red-400'
+                              : 'text-amber-400'
+                        }`} />
+                      </div>
+                      
+                      {/* File Name */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-mono text-slate-300 truncate">
+                          {file.path.split('/').pop()}
+                        </span>
+                        <span className="text-xs text-slate-500 truncate hidden sm:block">
+                          {file.path}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Stats and Actions */}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {/* Line Stats */}
                       <div className="flex items-center gap-2">
                         {file.additions !== undefined && file.additions > 0 && (
-                          <span className="text-[10px] text-emerald-400 font-mono">+{file.additions}</span>
+                          <span className="text-xs text-emerald-400 font-mono font-medium">
+                            +{file.additions}
+                          </span>
                         )}
                         {file.deletions !== undefined && file.deletions > 0 && (
-                          <span className="text-[10px] text-red-400 font-mono">-{file.deletions}</span>
+                          <span className="text-xs text-red-400 font-mono font-medium">
+                            -{file.deletions}
+                          </span>
                         )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-5 px-1.5 text-[10px] text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          Ver Diff
-                        </Button>
                       </div>
+
+                      {/* Open Diff Button - Main Feature */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-3 text-xs bg-slate-700/50 border-slate-600 hover:bg-slate-600/50 text-slate-300"
+                        onClick={() => onOpenDiff?.(file)}
+                      >
+                        <GitCompare className="w-3 h-3 mr-1.5" />
+                        Open Diff
+                      </Button>
+
+                      {/* Accept/Reject Individual */}
+                      {file.accepted === undefined && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                            onClick={() => onAcceptChange?.(index)}
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            onClick={() => onRejectChange?.(index)}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Status Badge */}
+                      {file.accepted === true && (
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">
+                          Aceptado
+                        </Badge>
+                      )}
+                      {file.accepted === false && (
+                        <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px]">
+                          Rechazado
+                        </Badge>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Suggestions Section */}
-          {data?.suggestions && data.suggestions.length > 0 && (
-            <div className="p-4">
-              <button 
-                onClick={() => toggleSection('suggestions')}
-                className="flex items-center gap-2 w-full text-left mb-3 group"
-              >
-                {expandedSections.suggestions ? (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                )}
-                <Lightbulb className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm font-medium text-slate-300 group-hover:text-slate-100 transition-colors">
-                  Sugerencias
-                </span>
-              </button>
+          {/* Version History Panel */}
+          {showVersionHistory && (
+            <div className="p-4 bg-slate-900/50 border-t border-slate-700/30">
+              <div className="flex items-center gap-2 mb-3">
+                <History className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-medium text-slate-300">Historial de cambios</span>
+              </div>
               
-              {expandedSections.suggestions && (
-                <div className="ml-6 space-y-2">
-                  {data.suggestions.map((suggestion, i) => (
-                    <div 
-                      key={i}
-                      className="flex items-start gap-2 text-xs text-slate-400 p-2 rounded-lg bg-yellow-500/5 border border-yellow-500/10"
-                    >
-                      <Zap className="w-3 h-3 text-yellow-400 mt-0.5 flex-shrink-0" />
-                      <span>{suggestion}</span>
-                    </div>
-                  ))}
+              <div className="space-y-2">
+                {/* Sample version history - would be populated from actual data */}
+                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50 hover:bg-slate-800/70 transition-colors group">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="text-xs text-slate-400">Versión actual</span>
+                  </div>
+                  <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[10px]">
+                    Activa
+                  </Badge>
                 </div>
-              )}
+                
+                {data?.fileChanges?.length ? (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors cursor-pointer group">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-xs text-slate-400">Antes de los cambios</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs text-slate-400 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => onRevertToVersion?.('previous')}
+                    >
+                      <RotateCcw className="w-3 h-3 mr-1" />
+                      Restaurar
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 text-center py-2">
+                    No hay versiones anteriores disponibles
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Loading skeleton when thinking */}
-          {isThinking && !data?.tasks?.length && (
-            <div className="p-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-4 h-4 bg-slate-700 rounded animate-pulse" />
-                <div className="h-3 bg-slate-700 rounded w-2/3 animate-pulse" />
-              </div>
-              <div className="flex items-center gap-3 ml-4">
-                <div className="w-3 h-3 bg-slate-700/50 rounded animate-pulse" />
-                <div className="h-2.5 bg-slate-700/50 rounded w-1/2 animate-pulse" />
-              </div>
-              <div className="flex items-center gap-3 ml-4">
-                <div className="w-3 h-3 bg-slate-700/50 rounded animate-pulse" />
-                <div className="h-2.5 bg-slate-700/50 rounded w-3/5 animate-pulse" />
-              </div>
+          {/* Footer */}
+          <div className="px-4 py-2 bg-slate-800/40 border-t border-slate-700/30 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[10px] text-slate-500">
+              <Sparkles className="w-3 h-3" />
+              <span>AI Developer • Pensamiento profundo</span>
             </div>
-          )}
+            {isThinking && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-purple-400">Razonando</span>
+                <div className="flex gap-0.5">
+                  <div className="w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1 h-1 bg-fuchsia-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1 h-1 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            )}
+            {!isThinking && data?.isComplete && (
+              <div className="flex items-center gap-1.5 text-emerald-400">
+                <CheckCircle2 className="w-3 h-3" />
+                <span className="text-[10px]">Análisis completado</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
-      
-      {/* Footer status */}
-      <div className="px-4 py-2 bg-slate-800/40 border-t border-slate-700/30 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-[10px] text-slate-500">
-          <Settings2 className="w-3 h-3" />
-          <span>Powered by AI Developer</span>
-        </div>
-        {isThinking && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-slate-400">Procesando</span>
-            <div className="flex gap-0.5">
-              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-1 h-1 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
 
-// Helper to parse thinking process from AI response
-export function parseThinkingProcess(response: string, userRequest: string): ThinkingProcessData | null {
-  // Try to extract structured thinking data
-  const thinkingMatch = response.match(/\[THINKING\]([\s\S]*?)\[\/THINKING\]/);
+// Helper to generate thinking steps based on user request
+export function generateThinkingSteps(userRequest: string): ThinkingStep[] {
+  const steps: ThinkingStep[] = [];
+  const now = Date.now();
   
-  if (thinkingMatch) {
-    try {
-      return JSON.parse(thinkingMatch[1]);
-    } catch (e) {
-      console.error('Error parsing thinking process:', e);
-    }
-  }
+  // Analyze the request type
+  const isCalculator = /calculadora|calculator/i.test(userRequest);
+  const isComponent = /componente|component/i.test(userRequest);
+  const isAPI = /api|endpoint|backend/i.test(userRequest);
+  const isUI = /interfaz|ui|diseño|design|pantalla|screen/i.test(userRequest);
   
-  // Fallback: generate basic analysis from response
-  const analysis: string[] = [];
-  const tasks: ThinkingTask[] = [];
-  
-  // Detect what user is asking for
-  const lowerRequest = userRequest.toLowerCase();
-  
-  if (/calculadora|calculator/i.test(lowerRequest)) {
-    analysis.push('El usuario solicita crear una calculadora');
-    analysis.push('Detectado lenguaje: JavaScript');
-    tasks.push({
+  if (isCalculator) {
+    steps.push({
       id: '1',
-      title: 'Analizar requisitos de la calculadora',
-      status: 'completed',
-      description: 'Determinar operaciones básicas necesarias'
+      title: 'Analizando requisitos',
+      content: `He recibido tu solicitud para crear una calculadora. Voy a analizar los requisitos necesarios.
+
+Primero, necesito determinar qué tipo de calculadora deseas:
+• Calculadora básica con operaciones +, -, *, /
+• Posibles funciones adicionales (raíz cuadrada, porcentaje, etc.)
+• Interfaz de usuario o solo lógica de código
+
+Voy a estructurar el código de manera modular para que sea fácil de mantener y extender. Crearé funciones separadas para cada operación matemática y una función principal que maneje la entrada del usuario.`,
+      timestamp: now,
+      isComplete: false
     });
-    tasks.push({
-      id: '2',
-      title: 'Diseñar estructura del código',
-      status: 'completed',
-      description: 'Organizar funciones y variables'
-    });
-    tasks.push({
-      id: '3',
-      title: 'Implementar operaciones matemáticas',
-      status: 'completed',
-      subtasks: [
-        { id: '3.1', title: 'Suma y resta', status: 'completed' },
-        { id: '3.2', title: 'Multiplicación y división', status: 'completed' },
-        { id: '3.3', title: 'Manejo de errores', status: 'completed' }
-      ]
-    });
-    tasks.push({
-      id: '4',
-      title: 'Generar código final',
-      status: 'completed'
-    });
-  } else if (/menu|navegacion|navigation/i.test(lowerRequest)) {
-    analysis.push('El usuario solicita crear un menú de navegación');
-    tasks.push({
+  } else if (isComponent) {
+    steps.push({
       id: '1',
-      title: 'Diseñar estructura del menú',
-      status: 'completed'
+      title: 'Diseñando componente',
+      content: `Analizando tu solicitud de componente. Voy a considerar:
+
+• Estructura y props necesarias
+• Estado interno si es requerido
+• Estilos y responsividad
+• Accesibilidad y mejores prácticas
+
+Implementaré el componente siguiendo las convenciones de React y el sistema de diseño del proyecto.`,
+      timestamp: now,
+      isComplete: false
     });
-    tasks.push({
-      id: '2',
-      title: 'Implementar lógica de navegación',
-      status: 'completed'
+  } else if (isAPI) {
+    steps.push({
+      id: '1',
+      title: 'Diseñando endpoint',
+      content: `Voy a crear el endpoint/API solicitado considerando:
+
+• Métodos HTTP apropiados (GET, POST, PUT, DELETE)
+• Validación de datos de entrada
+• Manejo de errores robusto
+• Seguridad y autenticación si es necesario
+• Documentación clara del endpoint`,
+      timestamp: now,
+      isComplete: false
     });
   } else {
-    // Generic code generation tasks
-    analysis.push(`Solicitud del usuario: "${userRequest.substring(0, 100)}"`);
-    analysis.push('Analizando contexto y requisitos...');
-    tasks.push({
+    steps.push({
       id: '1',
-      title: 'Comprender solicitud',
-      status: 'completed'
+      title: 'Procesando solicitud',
+      content: `Analizando tu solicitud: "${userRequest.substring(0, 100)}${userRequest.length > 100 ? '...' : ''}"
+
+Voy a:
+1. Comprender exactamente lo que necesitas
+2. Revisar el contexto del proyecto actual
+3. Planificar la mejor implementación
+4. Generar código limpio y funcional`,
+      timestamp: now,
+      isComplete: false
     });
-    tasks.push({
-      id: '2',
-      title: 'Planificar implementación',
-      status: 'completed'
-    });
-    tasks.push({
-      id: '3',
-      title: 'Generar código',
-      status: 'completed'
+  }
+  
+  return steps;
+}
+
+// Parse AI response to extract thinking process
+export function parseThinkingFromResponse(response: string, userRequest: string): ThinkingProcessData {
+  const steps: ThinkingStep[] = [];
+  
+  // Try to extract thinking sections from the response
+  const thinkingMatch = response.match(/(?:##\s*)?(?:Análisis|Thinking|Proceso|Plan)(?:.*?):\s*([\s\S]*?)(?=##|```|$)/i);
+  
+  if (thinkingMatch) {
+    steps.push({
+      id: '1',
+      title: 'Análisis de la IA',
+      content: thinkingMatch[1].trim(),
+      timestamp: Date.now(),
+      isComplete: true
     });
   }
   
   return {
     userRequest,
-    analysis,
-    tasks,
+    thinkingSteps: steps,
     fileChanges: [],
-    suggestions: []
+    isComplete: true
   };
 }

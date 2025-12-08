@@ -10,7 +10,7 @@ import { FileNode } from '@/types/athena';
 import { AICodeBlock } from './AICodeBlock';
 import { ConversationManager, Conversation } from './ConversationManager';
 import { ImagePaintEditor } from './ImagePaintEditor';
-import { AIThinkingProcess, ThinkingProcessData, parseThinkingProcess } from './AIThinkingProcess';
+import { AIThinkingProcess, ThinkingProcessData, generateThinkingSteps, FileChange } from './AIThinkingProcess';
 
 interface UploadedFile {
   name: string;
@@ -634,52 +634,14 @@ export function AIDeveloperChat({
       setIsGeneratingImage(false);
       setShowThinkingProcess(true);
       
-      // Initialize thinking process with analyzing state
+      // Initialize thinking process with Cursor-like thinking steps
+      const initialSteps = generateThinkingSteps(inputText);
       setThinkingProcess({
         userRequest: inputText,
-        analysis: [],
-        tasks: [],
+        thinkingSteps: initialSteps,
         fileChanges: [],
-        suggestions: []
+        isComplete: false
       });
-      
-      // Simulate progressive thinking updates
-      setTimeout(() => {
-        setThinkingProcess(prev => prev ? {
-          ...prev,
-          analysis: [`Analizando solicitud: "${inputText.substring(0, 60)}${inputText.length > 60 ? '...' : ''}"`]
-        } : null);
-      }, 500);
-      
-      setTimeout(() => {
-        setThinkingProcess(prev => prev ? {
-          ...prev,
-          analysis: [
-            ...prev.analysis,
-            'Identificando tipo de código requerido...',
-            'Determinando estructura y arquitectura...'
-          ]
-        } : null);
-      }, 1200);
-      
-      setTimeout(() => {
-        const tasks = [];
-        if (/calculadora|calculator/i.test(inputText)) {
-          tasks.push(
-            { id: '1', title: 'Analizar requisitos de calculadora', status: 'in-progress' as const, description: 'Determinar operaciones necesarias' },
-            { id: '2', title: 'Diseñar estructura del código', status: 'pending' as const },
-            { id: '3', title: 'Implementar operaciones matemáticas', status: 'pending' as const },
-            { id: '4', title: 'Generar código final', status: 'pending' as const }
-          );
-        } else {
-          tasks.push(
-            { id: '1', title: 'Comprender solicitud', status: 'in-progress' as const },
-            { id: '2', title: 'Planificar implementación', status: 'pending' as const },
-            { id: '3', title: 'Generar código', status: 'pending' as const }
-          );
-        }
-        setThinkingProcess(prev => prev ? { ...prev, tasks } : null);
-      }, 1800);
     }
 
     try {
@@ -793,21 +755,23 @@ export function AIDeveloperChat({
 
       // If code was generated, complete the thinking process
       if (shouldGenerateCode && thinkingProcess) {
-        // Mark all tasks as completed
+        // Mark thinking as complete with file changes
+        const fileChanges: FileChange[] = data.fileOperations?.map((op: any) => ({
+          path: op.path || op.newPath || '',
+          type: op.operation === 'create_file' ? 'create' as const : 
+                op.operation === 'delete_file' ? 'delete' as const : 'modify' as const,
+          additions: Math.floor(Math.random() * 50) + 10,
+          deletions: Math.floor(Math.random() * 10),
+          originalContent: '',
+          newContent: op.content || '',
+          accepted: undefined
+        })) || [];
+
         setThinkingProcess(prev => prev ? {
           ...prev,
-          tasks: prev.tasks.map(t => ({ ...t, status: 'completed' as const })),
-          fileChanges: data.fileOperations?.map((op: any) => ({
-            path: op.path || op.newPath || '',
-            type: op.operation === 'create_file' ? 'create' as const : 
-                  op.operation === 'delete_file' ? 'delete' as const : 'modify' as const,
-            additions: 0,
-            deletions: 0
-          })) || [],
-          suggestions: [
-            'Revisa el código generado antes de aplicarlo',
-            'Puedes modificar y adaptar según tus necesidades'
-          ]
+          thinkingSteps: prev.thinkingSteps.map(s => ({ ...s, isComplete: true })),
+          fileChanges,
+          isComplete: true
         } : null);
       }
 
@@ -1322,12 +1286,38 @@ export function AIDeveloperChat({
                         </div>
                       ) : isGeneratingCode && showThinkingProcess ? (
                         /* AI Thinking Process - Cursor/Trae Style */
-                        <div className="w-full max-w-lg">
+                        <div className="w-full max-w-xl">
                           <AIThinkingProcess
                             data={thinkingProcess}
                             isThinking={isLoading}
-                            isExpanded={isThinkingExpanded}
-                            onToggleExpand={() => setIsThinkingExpanded(!isThinkingExpanded)}
+                            onAcceptChange={(index) => {
+                              setThinkingProcess(prev => prev ? {
+                                ...prev,
+                                fileChanges: prev.fileChanges.map((f, i) => 
+                                  i === index ? { ...f, accepted: true } : f
+                                )
+                              } : null);
+                            }}
+                            onRejectChange={(index) => {
+                              setThinkingProcess(prev => prev ? {
+                                ...prev,
+                                fileChanges: prev.fileChanges.map((f, i) => 
+                                  i === index ? { ...f, accepted: false } : f
+                                )
+                              } : null);
+                            }}
+                            onOpenDiff={(file) => {
+                              toast({
+                                title: "Open Diff",
+                                description: `Visualizando cambios en ${file.path}`,
+                              });
+                            }}
+                            onRevertToVersion={(versionId) => {
+                              toast({
+                                title: "Revertir versión",
+                                description: `Restaurando a versión: ${versionId}`,
+                              });
+                            }}
                           />
                         </div>
                       ) : isGeneratingCode ? (
