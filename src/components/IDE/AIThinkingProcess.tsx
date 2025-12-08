@@ -126,74 +126,74 @@ export function AIThinkingProcess({
   const hasFileChanges = data?.fileChanges && data.fileChanges.length > 0;
 
   return (
-    <div className="rounded-xl bg-gradient-to-br from-slate-900/98 via-slate-800/98 to-slate-900/98 border border-slate-700/50 overflow-hidden shadow-2xl backdrop-blur-xl">
-      {/* Header - Cursor/Trae Style */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-800/70 border-b border-slate-700/50">
-        <div className="flex items-center gap-3">
-          <div className="relative">
+    <div className="rounded-xl bg-gradient-to-br from-slate-900/98 via-slate-800/98 to-slate-900/98 border border-slate-700/50 overflow-hidden shadow-2xl backdrop-blur-xl w-full max-w-full">
+      {/* Header - Cursor/Trae Style - Responsive */}
+      <div className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 bg-slate-800/70 border-b border-slate-700/50 gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <div className="relative flex-shrink-0">
             {isThinking ? (
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                <Brain className="w-5 h-5 text-white animate-pulse" />
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                <Brain className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
               </div>
             ) : data?.isComplete ? (
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                <CheckCircle2 className="w-5 h-5 text-white" />
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
             ) : (
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
             )}
             {isThinking && (
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-purple-400 rounded-full animate-ping" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 sm:w-3 sm:h-3 bg-purple-400 rounded-full animate-ping" />
             )}
           </div>
           
-          <div className="flex flex-col">
+          <div className="flex flex-col min-w-0">
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              className="flex items-center gap-1 sm:gap-2 hover:opacity-80 transition-opacity"
             >
               {isExpanded ? (
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400 flex-shrink-0" />
               ) : (
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400 flex-shrink-0" />
               )}
-              <span className="text-sm font-medium text-slate-200">
+              <span className="text-xs sm:text-sm font-medium text-slate-200 truncate">
                 Thought process
               </span>
             </button>
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {/* Version History Button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowVersionHistory(!showVersionHistory)}
-            className="h-7 px-2 text-slate-400 hover:text-slate-200 gap-1.5"
+            className="h-6 sm:h-7 px-1.5 sm:px-2 text-slate-400 hover:text-slate-200 gap-1"
           >
-            <History className="w-3.5 h-3.5" />
-            <span className="text-xs">Historial</span>
+            <History className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            <span className="text-[10px] sm:text-xs hidden sm:inline">Historial</span>
           </Button>
         </div>
       </div>
 
       {isExpanded && (
         <div className="flex flex-col">
-          {/* Main Thinking Content - Cursor/Trae Style */}
-          <div className="p-4 border-b border-slate-700/30">
+          {/* Main Thinking Content - Cursor/Trae Style - Responsive */}
+          <div className="p-2 sm:p-4 border-b border-slate-700/30">
             {/* Current Thinking Title */}
             {isThinking && (
-              <div className="flex items-start gap-3 mb-3">
-                <div className="mt-1 flex-shrink-0">
-                  <div className="w-5 h-5 rounded-full border-2 border-purple-400/50 flex items-center justify-center">
-                    <Loader2 className="w-3 h-3 text-purple-400 animate-spin" />
+              <div className="flex items-start gap-2 sm:gap-3 mb-2 sm:mb-3">
+                <div className="mt-0.5 sm:mt-1 flex-shrink-0">
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-purple-400/50 flex items-center justify-center">
+                    <Loader2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-purple-400 animate-spin" />
                   </div>
                 </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-medium text-slate-200 mb-1">
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-xs sm:text-sm font-medium text-slate-200 mb-1 truncate">
                     {data?.thinkingSteps?.length 
                       ? data.thinkingSteps[data.thinkingSteps.length - 1]?.title || 'Procesando solicitud'
                       : 'Analizando tu solicitud'
@@ -203,40 +203,40 @@ export function AIThinkingProcess({
               </div>
             )}
 
-            {/* Thinking Text - Main Feature (Cursor-like) */}
-            <ScrollArea className="max-h-[200px]" ref={thinkingRef}>
-              <div className="space-y-3 pr-4">
+            {/* Thinking Text - Main Feature (Cursor-like) - Responsive */}
+            <ScrollArea className="max-h-[150px] sm:max-h-[200px]" ref={thinkingRef}>
+              <div className="space-y-2 sm:space-y-3 pr-2 sm:pr-4">
                 {/* Previous completed thoughts */}
                 {data?.thinkingSteps?.slice(0, -1).map((step, index) => (
-                  <div key={step.id} className="flex items-start gap-3 opacity-70">
-                    <div className="mt-1 flex-shrink-0">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <div key={step.id} className="flex items-start gap-2 sm:gap-3 opacity-70">
+                    <div className="mt-0.5 sm:mt-1 flex-shrink-0">
+                      <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-400" />
                     </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-slate-400 leading-relaxed">{step.content}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] sm:text-xs text-slate-400 leading-relaxed break-words">{step.content}</p>
                     </div>
                   </div>
                 ))}
 
                 {/* Current thinking text with typewriter effect */}
                 {isThinking && (
-                  <div className="pl-8">
-                    <p className="text-sm text-slate-300 leading-relaxed font-light">
+                  <div className="pl-5 sm:pl-8">
+                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-light break-words">
                       {currentThinkingText}
-                      <span className="inline-block w-0.5 h-4 bg-purple-400 ml-0.5 animate-pulse" />
+                      <span className="inline-block w-0.5 h-3 sm:h-4 bg-purple-400 ml-0.5 animate-pulse" />
                     </p>
                   </div>
                 )}
 
                 {/* AI's detailed reasoning from response */}
                 {data?.thinkingSteps?.length ? (
-                  <div className="pl-8 space-y-2">
+                  <div className="pl-5 sm:pl-8 space-y-2">
                     {data.thinkingSteps.slice(-1).map(step => (
-                      <div key={step.id} className="text-sm text-slate-300 leading-relaxed">
-                        <p className="whitespace-pre-wrap">{step.content}</p>
+                      <div key={step.id} className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        <p className="whitespace-pre-wrap break-words">{step.content}</p>
                         {step.isComplete && (
-                          <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400">
-                            <CheckCircle2 className="w-3 h-3" />
+                          <div className="mt-2 flex items-center gap-1.5 text-[10px] sm:text-xs text-emerald-400">
+                            <CheckCircle2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                             <span>Análisis completado</span>
                           </div>
                         )}
@@ -248,16 +248,16 @@ export function AIThinkingProcess({
             </ScrollArea>
           </div>
 
-          {/* File Changes Section - Trae AI Style with Open Diff */}
+          {/* File Changes Section - Trae AI Style with Open Diff - Responsive */}
           {hasFileChanges && (
-            <div className="p-4 bg-slate-800/30">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FileCode className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm font-medium text-slate-300">
+            <div className="p-2 sm:p-4 bg-slate-800/30">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 sm:mb-3 gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <FileCode className="w-3 h-3 sm:w-4 sm:h-4 text-amber-400" />
+                  <span className="text-xs sm:text-sm font-medium text-slate-300">
                     Cambios propuestos
                   </span>
-                  <Badge variant="outline" className="text-[10px] bg-slate-700/50 text-slate-400 border-slate-600/50">
+                  <Badge variant="outline" className="text-[8px] sm:text-[10px] bg-slate-700/50 text-slate-400 border-slate-600/50">
                     {data.fileChanges.length} archivo(s)
                   </Badge>
                 </div>
@@ -267,29 +267,29 @@ export function AIThinkingProcess({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 px-2 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                    className="h-5 sm:h-6 px-1.5 sm:px-2 text-[9px] sm:text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
                     onClick={() => data.fileChanges.forEach((_, i) => onAcceptChange?.(i))}
                   >
-                    <Check className="w-3 h-3 mr-1" />
-                    Aceptar todo
+                    <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+                    <span className="hidden sm:inline">Aceptar</span>
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    className="h-5 sm:h-6 px-1.5 sm:px-2 text-[9px] sm:text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
                     onClick={() => data.fileChanges.forEach((_, i) => onRejectChange?.(i))}
                   >
-                    <X className="w-3 h-3 mr-1" />
-                    Rechazar
+                    <X className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+                    <span className="hidden sm:inline">Rechazar</span>
                   </Button>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 {data.fileChanges.map((file, index) => (
                   <div 
                     key={index}
-                    className={`flex items-center justify-between p-3 rounded-lg transition-all group ${
+                    className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-3 rounded-lg transition-all group gap-2 ${
                       file.accepted === true 
                         ? 'bg-emerald-500/10 border border-emerald-500/30' 
                         : file.accepted === false
@@ -297,16 +297,16 @@ export function AIThinkingProcess({
                           : 'bg-slate-800/50 border border-slate-700/30 hover:bg-slate-800/70'
                     }`}
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
                       {/* File Type Icon */}
-                      <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${
+                      <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded flex items-center justify-center flex-shrink-0 ${
                         file.type === 'create' 
                           ? 'bg-emerald-500/20' 
                           : file.type === 'delete'
                             ? 'bg-red-500/20'
                             : 'bg-amber-500/20'
                       }`}>
-                        <Pencil className={`w-3 h-3 ${
+                        <Pencil className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${
                           file.type === 'create' 
                             ? 'text-emerald-400' 
                             : file.type === 'delete'
@@ -316,27 +316,24 @@ export function AIThinkingProcess({
                       </div>
                       
                       {/* File Name */}
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-mono text-slate-300 truncate">
+                      <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
+                        <span className="text-[10px] sm:text-sm font-mono text-slate-300 truncate">
                           {file.path.split('/').pop()}
-                        </span>
-                        <span className="text-xs text-slate-500 truncate hidden sm:block">
-                          {file.path}
                         </span>
                       </div>
                     </div>
 
                     {/* Stats and Actions */}
-                    <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto justify-between sm:justify-end">
                       {/* Line Stats */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
                         {file.additions !== undefined && file.additions > 0 && (
-                          <span className="text-xs text-emerald-400 font-mono font-medium">
+                          <span className="text-[9px] sm:text-xs text-emerald-400 font-mono font-medium">
                             +{file.additions}
                           </span>
                         )}
                         {file.deletions !== undefined && file.deletions > 0 && (
-                          <span className="text-xs text-red-400 font-mono font-medium">
+                          <span className="text-[9px] sm:text-xs text-red-400 font-mono font-medium">
                             -{file.deletions}
                           </span>
                         )}
@@ -346,44 +343,44 @@ export function AIThinkingProcess({
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 px-3 text-xs bg-slate-700/50 border-slate-600 hover:bg-slate-600/50 text-slate-300"
+                        className="h-5 sm:h-7 px-2 sm:px-3 text-[9px] sm:text-xs bg-slate-700/50 border-slate-600 hover:bg-slate-600/50 text-slate-300"
                         onClick={() => onOpenDiff?.(file)}
                       >
-                        <GitCompare className="w-3 h-3 mr-1.5" />
-                        Open Diff
+                        <GitCompare className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1 sm:mr-1.5" />
+                        <span className="hidden sm:inline">Open</span> Diff
                       </Button>
 
                       {/* Accept/Reject Individual */}
                       {file.accepted === undefined && (
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-0.5 sm:gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-6 w-6 p-0 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                            className="h-5 sm:h-6 w-5 sm:w-6 p-0 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
                             onClick={() => onAcceptChange?.(index)}
                           >
-                            <Check className="w-3.5 h-3.5" />
+                            <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            className="h-5 sm:h-6 w-5 sm:w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
                             onClick={() => onRejectChange?.(index)}
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           </Button>
                         </div>
                       )}
 
                       {/* Status Badge */}
                       {file.accepted === true && (
-                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">
-                          Aceptado
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[8px] sm:text-[10px]">
+                          OK
                         </Badge>
                       )}
                       {file.accepted === false && (
-                        <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px]">
-                          Rechazado
+                        <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[8px] sm:text-[10px]">
+                          No
                         </Badge>
                       )}
                     </div>
