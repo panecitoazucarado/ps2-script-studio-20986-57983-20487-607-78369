@@ -232,120 +232,120 @@ export function AICodeBlock({ code, language, fileName, onApplyToFile }: AICodeB
   };
 
   return (
-    <div className="rounded-xl bg-gradient-to-br from-slate-900 via-slate-800/95 to-slate-900 border border-slate-700/50 overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-500/5 transition-all duration-300">
-      {/* Header - VS Code/Cursor Style */}
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/80 border-b border-slate-700/50">
-        <div className="flex items-center gap-3">
-          {/* Window controls */}
-          <div className="flex gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-500/70 hover:bg-red-500 transition-colors" />
-            <div className="w-3 h-3 rounded-full bg-yellow-500/70 hover:bg-yellow-500 transition-colors" />
-            <div className="w-3 h-3 rounded-full bg-green-500/70 hover:bg-green-500 transition-colors" />
+    <div className="rounded-xl bg-gradient-to-br from-slate-900 via-slate-800/95 to-slate-900 border border-slate-700/50 overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-500/5 transition-all duration-300 w-full max-w-full">
+      {/* Header - VS Code/Cursor Style - Responsive */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 sm:px-3 py-2 bg-slate-800/80 border-b border-slate-700/50 gap-2 sm:gap-0">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          {/* Window controls - hidden on very small screens */}
+          <div className="hidden sm:flex gap-1.5">
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-500/70 hover:bg-red-500 transition-colors" />
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-yellow-500/70 hover:bg-yellow-500 transition-colors" />
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-green-500/70 hover:bg-green-500 transition-colors" />
           </div>
           
-          {/* File name tab */}
-          <div className="flex items-center gap-2 px-3 py-1 bg-slate-900/80 rounded-t-lg border-t border-l border-r border-slate-600/30 -mb-2">
+          {/* File name tab - responsive */}
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 bg-slate-900/80 rounded-lg sm:rounded-t-lg border border-slate-600/30 sm:border-t sm:border-l sm:border-r sm:border-b-0 sm:-mb-2 max-w-full overflow-hidden">
             {getLanguageIcon(language)}
-            <span className="text-xs font-mono text-slate-300">{suggestedFileName}</span>
+            <span className="text-[10px] sm:text-xs font-mono text-slate-300 truncate max-w-[120px] sm:max-w-[200px]">{suggestedFileName}</span>
           </div>
         </div>
         
-        <div className="flex items-center gap-1">
-          <Badge variant="outline" className={`text-[10px] font-mono px-2 py-0.5 ${getLanguageColor(language)}`}>
+        <div className="flex items-center gap-1 sm:gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          <Badge variant="outline" className={`text-[9px] sm:text-[10px] font-mono px-1.5 sm:px-2 py-0.5 ${getLanguageColor(language)}`}>
             {language.toUpperCase()}
           </Badge>
-          <span className="text-[10px] text-slate-500 font-mono ml-2">
+          <span className="text-[9px] sm:text-[10px] text-slate-500 font-mono">
             {lines.length} líneas
           </span>
         </div>
       </div>
       
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800/40 border-b border-slate-700/30">
-        <div className="flex items-center gap-2">
+      {/* Toolbar - Responsive */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 sm:px-3 py-1.5 bg-slate-800/40 border-b border-slate-700/30 gap-1.5 sm:gap-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           {codeAnalysis.complexity !== 'baja' && (
-            <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/30">
-              <AlertCircle className="w-2.5 h-2.5 mr-1" />
+            <Badge variant="outline" className="text-[9px] sm:text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/30">
+              <AlertCircle className="w-2 h-2 sm:w-2.5 sm:h-2.5 mr-0.5 sm:mr-1" />
               {codeAnalysis.complexity}
             </Badge>
           )}
-          <Badge variant="outline" className="text-[10px] bg-slate-700/50 text-slate-400 border-slate-600/50">
-            <Eye className="w-2.5 h-2.5 mr-1" />
+          <Badge variant="outline" className="text-[9px] sm:text-[10px] bg-slate-700/50 text-slate-400 border-slate-600/50">
+            <Eye className="w-2 h-2 sm:w-2.5 sm:h-2.5 mr-0.5 sm:mr-1" />
             {codeAnalysis.functions} func
           </Badge>
         </div>
         
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 flex-wrap w-full sm:w-auto justify-end">
           <Button
             size="sm"
             variant="ghost"
             onClick={() => setShowAnalysis(!showAnalysis)}
-            className="h-6 px-2 text-[10px] text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10"
+            className="h-5 sm:h-6 px-1.5 sm:px-2 text-[9px] sm:text-[10px] text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10"
           >
-            <Sparkles className="w-3 h-3 mr-1" />
-            Análisis
+            <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 sm:mr-1" />
+            <span className="hidden sm:inline">Análisis</span>
           </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={handleCopy}
-            className="h-6 px-2 text-[10px] text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
+            className="h-5 sm:h-6 px-1.5 sm:px-2 text-[9px] sm:text-[10px] text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
           >
-            {copied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-            {copied ? 'Copiado' : 'Copiar'}
+            {copied ? <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 sm:mr-1" /> : <Copy className="w-2.5 h-2.5 sm:w-3 sm:h-3 sm:mr-1" />}
+            <span className="hidden sm:inline">{copied ? 'Copiado' : 'Copiar'}</span>
           </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={handleDownload}
-            className="h-6 px-2 text-[10px] text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
+            className="h-5 sm:h-6 px-1.5 sm:px-2 text-[9px] sm:text-[10px] text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
           >
-            <Download className="w-3 h-3 mr-1" />
-            Descargar
+            <Download className="w-2.5 h-2.5 sm:w-3 sm:h-3 sm:mr-1" />
+            <span className="hidden sm:inline">Descargar</span>
           </Button>
           {onApplyToFile && (
             <Button
               size="sm"
               variant="ghost"
               onClick={handleApply}
-              className="h-6 px-2 text-[10px] bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30"
+              className="h-5 sm:h-6 px-1.5 sm:px-2 text-[9px] sm:text-[10px] bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30"
             >
-              <Play className="w-3 h-3 mr-1" />
-              Insertar
+              <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 sm:mr-1" />
+              <span className="hidden sm:inline">Insertar</span>
             </Button>
           )}
         </div>
       </div>
 
-      {/* Code Analysis Panel */}
+      {/* Code Analysis Panel - Responsive */}
       {showAnalysis && (
-        <div className="px-4 py-3 bg-slate-800/30 border-b border-slate-700/30">
-          <h4 className="text-xs font-semibold mb-2 flex items-center gap-1 text-emerald-400">
-            <Sparkles className="w-3 h-3" />
+        <div className="px-2 sm:px-4 py-2 sm:py-3 bg-slate-800/30 border-b border-slate-700/30">
+          <h4 className="text-[10px] sm:text-xs font-semibold mb-2 flex items-center gap-1 text-emerald-400">
+            <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             Análisis de Código
           </h4>
-          <div className="grid grid-cols-4 gap-3 mb-2">
-            <div className="text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-2">
+            <div className="text-[10px] sm:text-xs">
               <span className="text-slate-500">Funciones:</span>
               <span className="ml-1 font-mono text-slate-300">{codeAnalysis.functions}</span>
             </div>
-            <div className="text-xs">
+            <div className="text-[10px] sm:text-xs">
               <span className="text-slate-500">Loops:</span>
               <span className="ml-1 font-mono text-slate-300">{codeAnalysis.loops}</span>
             </div>
-            <div className="text-xs">
-              <span className="text-slate-500">Condicionales:</span>
+            <div className="text-[10px] sm:text-xs">
+              <span className="text-slate-500">Condiciones:</span>
               <span className="ml-1 font-mono text-slate-300">{codeAnalysis.conditionals}</span>
             </div>
-            <div className="text-xs">
+            <div className="text-[10px] sm:text-xs">
               <span className="text-slate-500">Comentarios:</span>
               <span className="ml-1 font-mono text-slate-300">{codeAnalysis.comments}</span>
             </div>
           </div>
           {codeAnalysis.suggestions.length > 0 && (
             <div className="mt-2">
-              <p className="text-xs font-semibold text-slate-400 mb-1">Sugerencias:</p>
-              <ul className="text-xs space-y-1">
+              <p className="text-[10px] sm:text-xs font-semibold text-slate-400 mb-1">Sugerencias:</p>
+              <ul className="text-[10px] sm:text-xs space-y-1">
                 {codeAnalysis.suggestions.map((suggestion, i) => (
                   <li key={i} className="flex items-start gap-1">
                     <span className="text-emerald-400">•</span>
@@ -358,23 +358,23 @@ export function AICodeBlock({ code, language, fileName, onApplyToFile }: AICodeB
         </div>
       )}
       
-      {/* Code content with line numbers */}
-      <div className="flex bg-slate-900/80">
+      {/* Code content with line numbers - Responsive */}
+      <div className="flex bg-slate-900/80 max-h-[250px] sm:max-h-[400px] overflow-y-auto">
         {/* Line numbers gutter */}
-        <div className="flex flex-col py-3 px-2 bg-slate-800/30 border-r border-slate-700/30 select-none min-w-[3rem]">
+        <div className="flex flex-col py-2 sm:py-3 px-1 sm:px-2 bg-slate-800/30 border-r border-slate-700/30 select-none min-w-[2rem] sm:min-w-[3rem] sticky left-0">
           {lines.map((_, index) => (
             <div
               key={index}
-              className="text-[11px] text-slate-600 font-mono leading-6 text-right pr-2 hover:text-slate-400 transition-colors"
+              className="text-[9px] sm:text-[11px] text-slate-600 font-mono leading-5 sm:leading-6 text-right pr-1 sm:pr-2 hover:text-slate-400 transition-colors"
             >
               {index + 1}
             </div>
           ))}
         </div>
         
-        {/* Code */}
-        <div className="flex-1 overflow-x-auto">
-          <pre className="p-3 text-[12px] leading-6">
+        {/* Code - Responsive with horizontal scroll */}
+        <div className="flex-1 overflow-x-auto min-w-0">
+          <pre className="p-2 sm:p-3 text-[10px] sm:text-[12px] leading-5 sm:leading-6">
             <code className="text-slate-200 font-mono whitespace-pre">
               {code}
             </code>
@@ -382,15 +382,15 @@ export function AICodeBlock({ code, language, fileName, onApplyToFile }: AICodeB
         </div>
       </div>
       
-      {/* Footer status bar */}
-      <div className="flex items-center justify-between px-3 py-1 bg-slate-800/60 border-t border-slate-700/30 text-[10px] text-slate-500">
-        <div className="flex items-center gap-3">
+      {/* Footer status bar - Responsive */}
+      <div className="flex items-center justify-between px-2 sm:px-3 py-1 bg-slate-800/60 border-t border-slate-700/30 text-[8px] sm:text-[10px] text-slate-500">
+        <div className="flex items-center gap-2 sm:gap-3">
           <span className="font-mono">{language.toUpperCase()}</span>
-          <span>UTF-8</span>
-          <span>LF</span>
+          <span className="hidden sm:inline">UTF-8</span>
+          <span className="hidden sm:inline">LF</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="font-mono">Ln {lines.length}, Col 1</span>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <span className="font-mono">Ln {lines.length}</span>
           <span className="text-emerald-400">●</span>
         </div>
       </div>

@@ -1021,26 +1021,27 @@ export function AIDeveloperChat({
                             <Bot className="w-4 h-4 md:w-5 md:h-5 text-white" />
                           </div>
                         )}
-                        <div className="space-y-1.5 max-w-[85%] md:max-w-[75%]">
+                        <div className="space-y-1.5 w-full max-w-[95%] sm:max-w-[85%] md:max-w-[75%] min-w-0">
                           <div
-                            className={`rounded-2xl px-3 py-2 md:px-4 md:py-3 text-sm transition-all ${
+                            className={`rounded-2xl px-2 py-2 sm:px-3 md:px-4 md:py-3 text-sm transition-all overflow-hidden ${
                               message.role === 'user'
                                 ? 'glass-panel bg-gradient-to-r from-ps2-cyan/10 to-ps2-purple/10 border-ps2-cyan/20'
                                 : 'glass-panel border-border/30'
                             }`}
                           >
                           {message.role === 'assistant' ? (
-                            <div className="space-y-3">
+                            <div className="space-y-2 sm:space-y-3 w-full overflow-hidden">
                               {formatCodeBlock(message.content).map((part, i) => (
                                 part.type === 'code' ? (
-                                  <AICodeBlock
-                                    key={i}
-                                    code={part.content}
-                                    language={part.language}
-                                    onApplyToFile={onApplyCode}
-                                  />
+                                  <div key={i} className="w-full overflow-x-auto">
+                                    <AICodeBlock
+                                      code={part.content}
+                                      language={part.language}
+                                      onApplyToFile={onApplyCode}
+                                    />
+                                  </div>
                                 ) : (
-                                  <p key={i} className="text-xs md:text-sm whitespace-pre-wrap leading-relaxed">{part.content}</p>
+                                  <p key={i} className="text-[11px] sm:text-xs md:text-sm whitespace-pre-wrap leading-relaxed break-words">{part.content}</p>
                                 )
                               ))}
                               
