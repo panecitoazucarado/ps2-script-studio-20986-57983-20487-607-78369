@@ -93,32 +93,902 @@ interface FileHistory {
   user?: string;
 }
 
-// Templates for different file types
-const fileTemplates: Record<string, { content: string; description: string }> = {
-  'js': { content: '// ATHENA ENV JavaScript\n\nfunction main() {\n    console.log("Hello, PS2!");\n}\n\nmain();\n', description: 'JavaScript' },
-  'ts': { content: '// TypeScript file\n\ninterface Config {\n    name: string;\n}\n\nconst config: Config = {\n    name: "ATHENA"\n};\n', description: 'TypeScript' },
-  'c': { content: '#include <stdio.h>\n\nint main(void) {\n    printf("Hello, PS2!\\n");\n    return 0;\n}\n', description: 'C Source' },
-  'cpp': { content: '#include <iostream>\n\nint main() {\n    std::cout << "Hello, PS2!" << std::endl;\n    return 0;\n}\n', description: 'C++ Source' },
-  'h': { content: '#ifndef HEADER_H\n#define HEADER_H\n\n// Header declarations\n\n#endif // HEADER_H\n', description: 'C/C++ Header' },
-  'hpp': { content: '#ifndef HEADER_HPP\n#define HEADER_HPP\n\nclass MyClass {\npublic:\n    MyClass();\n    ~MyClass();\n};\n\n#endif // HEADER_HPP\n', description: 'C++ Header' },
-  'html': { content: '<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Document</title>\n</head>\n<body>\n    \n</body>\n</html>\n', description: 'HTML' },
-  'css': { content: '/* Stylesheet */\n\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n', description: 'CSS' },
-  'json': { content: '{\n    "name": "project",\n    "version": "1.0.0"\n}\n', description: 'JSON' },
-  'xml': { content: '<?xml version="1.0" encoding="UTF-8"?>\n<root>\n    \n</root>\n', description: 'XML' },
-  'lua': { content: '-- Lua Script\n\nfunction init()\n    print("Hello from Lua!")\nend\n\ninit()\n', description: 'Lua Script' },
-  'py': { content: '#!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n\ndef main():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    main()\n', description: 'Python' },
-  'sh': { content: '#!/bin/bash\n\necho "Hello, PS2!"\n', description: 'Shell Script' },
-  'md': { content: '# Project Title\n\n## Description\n\nWrite your description here.\n', description: 'Markdown' },
-  'txt': { content: '', description: 'Text File' },
-  'ini': { content: '# Configuration file\n\n[General]\nname = ATHENA\nversion = 1.0\n', description: 'INI Config' },
-  'cfg': { content: '# Configuration\n\n', description: 'Config File' },
-  'cnf': { content: '# PCSX2 Configuration\n\n', description: 'Config File' },
-  'glsl': { content: '#version 330 core\n\nvoid main() {\n    // Shader code\n}\n', description: 'GLSL Shader' },
-  'vert': { content: '#version 330 core\n\nlayout(location = 0) in vec3 aPos;\n\nvoid main() {\n    gl_Position = vec4(aPos, 1.0);\n}\n', description: 'Vertex Shader' },
-  'frag': { content: '#version 330 core\n\nout vec4 FragColor;\n\nvoid main() {\n    FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n}\n', description: 'Fragment Shader' },
-  'elf': { content: '', description: 'ELF Executable' },
-  'irx': { content: '', description: 'IRX Module' },
+// PS2 Development File Templates - Organized by Category
+interface FileTemplate {
+  content: string;
+  description: string;
+  icon?: string;
+  category: 'ps2' | 'code' | 'config' | 'web' | 'data' | 'shader' | 'script' | 'docs';
+}
+
+const fileTemplates: Record<string, FileTemplate> = {
+  // === PS2 SPECIFIC ===
+  'c': { 
+    content: `/*
+ * ATHENA ENV - PlayStation 2 Development
+ * File: main.c
+ * Description: PS2 Application Entry Point
+ */
+
+#include <tamtypes.h>
+#include <kernel.h>
+#include <sifrpc.h>
+#include <loadfile.h>
+#include <stdio.h>
+
+// PS2 SDK Headers
+#include <graph.h>
+#include <dma.h>
+#include <packet.h>
+
+int main(int argc, char *argv[])
+{
+    // Initialize SIF RPC
+    SifInitRpc(0);
+    
+    // Initialize graphics
+    graph_initialize(0, 0, 0, 0, 0);
+    
+    printf("Hello, PlayStation 2!\\n");
+    
+    // Main loop
+    while(1) {
+        // Game logic here
+    }
+    
+    return 0;
+}
+`, 
+    description: 'PS2 C Source', 
+    category: 'ps2' 
+  },
+  'cpp': { 
+    content: `/*
+ * ATHENA ENV - PlayStation 2 Development
+ * File: main.cpp
+ * Description: PS2 C++ Application
+ */
+
+#include <tamtypes.h>
+#include <kernel.h>
+#include <sifrpc.h>
+#include <iostream>
+
+class PS2Application {
+public:
+    PS2Application() {
+        SifInitRpc(0);
+    }
+    
+    ~PS2Application() {
+        // Cleanup
+    }
+    
+    void run() {
+        std::cout << "Hello, PlayStation 2!" << std::endl;
+        
+        while(true) {
+            update();
+            render();
+        }
+    }
+    
+private:
+    void update() {
+        // Update logic
+    }
+    
+    void render() {
+        // Render logic
+    }
 };
+
+int main(int argc, char *argv[])
+{
+    PS2Application app;
+    app.run();
+    return 0;
+}
+`, 
+    description: 'PS2 C++ Source', 
+    category: 'ps2' 
+  },
+  'h': { 
+    content: `/*
+ * ATHENA ENV - PlayStation 2 Development
+ * Header File
+ */
+
+#ifndef _HEADER_H_
+#define _HEADER_H_
+
+#include <tamtypes.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Type definitions
+typedef unsigned int u32;
+typedef unsigned short u16;
+typedef unsigned char u8;
+typedef signed int s32;
+typedef signed short s16;
+typedef signed char s8;
+
+// Function declarations
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _HEADER_H_ */
+`, 
+    description: 'PS2 C/C++ Header', 
+    category: 'ps2' 
+  },
+  'hpp': { 
+    content: `/*
+ * ATHENA ENV - PlayStation 2 Development
+ * C++ Header File
+ */
+
+#ifndef _HEADER_HPP_
+#define _HEADER_HPP_
+
+#include <tamtypes.h>
+
+class PS2Component {
+public:
+    PS2Component();
+    virtual ~PS2Component();
+    
+    virtual void init() = 0;
+    virtual void update() = 0;
+    virtual void render() = 0;
+    
+protected:
+    bool m_initialized;
+};
+
+#endif /* _HEADER_HPP_ */
+`, 
+    description: 'PS2 C++ Header', 
+    category: 'ps2' 
+  },
+  's': { 
+    content: `# ATHENA ENV - PlayStation 2 Development
+# MIPS R5900 Assembly File
+# EE Core Assembly
+
+.set noreorder
+.set noat
+
+.global _start
+
+.section .text
+
+_start:
+    # Initialize stack pointer
+    la      $sp, _stack_end
+    
+    # Clear BSS section
+    la      $a0, _bss_start
+    la      $a1, _bss_end
+    
+clear_bss:
+    beq     $a0, $a1, bss_done
+    nop
+    sw      $zero, 0($a0)
+    addiu   $a0, $a0, 4
+    j       clear_bss
+    nop
+    
+bss_done:
+    # Jump to main
+    jal     main
+    nop
+    
+    # Exit
+    li      $v0, 0x04
+    syscall
+    
+.section .data
+
+.section .bss
+`, 
+    description: 'PS2 MIPS Assembly', 
+    category: 'ps2' 
+  },
+  'asm': { 
+    content: `; ATHENA ENV - PlayStation 2 Development
+; IOP Assembly File (MIPS R3000)
+
+.set noreorder
+
+.global _start
+
+.section .text
+
+_start:
+    ; IOP initialization code
+    nop
+    nop
+    
+    ; Return
+    jr      $ra
+    nop
+
+.section .data
+
+.section .bss
+`, 
+    description: 'PS2 IOP Assembly', 
+    category: 'ps2' 
+  },
+  'vcl': { 
+    content: `; ATHENA ENV - PlayStation 2 Development
+; VU1 Microcode (Vector Unit)
+
+.syntax new
+.name VU1_Program
+.vu
+.init_vf_all
+.init_vi_all
+
+--enter
+--endenter
+
+; VU1 Program Start
+START:
+    NOP                     LOI 1.0
+    NOP                     IADDIU VI01, VI00, 0
+    
+LOOP:
+    ; Transform vertex
+    MULAx.xyzw  ACC, VF01, VF05x
+    MADDAy.xyzw ACC, VF02, VF05y
+    MADDAz.xyzw ACC, VF03, VF05z
+    MADDw.xyzw  VF06, VF04, VF05w
+    
+    ; Perspective divide
+    DIV Q, VF00w, VF06w
+    WAITQ
+    MULq.xyz    VF06, VF06, Q
+    
+    NOP                     IADDIU VI01, VI01, 1
+    NOP                     IBNE VI01, VI02, LOOP
+    NOP                     NOP
+
+--exit
+--endexit
+`, 
+    description: 'VU1 Microcode', 
+    category: 'ps2' 
+  },
+  'dsm': { 
+    content: `; ATHENA ENV - PlayStation 2 Development
+; DMA Script / GIF Tag Data
+
+.align 4
+
+; GIF Tag for primitive rendering
+gif_tag:
+    .dword 0x0000000000008001  ; NLOOP=1, EOP=1, PRE=0, PRIM=0, FLG=0, NREG=0
+    .dword 0x0000000000000000
+    
+; Primitive data
+prim_data:
+    .dword 0x0000000000000046  ; PRIM: Triangle, Gouraud, Texture
+    .dword 0x0000000000000000
+
+; Vertex data (X, Y, Z, Q)
+vertex1:
+    .float 100.0, 100.0, 0.0, 1.0
+vertex2:
+    .float 200.0, 100.0, 0.0, 1.0
+vertex3:
+    .float 150.0, 200.0, 0.0, 1.0
+`, 
+    description: 'DMA/GIF Script', 
+    category: 'ps2' 
+  },
+
+  // === PS2 CONFIG FILES ===
+  'cfg': { 
+    content: `# ATHENA ENV Configuration File
+# PlayStation 2 Development Settings
+
+[General]
+ProjectName = MyPS2Game
+Version = 1.0.0
+Author = Developer
+Description = PS2 Game Project
+
+[Build]
+Target = EE
+Optimization = -O2
+Debug = true
+OutputFormat = ELF
+
+[Memory]
+StackSize = 0x10000
+HeapSize = 0x100000
+
+[Graphics]
+Width = 640
+Height = 448
+Interlaced = true
+FrameBuffer = 0
+
+[Audio]
+SampleRate = 48000
+Channels = 2
+`, 
+    description: 'PS2 Config', 
+    category: 'config' 
+  },
+  'cnf': { 
+    content: `# PCSX2/PS2 System Configuration
+# Boot Configuration File
+
+BOOT2 = cdrom0:\\SLXX_XXX.XX;1
+VER = 1.00
+VMODE = NTSC
+HDDUNITPOWER = NICHDD
+
+# Memory Card Settings
+ICON_FILE = mc0:/BADATA-SYSTEM/icon00.ico
+
+# Debug Settings
+DEBUG = 0
+LOGGING = 0
+`, 
+    description: 'PS2 Boot Config', 
+    category: 'config' 
+  },
+  'ini': { 
+    content: `; ATHENA ENV INI Configuration
+; Game Settings File
+
+[Video]
+Resolution = 640x448
+Aspect = 4:3
+VSync = 1
+Interlace = 1
+FieldMode = Frame
+
+[Audio]
+Volume = 100
+SFXVolume = 100
+MusicVolume = 80
+Channels = Stereo
+
+[Controls]
+Pad1 = Standard
+Vibration = 1
+Sensitivity = 50
+
+[Game]
+Difficulty = Normal
+Language = English
+Subtitles = 1
+`, 
+    description: 'INI Config', 
+    category: 'config' 
+  },
+  'mak': { 
+    content: `# ATHENA ENV Makefile
+# PlayStation 2 Build Configuration
+
+EE_BIN = game.elf
+EE_OBJS = main.o graphics.o audio.o input.o
+
+# PS2SDK paths
+PS2SDK = /usr/local/ps2dev/ps2sdk
+PS2DEV = /usr/local/ps2dev
+
+# Compiler flags
+EE_CFLAGS = -G0 -O2 -Wall
+EE_CXXFLAGS = $(EE_CFLAGS)
+EE_LDFLAGS = -L$(PS2SDK)/ee/lib -L$(PS2SDK)/common/lib
+
+# Libraries
+EE_LIBS = -ldma -lgraph -ldraw -lkernel -lc -lpacket
+
+# Include PS2SDK rules
+include $(PS2SDK)/samples/Makefile.pref
+include $(PS2SDK)/samples/Makefile.eeglobal
+
+all: $(EE_BIN)
+
+clean:
+	rm -f $(EE_OBJS) $(EE_BIN)
+
+run: $(EE_BIN)
+	ps2client execee host:$(EE_BIN)
+
+.PHONY: all clean run
+`, 
+    description: 'PS2 Makefile', 
+    category: 'config' 
+  },
+  'ld': { 
+    content: `/* ATHENA ENV Linker Script
+ * PlayStation 2 EE Core Memory Layout
+ */
+
+OUTPUT_FORMAT("elf32-littlemips")
+OUTPUT_ARCH(mips:5900)
+ENTRY(_start)
+
+MEMORY
+{
+    /* EE Memory Map */
+    ram (rwx)    : ORIGIN = 0x00100000, LENGTH = 32M
+    scratchpad   : ORIGIN = 0x70000000, LENGTH = 16K
+}
+
+SECTIONS
+{
+    .text : {
+        _text_start = .;
+        *(.text)
+        *(.text.*)
+        _text_end = .;
+    } > ram
+
+    .rodata : {
+        *(.rodata)
+        *(.rodata.*)
+    } > ram
+
+    .data : {
+        _data_start = .;
+        *(.data)
+        *(.data.*)
+        _data_end = .;
+    } > ram
+
+    .bss : {
+        _bss_start = .;
+        *(.bss)
+        *(.bss.*)
+        *(COMMON)
+        _bss_end = .;
+    } > ram
+
+    _end = .;
+    
+    /* Stack */
+    _stack_size = 0x10000;
+    _stack_end = 0x02000000 - 0x10;
+    _stack = _stack_end - _stack_size;
+}
+`, 
+    description: 'Linker Script', 
+    category: 'config' 
+  },
+
+  // === SCRIPTING ===
+  'js': { 
+    content: `// ATHENA ENV JavaScript
+// PS2 Homebrew Script
+
+/**
+ * Main entry point
+ */
+function main() {
+    console.log("ATHENA ENV Initialized");
+    
+    // Initialize graphics
+    Screen.setMode(NTSC, 640, 448);
+    
+    // Main game loop
+    while (true) {
+        // Clear screen
+        Screen.clear(Color.new(0, 0, 0));
+        
+        // Update game logic
+        update();
+        
+        // Render
+        render();
+        
+        // Wait for VSync
+        Screen.waitVblankStart();
+        Screen.flip();
+    }
+}
+
+function update() {
+    // Game update logic
+}
+
+function render() {
+    // Render graphics
+}
+
+// Start application
+main();
+`, 
+    description: 'ATHENA JavaScript', 
+    category: 'script' 
+  },
+  'lua': { 
+    content: `-- ATHENA ENV Lua Script
+-- PlayStation 2 Development
+
+-- Initialize
+local running = true
+
+-- Main function
+function main()
+    print("ATHENA ENV Lua Script Started")
+    
+    -- Setup graphics
+    Screen.setMode(NTSC, 640, 448)
+    
+    -- Main loop
+    while running do
+        -- Clear
+        Screen.clear(Color.new(0, 0, 64))
+        
+        -- Update
+        update()
+        
+        -- Render
+        render()
+        
+        -- Flip buffers
+        Screen.waitVblankStart()
+        Screen.flip()
+    end
+end
+
+function update()
+    -- Read controller
+    local pad = Pads.get()
+    
+    if pad.btns & Pads.START then
+        running = false
+    end
+end
+
+function render()
+    -- Draw text
+    Font.print(10, 10, "Hello PS2!", Color.new(255, 255, 255))
+end
+
+-- Run
+main()
+`, 
+    description: 'ATHENA Lua Script', 
+    category: 'script' 
+  },
+  'py': { 
+    content: `#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+ATHENA ENV - Python Tool Script
+PS2 Development Utility
+"""
+
+import os
+import struct
+import sys
+
+def main():
+    """Main entry point"""
+    print("ATHENA ENV Python Tool")
+    print("=" * 40)
+    
+    # Your tool logic here
+    
+if __name__ == "__main__":
+    main()
+`, 
+    description: 'Python Script', 
+    category: 'script' 
+  },
+  'sh': { 
+    content: `#!/bin/bash
+# ATHENA ENV Build Script
+# PlayStation 2 Development
+
+set -e
+
+echo "==================================="
+echo "ATHENA ENV Build System"
+echo "==================================="
+
+# Environment
+export PS2DEV=/usr/local/ps2dev
+export PS2SDK=$PS2DEV/ps2sdk
+export PATH=$PATH:$PS2DEV/bin:$PS2DEV/ee/bin:$PS2DEV/iop/bin
+
+# Build
+echo "Building project..."
+make clean
+make all
+
+echo "Build complete!"
+`, 
+    description: 'Shell Script', 
+    category: 'script' 
+  },
+
+  // === WEB ===
+  'html': { 
+    content: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATHENA ENV</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main>
+        <h1>ATHENA ENV</h1>
+        <p>PlayStation 2 Development</p>
+    </main>
+    <script src="main.js"></script>
+</body>
+</html>
+`, 
+    description: 'HTML Document', 
+    category: 'web' 
+  },
+  'css': { 
+    content: `/* ATHENA ENV Stylesheet */
+
+:root {
+    --primary: #6366f1;
+    --background: #0f0f23;
+    --foreground: #e2e8f0;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: system-ui, sans-serif;
+    background: var(--background);
+    color: var(--foreground);
+    min-height: 100vh;
+}
+`, 
+    description: 'CSS Stylesheet', 
+    category: 'web' 
+  },
+  'ts': { 
+    content: `// ATHENA ENV TypeScript
+
+interface PS2Config {
+    width: number;
+    height: number;
+    interlaced: boolean;
+}
+
+const config: PS2Config = {
+    width: 640,
+    height: 448,
+    interlaced: true
+};
+
+export default config;
+`, 
+    description: 'TypeScript', 
+    category: 'code' 
+  },
+
+  // === DATA ===
+  'json': { 
+    content: `{
+    "name": "athena-project",
+    "version": "1.0.0",
+    "description": "PlayStation 2 Project",
+    "author": "Developer",
+    "settings": {
+        "video": {
+            "width": 640,
+            "height": 448,
+            "interlaced": true
+        },
+        "audio": {
+            "sampleRate": 48000,
+            "channels": 2
+        }
+    }
+}
+`, 
+    description: 'JSON Data', 
+    category: 'data' 
+  },
+  'xml': { 
+    content: `<?xml version="1.0" encoding="UTF-8"?>
+<!-- ATHENA ENV XML Configuration -->
+<project name="athena-project" version="1.0">
+    <settings>
+        <video width="640" height="448" interlaced="true"/>
+        <audio sampleRate="48000" channels="2"/>
+    </settings>
+    <assets>
+        <!-- Asset definitions -->
+    </assets>
+</project>
+`, 
+    description: 'XML Document', 
+    category: 'data' 
+  },
+  'yaml': { 
+    content: `# ATHENA ENV YAML Configuration
+name: athena-project
+version: 1.0.0
+
+settings:
+  video:
+    width: 640
+    height: 448
+    interlaced: true
+  audio:
+    sampleRate: 48000
+    channels: 2
+
+build:
+  target: EE
+  optimization: O2
+  debug: false
+`, 
+    description: 'YAML Config', 
+    category: 'data' 
+  },
+
+  // === SHADERS ===
+  'glsl': { 
+    content: `// ATHENA ENV GLSL Shader
+#version 330 core
+
+void main() {
+    // Shader code
+}
+`, 
+    description: 'GLSL Shader', 
+    category: 'shader' 
+  },
+  'vert': { 
+    content: `// ATHENA ENV Vertex Shader
+#version 330 core
+
+layout(location = 0) in vec3 aPosition;
+layout(location = 1) in vec2 aTexCoord;
+layout(location = 2) in vec3 aNormal;
+
+uniform mat4 uModel;
+uniform mat4 uView;
+uniform mat4 uProjection;
+
+out vec2 vTexCoord;
+out vec3 vNormal;
+
+void main() {
+    gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
+    vTexCoord = aTexCoord;
+    vNormal = mat3(transpose(inverse(uModel))) * aNormal;
+}
+`, 
+    description: 'Vertex Shader', 
+    category: 'shader' 
+  },
+  'frag': { 
+    content: `// ATHENA ENV Fragment Shader
+#version 330 core
+
+in vec2 vTexCoord;
+in vec3 vNormal;
+
+uniform sampler2D uTexture;
+uniform vec3 uLightDir;
+
+out vec4 fragColor;
+
+void main() {
+    vec4 texColor = texture(uTexture, vTexCoord);
+    float diffuse = max(dot(normalize(vNormal), normalize(uLightDir)), 0.0);
+    fragColor = texColor * (0.3 + 0.7 * diffuse);
+}
+`, 
+    description: 'Fragment Shader', 
+    category: 'shader' 
+  },
+
+  // === DOCS ===
+  'md': { 
+    content: `# ATHENA ENV Project
+
+## Description
+
+PlayStation 2 development project using ATHENA ENV.
+
+## Requirements
+
+- PS2SDK
+- ATHENA ENV Runtime
+
+## Build
+
+\`\`\`bash
+make clean && make all
+\`\`\`
+
+## License
+
+MIT License
+`, 
+    description: 'Markdown', 
+    category: 'docs' 
+  },
+  'txt': { 
+    content: '', 
+    description: 'Text File', 
+    category: 'docs' 
+  },
+
+  // === BINARY PLACEHOLDERS ===
+  'elf': { content: '', description: 'ELF Executable', category: 'ps2' },
+  'irx': { content: '', description: 'IOP Module', category: 'ps2' },
+};
+
+// Template categories for quick create
+const templateCategories = [
+  {
+    id: 'ps2',
+    name: 'PS2 Development',
+    icon: '🎮',
+    templates: ['c', 'cpp', 'h', 'hpp', 's', 'asm', 'vcl', 'dsm']
+  },
+  {
+    id: 'config',
+    name: 'Configuración',
+    icon: '⚙️',
+    templates: ['cfg', 'cnf', 'ini', 'mak', 'ld', 'yaml']
+  },
+  {
+    id: 'script',
+    name: 'Scripts',
+    icon: '📜',
+    templates: ['js', 'lua', 'py', 'sh']
+  },
+  {
+    id: 'shader',
+    name: 'Shaders',
+    icon: '🎨',
+    templates: ['glsl', 'vert', 'frag', 'vcl']
+  },
+  {
+    id: 'data',
+    name: 'Datos',
+    icon: '📦',
+    templates: ['json', 'xml', 'yaml']
+  },
+  {
+    id: 'web',
+    name: 'Web',
+    icon: '🌐',
+    templates: ['html', 'css', 'ts']
+  },
+  {
+    id: 'docs',
+    name: 'Documentación',
+    icon: '📄',
+    templates: ['md', 'txt']
+  }
+];
 
 export function FileExplorer({ 
   onFileSelect, 
@@ -134,6 +1004,7 @@ export function FileExplorer({
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [showQuickCreate, setShowQuickCreate] = useState(false);
+  const [quickCreateCategory, setQuickCreateCategory] = useState<string>('ps2');
   const [newFileName, setNewFileName] = useState('');
   const [newFolderName, setNewFolderName] = useState('');
   const [selectedFolderPath, setSelectedFolderPath] = useState<string>('/');
@@ -1207,27 +2078,85 @@ export function FileExplorer({
         </div>
       </div>
 
-      {/* Quick Create Panel */}
+      {/* Quick Create Panel - PS2 Development Templates */}
       {showQuickCreate && (
-        <div className="p-2 border-b border-border bg-muted/30 animate-in slide-in-from-top-2">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium">Creación Rápida</span>
-            <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => setShowQuickCreate(false)}>
-              <X className="w-3 h-3" />
+        <div className="border-b border-border bg-gradient-to-b from-muted/50 to-background animate-in slide-in-from-top-2">
+          {/* Header */}
+          <div className="flex items-center justify-between p-2 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-gradient-to-br from-ps2-purple to-ps2-cyan flex items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5 text-white" />
+              </div>
+              <div>
+                <span className="text-xs font-semibold">Creación Rápida</span>
+                <p className="text-[10px] text-muted-foreground">Plantillas PS2 Development</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-destructive/20" onClick={() => setShowQuickCreate(false)}>
+              <X className="w-3.5 h-3.5" />
             </Button>
           </div>
-          <div className="grid grid-cols-4 gap-1">
-            {['.js', '.c', '.h', '.lua', '.py', '.json', '.html', '.css'].map(ext => (
-              <Button
-                key={ext}
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => handleQuickCreateFile(ext)}
-              >
-                {ext}
-              </Button>
-            ))}
+
+          {/* Category Tabs */}
+          <ScrollArea className="w-full">
+            <div className="flex gap-1 p-2 pb-1">
+              {templateCategories.map(cat => (
+                <Button
+                  key={cat.id}
+                  variant={quickCreateCategory === cat.id ? "default" : "ghost"}
+                  size="sm"
+                  className={`h-7 px-2 text-xs shrink-0 gap-1.5 ${
+                    quickCreateCategory === cat.id 
+                      ? 'bg-ps2-purple hover:bg-ps2-purple/90' 
+                      : 'hover:bg-muted'
+                  }`}
+                  onClick={() => setQuickCreateCategory(cat.id)}
+                >
+                  <span>{cat.icon}</span>
+                  <span className="hidden sm:inline">{cat.name}</span>
+                </Button>
+              ))}
+            </div>
+          </ScrollArea>
+
+          {/* Templates Grid */}
+          <div className="p-2 pt-1">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+              {templateCategories
+                .find(c => c.id === quickCreateCategory)
+                ?.templates.map(ext => {
+                  const template = fileTemplates[ext];
+                  return (
+                    <Button
+                      key={ext}
+                      variant="outline"
+                      size="sm"
+                      className="h-auto py-2 px-2 flex flex-col items-center gap-1 hover:bg-ps2-purple/10 hover:border-ps2-purple/50 transition-all group"
+                      onClick={() => handleQuickCreateFile(ext)}
+                    >
+                      <div className="w-8 h-8 rounded-md bg-muted/50 flex items-center justify-center group-hover:bg-ps2-purple/20 transition-colors">
+                        <span className="text-lg font-mono font-bold text-muted-foreground group-hover:text-ps2-purple">
+                          {ext === 'cpp' ? 'C++' : ext === 'hpp' ? 'H++' : ext.toUpperCase().slice(0, 2)}
+                        </span>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-[10px] font-medium">.{ext}</span>
+                        <p className="text-[8px] text-muted-foreground truncate max-w-[60px]">
+                          {template?.description || ext}
+                        </p>
+                      </div>
+                    </Button>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* Info Footer */}
+          <div className="px-2 pb-2">
+            <div className="flex items-center gap-2 p-1.5 rounded-md bg-muted/30 text-[10px] text-muted-foreground">
+              <Info className="w-3 h-3 shrink-0" />
+              <span>Carpeta destino: <code className="text-ps2-cyan">{selectedFolderPath}</code></span>
+            </div>
           </div>
         </div>
       )}
