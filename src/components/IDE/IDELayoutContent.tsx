@@ -177,26 +177,41 @@ export function IDELayoutContent() {
       // Parse GitHub URL to get owner and repo
       const urlMatch = repoUrl.match(/github\.com[\/:]([^\/]+)\/([^\/\.]+)/);
       if (!urlMatch) {
-        throw new Error('URL de GitHub no válida');
+        throw new Error('URL de GitHub no válida. Formato esperado: https://github.com/owner/repo');
       }
 
-      const [, owner, repo] = urlMatch;
-      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/zipball`;
+      const [, owner, repoName] = urlMatch;
+      const repo = repoName.replace(/\.git$/, ''); // Remove .git suffix if present
 
       setCloneProgress(prev => [...prev, `Conectando a GitHub: ${owner}/${repo}`]);
-      setCloneProgress(prev => [...prev, 'Descargando repositorio...']);
+      setCloneProgress(prev => [...prev, 'Descargando repositorio via proxy...']);
 
-      // Fetch the zip file
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        throw new Error(`Error al descargar: ${response.status} ${response.statusText}`);
+      // Use edge function to bypass CORS
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data, error } = await supabase.functions.invoke('clone-github-repo', {
+        body: { owner, repo }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Error al conectar con el servidor');
       }
 
+      if (!data.success || !data.zipData) {
+        throw new Error(data.error || 'No se recibieron datos del repositorio');
+      }
+
+      setCloneProgress(prev => [...prev, `Recibido: ${(data.size / 1024).toFixed(1)} KB`]);
       setCloneProgress(prev => [...prev, 'Procesando archivo ZIP...']);
 
-      const blob = await response.blob();
+      // Decode base64 to binary
+      const binaryString = atob(data.zipData);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
       const zip = new JSZip();
-      const contents = await zip.loadAsync(blob);
+      const contents = await zip.loadAsync(bytes);
 
       setCloneProgress(prev => [...prev, `Encontrados ${Object.keys(contents.files).length} archivos`]);
 
@@ -218,8 +233,13 @@ export function IDELayoutContent() {
             children: []
           });
         } else {
-          // It's a file
-          const content = await zipEntry.async('text');
+          // It's a file - try to read as text, handle binary files
+          let content = '';
+          try {
+            content = await zipEntry.async('text');
+          } catch {
+            content = '[Binary file]';
+          }
           newFiles.push({
             name: relativePath.split('/').pop() || 'file',
             type: 'file',
@@ -283,7 +303,7 @@ export function IDELayoutContent() {
 
       toast({
         title: "Repositorio clonado",
-        description: `${repo} ha sido clonado exitosamente`,
+        description: `${repo} ha sido clonado exitosamente con ${newFiles.length} archivos`,
       });
 
     } catch (error) {
