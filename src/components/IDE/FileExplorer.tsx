@@ -37,7 +37,9 @@ import {
   Copy,
   ClipboardPaste,
   Eye,
-  FilePlus2
+  FilePlus2,
+  GitBranch,
+  Loader2
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { FileNode } from '@/types/athena';
@@ -75,6 +77,7 @@ interface FileExplorerProps {
   onFileSystemUpdate?: (files: FileNode[]) => void;
   onAIConsult?: (file: FileNode, action: 'consult' | 'analyze' | 'improve') => void;
   externalFileSystem?: FileNode[];
+  onCloneRepository?: () => void;
 }
 
 interface FileMetadata {
@@ -996,7 +999,8 @@ export function FileExplorer({
   onProjectLoad, 
   onFileSystemUpdate, 
   onAIConsult,
-  externalFileSystem 
+  externalFileSystem,
+  onCloneRepository
 }: FileExplorerProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set([]));
   const [searchTerm, setSearchTerm] = useState('');
@@ -2227,19 +2231,27 @@ export function FileExplorer({
         <div className="p-1">
           {fileSystem.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-3">
-                <FolderOpen className="w-8 h-8 text-muted-foreground/50" />
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-ps2-purple/20 to-ps2-cyan/20 flex items-center justify-center mb-3 border border-ps2-purple/30">
+                <FolderOpen className="w-8 h-8 text-ps2-purple/70" />
               </div>
-              <p className="text-sm text-muted-foreground mb-1">Sin proyecto</p>
-              <p className="text-xs text-muted-foreground/70 mb-4">
-                Importa un proyecto o crea archivos
+              <p className="text-sm font-medium text-foreground mb-1">Sin proyecto</p>
+              <p className="text-xs text-muted-foreground mb-4">
+                Clona un repositorio, importa o crea archivos
               </p>
-              <div className="flex flex-col gap-2 w-full max-w-[160px]">
-                <Button size="sm" variant="outline" className="gap-2" onClick={handleFolderImport}>
-                  <Upload className="w-3 h-3" />
-                  Importar
+              <div className="flex flex-col gap-2 w-full max-w-[180px]">
+                <Button 
+                  size="sm" 
+                  className="gap-2 bg-gradient-to-r from-ps2-purple to-ps2-cyan hover:from-ps2-purple/90 hover:to-ps2-cyan/90 text-white" 
+                  onClick={onCloneRepository}
+                >
+                  <GitBranch className="w-3 h-3" />
+                  Clonar Repositorio
                 </Button>
-                <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowNewFileDialog(true)}>
+                <Button size="sm" variant="outline" className="gap-2 border-ps2-purple/30 hover:border-ps2-purple/50 hover:bg-ps2-purple/10" onClick={handleFolderImport}>
+                  <Upload className="w-3 h-3" />
+                  Importar Proyecto
+                </Button>
+                <Button size="sm" variant="ghost" className="gap-2 text-muted-foreground hover:text-foreground" onClick={() => setShowNewFileDialog(true)}>
                   <Plus className="w-3 h-3" />
                   Crear Archivo
                 </Button>

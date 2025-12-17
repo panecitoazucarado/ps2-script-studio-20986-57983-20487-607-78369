@@ -8,13 +8,26 @@ import { IDEHeader } from './IDEHeader';
 import { IDEStatusBar } from './IDEStatusBar';
 import { FloatingWindow } from './FloatingWindow';
 import { AIDeveloperChat } from './AIDeveloperChat';
+import { IDETerminal } from './IDETerminal';
 import { FileNode } from '@/types/athena';
 import { Button } from '@/components/ui/button';
-import { X, GripVertical } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { X, GripVertical, GitBranch, Terminal, Loader2 } from 'lucide-react';
 import { useWindowDocking } from '@/contexts/WindowDockingContext';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { useToast } from '@/hooks/use-toast';
+import JSZip from 'jszip';
 
 export function IDELayoutContent() {
   const { windows, undockWindow, dockingEnabled, toggleWindowVisibility } = useWindowDocking();
+  const { toast } = useToast();
   
   const defaultFile: FileNode = {
     name: 'main.js',
@@ -29,8 +42,15 @@ export function IDELayoutContent() {
   const [isRunning, setIsRunning] = useState(false);
   const [showFileExplorer, setShowFileExplorer] = useState(true);
   const [showPreview, setShowPreview] = useState(true);
+  const [showTerminal, setShowTerminal] = useState(false);
   const [projectFiles, setProjectFiles] = useState<FileNode[]>([]);
   const [fileSystemVersion, setFileSystemVersion] = useState(0);
+  
+  // Clone repository state
+  const [showCloneDialog, setShowCloneDialog] = useState(false);
+  const [cloneUrl, setCloneUrl] = useState('');
+  const [isCloning, setIsCloning] = useState(false);
+  const [cloneProgress, setCloneProgress] = useState<string[]>([]);
 
   const fileExplorerHeaderRef = useRef<HTMLDivElement>(null);
   const previewHeaderRef = useRef<HTMLDivElement>(null);
@@ -131,9 +151,163 @@ export function IDELayoutContent() {
     setIsRunning(prev => !prev);
   }, []);
 
+  // Handle clone repository
+  const handleOpenCloneDialog = useCallback(() => {
+    setShowCloneDialog(true);
+    setShowTerminal(true);
+    setCloneProgress([]);
+  }, []);
+
+  const handleCloneRepository = useCallback(async (url?: string) => {
+    const repoUrl = url || cloneUrl;
+    if (!repoUrl.trim()) {
+      toast({
+        title: "Error",
+        description: "Por favor ingresa una URL de repositorio válida",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsCloning(true);
+    setShowTerminal(true);
+    setCloneProgress(['Iniciando clonación...']);
+
+    try {
+      // Parse GitHub URL to get owner and repo
+      const urlMatch = repoUrl.match(/github\.com[\/:]([^\/]+)\/([^\/\.]+)/);
+      if (!urlMatch) {
+        throw new Error('URL de GitHub no válida');
+      }
+
+      const [, owner, repo] = urlMatch;
+      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/zipball`;
+
+      setCloneProgress(prev => [...prev, `Conectando a GitHub: ${owner}/${repo}`]);
+      setCloneProgress(prev => [...prev, 'Descargando repositorio...']);
+
+      // Fetch the zip file
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error(`Error al descargar: ${response.status} ${response.statusText}`);
+      }
+
+      setCloneProgress(prev => [...prev, 'Procesando archivo ZIP...']);
+
+      const blob = await response.blob();
+      const zip = new JSZip();
+      const contents = await zip.loadAsync(blob);
+
+      setCloneProgress(prev => [...prev, `Encontrados ${Object.keys(contents.files).length} archivos`]);
+
+      // Convert zip contents to FileNode structure
+      const newFiles: FileNode[] = [];
+      const rootFolderName = Object.keys(contents.files)[0]?.split('/')[0] || repo;
+
+      for (const [path, zipEntry] of Object.entries(contents.files)) {
+        // Remove the root folder prefix that GitHub adds
+        const relativePath = path.replace(new RegExp(`^${rootFolderName}/?`), '');
+        if (!relativePath) continue;
+
+        if (zipEntry.dir) {
+          // It's a folder
+          newFiles.push({
+            name: relativePath.replace(/\/$/, '').split('/').pop() || 'folder',
+            type: 'folder',
+            path: `/${relativePath.replace(/\/$/, '')}`,
+            children: []
+          });
+        } else {
+          // It's a file
+          const content = await zipEntry.async('text');
+          newFiles.push({
+            name: relativePath.split('/').pop() || 'file',
+            type: 'file',
+            path: `/${relativePath}`,
+            content
+          });
+        }
+      }
+
+      // Build folder structure
+      const buildTree = (files: FileNode[]): FileNode[] => {
+        const root: FileNode[] = [];
+        const folderMap = new Map<string, FileNode>();
+
+        // Create all folders first
+        files.filter(f => f.type === 'folder').forEach(folder => {
+          folderMap.set(folder.path, { ...folder, children: [] });
+        });
+
+        // Process files
+        files.filter(f => f.type === 'file').forEach(file => {
+          const pathParts = file.path.split('/').filter(Boolean);
+          if (pathParts.length === 1) {
+            root.push(file);
+          } else {
+            const parentPath = '/' + pathParts.slice(0, -1).join('/');
+            const parent = folderMap.get(parentPath);
+            if (parent && parent.children) {
+              parent.children.push(file);
+            } else {
+              root.push(file);
+            }
+          }
+        });
+
+        // Build folder hierarchy
+        folderMap.forEach((folder, path) => {
+          const pathParts = path.split('/').filter(Boolean);
+          if (pathParts.length === 1) {
+            root.push(folder);
+          } else {
+            const parentPath = '/' + pathParts.slice(0, -1).join('/');
+            const parent = folderMap.get(parentPath);
+            if (parent && parent.children) {
+              parent.children.push(folder);
+            }
+          }
+        });
+
+        return root;
+      };
+
+      const fileTree = buildTree(newFiles);
+      setCloneProgress(prev => [...prev, '✓ Estructura de archivos creada']);
+      setCloneProgress(prev => [...prev, `✓ Clonación completada: ${repo}`]);
+
+      setProjectFiles(fileTree);
+      setFileSystemVersion(prev => prev + 1);
+      setShowCloneDialog(false);
+      setCloneUrl('');
+
+      toast({
+        title: "Repositorio clonado",
+        description: `${repo} ha sido clonado exitosamente`,
+      });
+
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
+      setCloneProgress(prev => [...prev, `✗ Error: ${errorMsg}`]);
+      toast({
+        title: "Error al clonar",
+        description: errorMsg,
+        variant: "destructive"
+      });
+    } finally {
+      setIsCloning(false);
+    }
+  }, [cloneUrl, toast]);
+
   // Manejar actualizaciones del sistema de archivos
   const handleFileSystemUpdate = useCallback((newFiles: FileNode[]) => {
     setProjectFiles(newFiles);
+    setFileSystemVersion(prev => prev + 1);
+  }, []);
+
+  // Effect to update file system after clone
+  const handleCloneComplete = useCallback((fileTree: FileNode[]) => {
+    setProjectFiles(fileTree);
     setFileSystemVersion(prev => prev + 1);
   }, []);
 
@@ -373,6 +547,7 @@ export function IDELayoutContent() {
             selectedFile={selectedFile}
             onProjectLoad={setProjectFiles}
             onFileSystemUpdate={handleFileSystemUpdate}
+            onCloneRepository={handleOpenCloneDialog}
             onAIConsult={(file, action) => {
               if (!windows.aiChat.visible) {
                 toggleWindowVisibility('aiChat');
@@ -570,6 +745,60 @@ export function IDELayoutContent() {
             currentFile={selectedFile}
           />
         </FloatingWindow>
+      )}
+
+      {/* Clone Repository Dialog */}
+      <Dialog open={showCloneDialog} onOpenChange={setShowCloneDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitBranch className="w-5 h-5 text-ps2-purple" />
+              Clonar Repositorio
+            </DialogTitle>
+            <DialogDescription>
+              Ingresa la URL del repositorio de GitHub para clonar
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Input
+              placeholder="https://github.com/usuario/repositorio"
+              value={cloneUrl}
+              onChange={(e) => setCloneUrl(e.target.value)}
+              disabled={isCloning}
+              onKeyDown={(e) => e.key === 'Enter' && !isCloning && handleCloneRepository()}
+            />
+            {cloneProgress.length > 0 && (
+              <div className="bg-[#1e1e1e] rounded-md p-3 max-h-40 overflow-auto font-mono text-xs">
+                {cloneProgress.map((line, i) => (
+                  <div key={i} className={`${line.includes('✓') ? 'text-green-400' : line.includes('✗') ? 'text-red-400' : 'text-foreground/80'}`}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCloneDialog(false)} disabled={isCloning}>
+              Cancelar
+            </Button>
+            <Button onClick={() => handleCloneRepository()} disabled={isCloning || !cloneUrl.trim()} className="gap-2">
+              {isCloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <GitBranch className="w-4 h-4" />}
+              {isCloning ? 'Clonando...' : 'Clonar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Terminal Panel */}
+      {showTerminal && (
+        <div className="fixed bottom-0 left-0 right-0 h-64 z-40 border-t border-border shadow-lg">
+          <IDETerminal 
+            onClose={() => setShowTerminal(false)}
+            onCloneRepository={handleCloneRepository}
+            isCloning={isCloning}
+            cloneProgress={cloneProgress}
+          />
+        </div>
       )}
     </>
   );
