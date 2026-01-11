@@ -1035,8 +1035,15 @@ export function FileExplorer({
 
   // Sync with external file system
   useEffect(() => {
-    if (externalFileSystem) {
-      setFileSystem(externalFileSystem);
+    if (!externalFileSystem) return;
+
+    setFileSystem(externalFileSystem);
+
+    // Auto-expand a single root folder (typical after cloning a repo)
+    if (externalFileSystem.length === 1 && externalFileSystem[0]?.type === 'folder') {
+      const rootPath = externalFileSystem[0].path;
+      setExpandedFolders(prev => (prev.size === 0 || !prev.has(rootPath) ? new Set([rootPath]) : prev));
+      setSelectedFolderPath(prev => (prev === '/' ? rootPath : prev));
     }
   }, [externalFileSystem]);
 

@@ -210,93 +210,98 @@ export function IDELayoutContent() {
 
       setCloneProgress(prev => [...prev, `Encontrados ${Object.keys(contents.files).length} archivos`]);
 
-      // Convert zip contents to FileNode structure
-      const newFiles: FileNode[] = [];
+      // Convert zip contents to FileNode tree (robust: creates missing intermediate folders)
+      const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const rootFolderName = Object.keys(contents.files)[0]?.split('/')[0] || repo;
 
-      for (const [path, zipEntry] of Object.entries(contents.files)) {
-        // Remove the root folder prefix that GitHub adds
-        const relativePath = path.replace(new RegExp(`^${rootFolderName}/?`), '');
-        if (!relativePath) continue;
-
-        if (zipEntry.dir) {
-          // It's a folder
-          newFiles.push({
-            name: relativePath.replace(/\/$/, '').split('/').pop() || 'folder',
-            type: 'folder',
-            path: `/${relativePath.replace(/\/$/, '')}`,
-            children: []
-          });
-        } else {
-          // It's a file - try to read as text, handle binary files
-          let content = '';
-          try {
-            content = await zipEntry.async('text');
-          } catch {
-            content = '[Binary file]';
-          }
-          newFiles.push({
-            name: relativePath.split('/').pop() || 'file',
-            type: 'file',
-            path: `/${relativePath}`,
-            content
-          });
-        }
-      }
-
-      // Build folder structure
-      const buildTree = (files: FileNode[]): FileNode[] => {
-        const root: FileNode[] = [];
-        const folderMap = new Map<string, FileNode>();
-
-        // Create all folders first
-        files.filter(f => f.type === 'folder').forEach(folder => {
-          folderMap.set(folder.path, { ...folder, children: [] });
-        });
-
-        // Process files
-        files.filter(f => f.type === 'file').forEach(file => {
-          const pathParts = file.path.split('/').filter(Boolean);
-          if (pathParts.length === 1) {
-            root.push(file);
-          } else {
-            const parentPath = '/' + pathParts.slice(0, -1).join('/');
-            const parent = folderMap.get(parentPath);
-            if (parent && parent.children) {
-              parent.children.push(file);
-            } else {
-              root.push(file);
-            }
-          }
-        });
-
-        // Build folder hierarchy
-        folderMap.forEach((folder, path) => {
-          const pathParts = path.split('/').filter(Boolean);
-          if (pathParts.length === 1) {
-            root.push(folder);
-          } else {
-            const parentPath = '/' + pathParts.slice(0, -1).join('/');
-            const parent = folderMap.get(parentPath);
-            if (parent && parent.children) {
-              parent.children.push(folder);
-            }
-          }
-        });
-
-        return root;
+      const repoRoot: FileNode = {
+        name: repo,
+        type: 'folder',
+        path: `/${repo}`,
+        children: []
       };
 
-      const fileTree = buildTree(newFiles);
-      setCloneProgress(prev => [...prev, '✓ Estructura de archivos creada']);
+      let fileCount = 0;
+
+      const getOrCreateFolder = (parent: FileNode, folderName: string) => {
+        parent.children ||= [];
+        const folderPath = `${parent.path}/${folderName}`;
+        const existing = parent.children.find(n => n.type === 'folder' && n.path === folderPath);
+        if (existing) return existing;
+        const created: FileNode = { name: folderName, type: 'folder', path: folderPath, children: [] };
+        parent.children.push(created);
+        return created;
+      };
+
+      for (const [entryPath, zipEntry] of Object.entries(contents.files)) {
+        // Remove the GitHub zipball root folder prefix
+        const relativePathRaw = entryPath.replace(new RegExp(`^${escapeRegExp(rootFolderName)}/?`), '');
+        const relativePath = relativePathRaw.replace(/\\/g, '/');
+        if (!relativePath) continue;
+
+        const isDir = zipEntry.dir || relativePath.endsWith('/');
+        const cleanPath = relativePath.replace(/\/$/, '');
+        if (!cleanPath) continue;
+
+        const parts = cleanPath.split('/').filter(Boolean);
+        if (parts.length === 0) continue;
+
+        // Walk / create folders
+        let currentFolder = repoRoot;
+        const folderParts = isDir ? parts : parts.slice(0, -1);
+        for (const part of folderParts) {
+          currentFolder = getOrCreateFolder(currentFolder, part);
+        }
+
+        if (isDir) continue;
+
+        // Create file
+        const fileName = parts[parts.length - 1];
+        const filePath = `${currentFolder.path}/${fileName}`;
+
+        // Avoid duplicates
+        currentFolder.children ||= [];
+        if (currentFolder.children.some(n => n.type === 'file' && n.path === filePath)) continue;
+
+        let content = '';
+        try {
+          content = await zipEntry.async('text');
+        } catch {
+          content = '[Binary file]';
+        }
+
+        currentFolder.children.push({
+          name: fileName,
+          type: 'file',
+          path: filePath,
+          content
+        });
+
+        fileCount++;
+      }
+
+      const sortTree = (nodes: FileNode[]) => {
+        nodes.sort((a, b) => {
+          if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+        nodes.forEach(n => {
+          if (n.type === 'folder' && n.children) sortTree(n.children);
+        });
+      };
+
+      sortTree(repoRoot.children || []);
+
+      setCloneProgress(prev => [...prev, '✓ Estructura de carpetas construida']);
+      setCloneProgress(prev => [...prev, `✓ ${fileCount} archivos listos en el Explorador`]);
       setCloneProgress(prev => [...prev, `✓ Clonación completada: ${repo}`]);
 
-      setProjectFiles(fileTree);
+      setProjectFiles([repoRoot]);
       setFileSystemVersion(prev => prev + 1);
       setShowCloneDialog(false);
       setCloneUrl('');
 
-      toast.success(`${repo} ha sido clonado exitosamente con ${newFiles.length} archivos`);
+      toast.success(`${repo} ha sido clonado exitosamente con ${fileCount} archivos`);
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
