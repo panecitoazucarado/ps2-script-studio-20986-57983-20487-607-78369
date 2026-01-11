@@ -12,22 +12,21 @@ import { IDETerminal } from './IDETerminal';
 import { FileNode } from '@/types/athena';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, GripVertical, GitBranch, Terminal, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  X, GripVertical, GitBranch, Terminal, Loader2, 
+  HelpCircle, Copy, CheckCircle2, XCircle, ExternalLink, Download, FileArchive 
+} from 'lucide-react';
 import { useWindowDocking } from '@/contexts/WindowDockingContext';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import JSZip from 'jszip';
 
 export function IDELayoutContent() {
   const { windows, undockWindow, dockingEnabled, toggleWindowVisibility } = useWindowDocking();
-  const { toast } = useToast();
   
   const defaultFile: FileNode = {
     name: 'main.js',
@@ -161,11 +160,7 @@ export function IDELayoutContent() {
   const handleCloneRepository = useCallback(async (url?: string) => {
     const repoUrl = url || cloneUrl;
     if (!repoUrl.trim()) {
-      toast({
-        title: "Error",
-        description: "Por favor ingresa una URL de repositorio válida",
-        variant: "destructive"
-      });
+      toast.error("Por favor ingresa una URL de repositorio válida");
       return;
     }
 
@@ -301,23 +296,16 @@ export function IDELayoutContent() {
       setShowCloneDialog(false);
       setCloneUrl('');
 
-      toast({
-        title: "Repositorio clonado",
-        description: `${repo} ha sido clonado exitosamente con ${newFiles.length} archivos`,
-      });
+      toast.success(`${repo} ha sido clonado exitosamente con ${newFiles.length} archivos`);
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
       setCloneProgress(prev => [...prev, `✗ Error: ${errorMsg}`]);
-      toast({
-        title: "Error al clonar",
-        description: errorMsg,
-        variant: "destructive"
-      });
+      toast.error(errorMsg);
     } finally {
       setIsCloning(false);
     }
-  }, [cloneUrl, toast]);
+  }, [cloneUrl]);
 
   // Manejar actualizaciones del sistema de archivos
   const handleFileSystemUpdate = useCallback((newFiles: FileNode[]) => {
@@ -767,45 +755,188 @@ export function IDELayoutContent() {
         </FloatingWindow>
       )}
 
-      {/* Clone Repository Dialog */}
+      {/* Clone Repository Dialog - GitHub Style */}
       <Dialog open={showCloneDialog} onOpenChange={setShowCloneDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <GitBranch className="w-5 h-5 text-ps2-purple" />
-              Clonar Repositorio
-            </DialogTitle>
-            <DialogDescription>
-              Ingresa la URL del repositorio de GitHub para clonar
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Input
-              placeholder="https://github.com/usuario/repositorio"
-              value={cloneUrl}
-              onChange={(e) => setCloneUrl(e.target.value)}
-              disabled={isCloning}
-              onKeyDown={(e) => e.key === 'Enter' && !isCloning && handleCloneRepository()}
-            />
-            {cloneProgress.length > 0 && (
-              <div className="bg-[#1e1e1e] rounded-md p-3 max-h-40 overflow-auto font-mono text-xs">
+        <DialogContent className="max-w-lg bg-[#0d1117] border-[#30363d] p-0 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#30363d]">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-gradient-to-br from-green-500 to-green-600 rounded">
+                <GitBranch className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-semibold text-white">Clone</span>
+            </div>
+            <a 
+              href="https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[#8b949e] hover:text-[#58a6ff] transition-colors"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </a>
+          </div>
+
+          {/* Tabs */}
+          <div className="px-4 pt-3">
+            <Tabs defaultValue="https" className="w-full">
+              <TabsList className="bg-transparent border-b border-[#30363d] rounded-none w-full justify-start gap-4 h-auto p-0">
+                <TabsTrigger 
+                  value="https" 
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[#f78166] rounded-none pb-2 px-0 text-[#8b949e] data-[state=active]:text-white font-medium"
+                >
+                  HTTPS
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="cli" 
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[#f78166] rounded-none pb-2 px-0 text-[#8b949e] data-[state=active]:text-white font-medium"
+                >
+                  GitHub CLI
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="https" className="mt-4 space-y-3">
+                {/* URL Input with Copy Button */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center bg-[#161b22] border border-[#30363d] rounded-md overflow-hidden">
+                    <Input
+                      placeholder="https://github.com/usuario/repositorio.git"
+                      value={cloneUrl}
+                      onChange={(e) => setCloneUrl(e.target.value)}
+                      disabled={isCloning}
+                      onKeyDown={(e) => e.key === 'Enter' && !isCloning && handleCloneRepository()}
+                      className="flex-1 bg-transparent border-0 text-[#c9d1d9] placeholder:text-[#484f58] focus-visible:ring-0 focus-visible:ring-offset-0 h-9"
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 bg-[#21262d] border border-[#30363d] hover:bg-[#30363d] hover:border-[#8b949e]"
+                    onClick={() => {
+                      navigator.clipboard.writeText(cloneUrl);
+                      toast.success('URL copiada al portapapeles');
+                    }}
+                    disabled={!cloneUrl.trim()}
+                  >
+                    <Copy className="w-4 h-4 text-[#8b949e]" />
+                  </Button>
+                </div>
+                <p className="text-xs text-[#8b949e]">
+                  Clone using the web URL.
+                </p>
+              </TabsContent>
+
+              <TabsContent value="cli" className="mt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center bg-[#161b22] border border-[#30363d] rounded-md overflow-hidden">
+                    <Input
+                      value={cloneUrl ? `gh repo clone ${cloneUrl.replace('https://github.com/', '').replace('.git', '')}` : 'gh repo clone usuario/repositorio'}
+                      readOnly
+                      className="flex-1 bg-transparent border-0 text-[#c9d1d9] placeholder:text-[#484f58] focus-visible:ring-0 focus-visible:ring-offset-0 h-9 font-mono text-sm"
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 bg-[#21262d] border border-[#30363d] hover:bg-[#30363d] hover:border-[#8b949e]"
+                    onClick={() => {
+                      const cliCommand = cloneUrl ? `gh repo clone ${cloneUrl.replace('https://github.com/', '').replace('.git', '')}` : '';
+                      navigator.clipboard.writeText(cliCommand);
+                      toast.success('Comando copiado al portapapeles');
+                    }}
+                    disabled={!cloneUrl.trim()}
+                  >
+                    <Copy className="w-4 h-4 text-[#8b949e]" />
+                  </Button>
+                </div>
+                <p className="text-xs text-[#8b949e]">
+                  Work fast with the official CLI.{' '}
+                  <a href="https://cli.github.com" target="_blank" rel="noopener noreferrer" className="text-[#58a6ff] hover:underline">
+                    Learn more about the CLI
+                  </a>
+                </p>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Clone Progress */}
+          {cloneProgress.length > 0 && (
+            <div className="mx-4 mt-3 bg-[#161b22] border border-[#30363d] rounded-md p-3 max-h-32 overflow-auto">
+              <div className="font-mono text-xs space-y-1">
                 {cloneProgress.map((line, i) => (
-                  <div key={i} className={`${line.includes('✓') ? 'text-green-400' : line.includes('✗') ? 'text-red-400' : 'text-foreground/80'}`}>
-                    {line}
+                  <div key={i} className={`flex items-start gap-2 ${line.includes('✓') ? 'text-green-400' : line.includes('✗') ? 'text-red-400' : 'text-[#8b949e]'}`}>
+                    {line.includes('✓') && <CheckCircle2 className="w-3 h-3 mt-0.5 flex-shrink-0" />}
+                    {line.includes('✗') && <XCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />}
+                    {!line.includes('✓') && !line.includes('✗') && <Terminal className="w-3 h-3 mt-0.5 flex-shrink-0" />}
+                    <span>{line.replace('✓ ', '').replace('✗ ', '')}</span>
                   </div>
                 ))}
               </div>
-            )}
+            </div>
+          )}
+
+          {/* Separator */}
+          <div className="border-t border-[#30363d] mt-4" />
+
+          {/* Additional Options */}
+          <div className="px-4 py-3 space-y-1">
+            <button
+              onClick={() => {
+                if (cloneUrl) {
+                  window.open(cloneUrl.replace('.git', ''), '_blank');
+                }
+              }}
+              disabled={!cloneUrl.trim()}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-[#c9d1d9] hover:bg-[#21262d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ExternalLink className="w-4 h-4 text-[#8b949e]" />
+              <span className="text-sm">Open in GitHub</span>
+            </button>
+            <button
+              onClick={() => handleCloneRepository()}
+              disabled={isCloning || !cloneUrl.trim()}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-[#c9d1d9] hover:bg-[#21262d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isCloning ? (
+                <Loader2 className="w-4 h-4 text-[#8b949e] animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 text-[#8b949e]" />
+              )}
+              <span className="text-sm">{isCloning ? 'Cloning repository...' : 'Clone to Athena IDE'}</span>
+            </button>
+            <button
+              onClick={() => {
+                if (cloneUrl) {
+                  const downloadUrl = cloneUrl.replace('.git', '') + '/archive/refs/heads/main.zip';
+                  window.open(downloadUrl, '_blank');
+                }
+              }}
+              disabled={!cloneUrl.trim()}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-[#c9d1d9] hover:bg-[#21262d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <FileArchive className="w-4 h-4 text-[#8b949e]" />
+              <span className="text-sm">Download ZIP</span>
+            </button>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCloneDialog(false)} disabled={isCloning}>
-              Cancelar
+
+          {/* Footer Actions */}
+          <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-[#30363d] bg-[#161b22]">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowCloneDialog(false)} 
+              disabled={isCloning}
+              className="bg-[#21262d] border-[#30363d] text-[#c9d1d9] hover:bg-[#30363d] hover:border-[#8b949e]"
+            >
+              Cancel
             </Button>
-            <Button onClick={() => handleCloneRepository()} disabled={isCloning || !cloneUrl.trim()} className="gap-2">
+            <Button 
+              onClick={() => handleCloneRepository()} 
+              disabled={isCloning || !cloneUrl.trim()} 
+              className="bg-[#238636] hover:bg-[#2ea043] text-white border-0 gap-2"
+            >
               {isCloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <GitBranch className="w-4 h-4" />}
-              {isCloning ? 'Clonando...' : 'Clonar'}
+              {isCloning ? 'Cloning...' : 'Clone'}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
