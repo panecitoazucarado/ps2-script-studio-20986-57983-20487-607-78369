@@ -558,6 +558,7 @@ export function IDELayoutContent() {
           <FileExplorer 
             onFileSelect={handleFileSelect}
             selectedFile={selectedFile}
+            externalFileSystem={projectFiles}
             onProjectLoad={setProjectFiles}
             onFileSystemUpdate={handleFileSystemUpdate}
             onCloneRepository={handleOpenCloneDialog}
@@ -716,8 +717,10 @@ export function IDELayoutContent() {
           <FileExplorer 
             onFileSelect={handleFileSelect}
             selectedFile={selectedFile}
+            externalFileSystem={projectFiles}
             onProjectLoad={setProjectFiles}
             onFileSystemUpdate={handleFileSystemUpdate}
+            onCloneRepository={handleOpenCloneDialog}
             onAIConsult={(file, action) => {
               if (!windows.aiChat.visible) {
                 toggleWindowVisibility('aiChat');
