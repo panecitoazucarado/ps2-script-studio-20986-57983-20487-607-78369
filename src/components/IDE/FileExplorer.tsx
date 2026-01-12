@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   FolderOpen, 
+  Folder,
   File, 
   FileText, 
   Image as ImageIcon, 
@@ -39,7 +40,37 @@ import {
   Eye,
   FilePlus2,
   GitBranch,
-  Loader2
+  Loader2,
+  Terminal,
+  Database,
+  Shield,
+  Lock,
+  Key,
+  Braces,
+  Hash,
+  Cpu,
+  Cog,
+  BookOpen,
+  FileVideo,
+  Type,
+  Palette,
+  Globe,
+  Server,
+  Puzzle,
+  Box,
+  Layers,
+  Zap,
+  FileArchive,
+  FileSpreadsheet,
+  Scroll,
+  Binary,
+  Wrench,
+  Bug,
+  TestTube,
+  Container,
+  Cloud,
+  Link,
+  FileQuestion
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { FileNode } from '@/types/athena';
@@ -1721,50 +1752,401 @@ export function FileExplorer({
     const sizeClass = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
     
     if (file.type === 'folder') {
+      // Special folder icons based on folder name
+      const folderName = file.name.toLowerCase();
+      if (folderName === 'src' || folderName === 'source') {
+        return <FolderOpen className={`${sizeClass} text-blue-400`} />;
+      }
+      if (folderName === 'node_modules' || folderName === 'vendor') {
+        return <Folder className={`${sizeClass} text-yellow-600/70`} />;
+      }
+      if (folderName === 'dist' || folderName === 'build' || folderName === 'out') {
+        return <FolderOpen className={`${sizeClass} text-green-500`} />;
+      }
+      if (folderName === 'test' || folderName === 'tests' || folderName === '__tests__') {
+        return <FolderOpen className={`${sizeClass} text-yellow-400`} />;
+      }
+      if (folderName === 'public' || folderName === 'static' || folderName === 'assets') {
+        return <FolderOpen className={`${sizeClass} text-purple-400`} />;
+      }
+      if (folderName === '.git' || folderName === '.github') {
+        return <FolderOpen className={`${sizeClass} text-orange-400`} />;
+      }
+      if (folderName === 'components' || folderName === 'ui') {
+        return <FolderOpen className={`${sizeClass} text-cyan-400`} />;
+      }
+      if (folderName === 'hooks' || folderName === 'utils' || folderName === 'lib') {
+        return <FolderOpen className={`${sizeClass} text-pink-400`} />;
+      }
+      if (folderName === 'api' || folderName === 'services') {
+        return <FolderOpen className={`${sizeClass} text-emerald-400`} />;
+      }
+      if (folderName === 'types' || folderName === 'interfaces') {
+        return <FolderOpen className={`${sizeClass} text-indigo-400`} />;
+      }
+      if (folderName === 'config' || folderName === 'configs') {
+        return <FolderOpen className={`${sizeClass} text-gray-400`} />;
+      }
+      if (folderName === 'docs' || folderName === 'documentation') {
+        return <FolderOpen className={`${sizeClass} text-blue-300`} />;
+      }
       return <FolderOpen className={`${sizeClass} text-ps2-blue`} />;
     }
     
-    const extension = file.name.split('.').pop()?.toLowerCase();
+    const fileName = file.name.toLowerCase();
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    
+    // === SPECIAL FILES (by full name) ===
+    // Git files
+    if (fileName === '.gitignore') {
+      return <GitBranch className={`${sizeClass} text-orange-400`} />;
+    }
+    if (fileName === '.gitattributes' || fileName === '.gitmodules') {
+      return <GitBranch className={`${sizeClass} text-orange-300`} />;
+    }
+    
+    // Build & Config files
+    if (fileName === 'makefile' || fileName === 'gnumakefile') {
+      return <Wrench className={`${sizeClass} text-orange-500`} />;
+    }
+    if (fileName === 'cmakelists.txt') {
+      return <Wrench className={`${sizeClass} text-green-400`} />;
+    }
+    if (fileName === 'dockerfile') {
+      return <Container className={`${sizeClass} text-blue-400`} />;
+    }
+    if (fileName === 'docker-compose.yml' || fileName === 'docker-compose.yaml') {
+      return <Container className={`${sizeClass} text-blue-300`} />;
+    }
+    if (fileName === '.dockerignore') {
+      return <Container className={`${sizeClass} text-gray-400`} />;
+    }
+    
+    // Package managers
+    if (fileName === 'package.json') {
+      return <Package className={`${sizeClass} text-green-500`} />;
+    }
+    if (fileName === 'package-lock.json' || fileName === 'yarn.lock' || fileName === 'pnpm-lock.yaml' || fileName === 'bun.lockb') {
+      return <Lock className={`${sizeClass} text-yellow-600`} />;
+    }
+    if (fileName === 'cargo.toml') {
+      return <Package className={`${sizeClass} text-orange-400`} />;
+    }
+    if (fileName === 'cargo.lock') {
+      return <Lock className={`${sizeClass} text-orange-300`} />;
+    }
+    if (fileName === 'requirements.txt' || fileName === 'pipfile') {
+      return <Package className={`${sizeClass} text-blue-400`} />;
+    }
+    if (fileName === 'gemfile') {
+      return <Package className={`${sizeClass} text-red-400`} />;
+    }
+    if (fileName === 'go.mod' || fileName === 'go.sum') {
+      return <Package className={`${sizeClass} text-cyan-400`} />;
+    }
+    
+    // Config files
+    if (fileName === 'tsconfig.json' || fileName === 'jsconfig.json') {
+      return <Cog className={`${sizeClass} text-blue-400`} />;
+    }
+    if (fileName === 'vite.config.ts' || fileName === 'vite.config.js') {
+      return <Zap className={`${sizeClass} text-purple-400`} />;
+    }
+    if (fileName === 'webpack.config.js' || fileName === 'webpack.config.ts') {
+      return <Box className={`${sizeClass} text-blue-300`} />;
+    }
+    if (fileName === 'rollup.config.js' || fileName === 'rollup.config.ts') {
+      return <Box className={`${sizeClass} text-red-400`} />;
+    }
+    if (fileName === 'esbuild.config.js' || fileName === 'esbuild.config.ts') {
+      return <Zap className={`${sizeClass} text-yellow-400`} />;
+    }
+    if (fileName === 'babel.config.js' || fileName === '.babelrc') {
+      return <Cog className={`${sizeClass} text-yellow-500`} />;
+    }
+    if (fileName === '.eslintrc' || fileName === '.eslintrc.js' || fileName === '.eslintrc.json' || fileName === 'eslint.config.js') {
+      return <Shield className={`${sizeClass} text-purple-400`} />;
+    }
+    if (fileName === '.prettierrc' || fileName === '.prettierrc.js' || fileName === 'prettier.config.js') {
+      return <Palette className={`${sizeClass} text-pink-400`} />;
+    }
+    if (fileName === 'tailwind.config.js' || fileName === 'tailwind.config.ts') {
+      return <Palette className={`${sizeClass} text-cyan-400`} />;
+    }
+    if (fileName === 'postcss.config.js' || fileName === 'postcss.config.cjs') {
+      return <Cog className={`${sizeClass} text-red-400`} />;
+    }
+    if (fileName === '.editorconfig') {
+      return <Settings className={`${sizeClass} text-gray-400`} />;
+    }
+    if (fileName === '.env' || fileName.startsWith('.env.')) {
+      return <Key className={`${sizeClass} text-yellow-400`} />;
+    }
+    if (fileName === '.npmrc' || fileName === '.yarnrc') {
+      return <Settings className={`${sizeClass} text-red-400`} />;
+    }
+    
+    // Documentation
+    if (fileName === 'readme.md' || fileName === 'readme') {
+      return <BookOpen className={`${sizeClass} text-blue-400`} />;
+    }
+    if (fileName === 'license' || fileName === 'license.md' || fileName === 'license.txt') {
+      return <Scroll className={`${sizeClass} text-yellow-400`} />;
+    }
+    if (fileName === 'changelog.md' || fileName === 'history.md') {
+      return <History className={`${sizeClass} text-green-400`} />;
+    }
+    if (fileName === 'contributing.md') {
+      return <MessageSquare className={`${sizeClass} text-purple-400`} />;
+    }
+    
+    // CI/CD
+    if (fileName === '.travis.yml') {
+      return <Cloud className={`${sizeClass} text-red-400`} />;
+    }
+    if (fileName === 'jenkinsfile') {
+      return <Server className={`${sizeClass} text-red-500`} />;
+    }
+    
+    // Test files
+    if (fileName.includes('.test.') || fileName.includes('.spec.') || fileName.includes('_test.')) {
+      return <TestTube className={`${sizeClass} text-green-400`} />;
+    }
+
+    // === BY EXTENSION ===
     switch (extension) {
+      // JavaScript/TypeScript
       case 'js':
-      case 'jsx':
         return <FileCode className={`${sizeClass} text-yellow-400`} />;
+      case 'jsx':
+        return <FileCode className={`${sizeClass} text-cyan-400`} />;
       case 'ts':
-      case 'tsx':
         return <FileCode className={`${sizeClass} text-blue-400`} />;
+      case 'tsx':
+        return <FileCode className={`${sizeClass} text-blue-500`} />;
+      case 'mjs':
+      case 'cjs':
+        return <FileCode className={`${sizeClass} text-yellow-300`} />;
+      
+      // C/C++ Family (PS2 Development)
       case 'c':
+        return <Code2 className={`${sizeClass} text-blue-500`} />;
       case 'cpp':
+      case 'cc':
+      case 'cxx':
+        return <Code2 className={`${sizeClass} text-pink-500`} />;
       case 'h':
+        return <Hash className={`${sizeClass} text-purple-400`} />;
       case 'hpp':
-        return <Code2 className={`${sizeClass} text-purple-400`} />;
+      case 'hxx':
+        return <Hash className={`${sizeClass} text-pink-400`} />;
+      
+      // Assembly (PS2)
+      case 's':
+      case 'asm':
+        return <Cpu className={`${sizeClass} text-red-400`} />;
+      
+      // Other Programming Languages
       case 'py':
-        return <FileCode className={`${sizeClass} text-green-400`} />;
+        return <FileCode className={`${sizeClass} text-yellow-500`} />;
+      case 'rb':
+        return <FileCode className={`${sizeClass} text-red-500`} />;
+      case 'go':
+        return <FileCode className={`${sizeClass} text-cyan-400`} />;
+      case 'rs':
+        return <FileCode className={`${sizeClass} text-orange-400`} />;
+      case 'java':
+        return <FileCode className={`${sizeClass} text-red-400`} />;
+      case 'kt':
+      case 'kts':
+        return <FileCode className={`${sizeClass} text-purple-500`} />;
+      case 'swift':
+        return <FileCode className={`${sizeClass} text-orange-500`} />;
+      case 'php':
+        return <FileCode className={`${sizeClass} text-indigo-400`} />;
+      case 'lua':
+        return <FileCode className={`${sizeClass} text-blue-600`} />;
+      case 'sh':
+      case 'bash':
+      case 'zsh':
+        return <Terminal className={`${sizeClass} text-green-400`} />;
+      case 'ps1':
+      case 'psm1':
+        return <Terminal className={`${sizeClass} text-blue-400`} />;
+      case 'bat':
+      case 'cmd':
+        return <Terminal className={`${sizeClass} text-gray-400`} />;
+      
+      // Data & Config
       case 'json':
-        return <FileJson className={`${sizeClass} text-yellow-500`} />;
-      case 'html':
-        return <FileType className={`${sizeClass} text-orange-500`} />;
-      case 'css':
-        return <FileType className={`${sizeClass} text-blue-500`} />;
-      case 'md':
+        return <Braces className={`${sizeClass} text-yellow-500`} />;
+      case 'json5':
+        return <Braces className={`${sizeClass} text-yellow-400`} />;
+      case 'yaml':
+      case 'yml':
+        return <FileText className={`${sizeClass} text-red-400`} />;
+      case 'toml':
         return <FileText className={`${sizeClass} text-gray-400`} />;
+      case 'xml':
+        return <FileCode className={`${sizeClass} text-orange-400`} />;
+      case 'ini':
+      case 'cfg':
+      case 'conf':
+        return <Settings className={`${sizeClass} text-gray-400`} />;
+      case 'env':
+        return <Key className={`${sizeClass} text-yellow-400`} />;
+      
+      // Web
+      case 'html':
+      case 'htm':
+        return <Globe className={`${sizeClass} text-orange-500`} />;
+      case 'css':
+        return <Palette className={`${sizeClass} text-blue-500`} />;
+      case 'scss':
+      case 'sass':
+        return <Palette className={`${sizeClass} text-pink-400`} />;
+      case 'less':
+        return <Palette className={`${sizeClass} text-indigo-400`} />;
+      case 'vue':
+        return <FileCode className={`${sizeClass} text-green-500`} />;
+      case 'svelte':
+        return <FileCode className={`${sizeClass} text-orange-500`} />;
+      
+      // Documentation
+      case 'md':
+      case 'mdx':
+        return <BookOpen className={`${sizeClass} text-blue-300`} />;
+      case 'txt':
+        return <FileText className={`${sizeClass} text-gray-400`} />;
+      case 'rst':
+        return <FileText className={`${sizeClass} text-gray-500`} />;
+      case 'pdf':
+        return <FileText className={`${sizeClass} text-red-500`} />;
+      case 'doc':
+      case 'docx':
+        return <FileText className={`${sizeClass} text-blue-500`} />;
+      
+      // Images
       case 'png':
       case 'jpg':
       case 'jpeg':
       case 'gif':
-      case 'svg':
+      case 'bmp':
       case 'webp':
-        return <ImageIcon className={`${sizeClass} text-ps2-green`} />;
+        return <ImageIcon className={`${sizeClass} text-green-400`} />;
+      case 'svg':
+        return <ImageIcon className={`${sizeClass} text-orange-400`} />;
+      case 'ico':
+        return <ImageIcon className={`${sizeClass} text-yellow-400`} />;
+      case 'psd':
+        return <ImageIcon className={`${sizeClass} text-blue-400`} />;
+      case 'ai':
+        return <ImageIcon className={`${sizeClass} text-orange-500`} />;
+      
+      // Fonts
+      case 'ttf':
+      case 'otf':
+      case 'woff':
+      case 'woff2':
+      case 'eot':
+        return <Type className={`${sizeClass} text-red-400`} />;
+      
+      // Audio
+      case 'mp3':
       case 'wav':
       case 'ogg':
-      case 'mp3':
-        return <Music className={`${sizeClass} text-ps2-orange`} />;
-      case 'ini':
-      case 'cnf':
-      case 'cfg':
-        return <Settings className={`${sizeClass} text-ps2-cyan`} />;
+      case 'flac':
+      case 'aac':
+      case 'm4a':
+        return <Music className={`${sizeClass} text-pink-400`} />;
+      
+      // Video
+      case 'mp4':
+      case 'webm':
+      case 'avi':
+      case 'mov':
+      case 'mkv':
+        return <FileVideo className={`${sizeClass} text-purple-400`} />;
+      
+      // Archives
+      case 'zip':
+      case 'rar':
+      case '7z':
+      case 'tar':
+      case 'gz':
+      case 'bz2':
+      case 'xz':
+        return <FileArchive className={`${sizeClass} text-yellow-500`} />;
+      
+      // Database
+      case 'sql':
+        return <Database className={`${sizeClass} text-blue-400`} />;
+      case 'sqlite':
+      case 'db':
+        return <Database className={`${sizeClass} text-green-400`} />;
+      case 'csv':
+        return <FileSpreadsheet className={`${sizeClass} text-green-500`} />;
+      case 'xlsx':
+      case 'xls':
+        return <FileSpreadsheet className={`${sizeClass} text-green-600`} />;
+      
+      // Shaders (PS2 & Graphics)
+      case 'glsl':
+      case 'vert':
+      case 'frag':
+      case 'hlsl':
+      case 'shader':
+        return <Layers className={`${sizeClass} text-purple-500`} />;
+      case 'vcl':  // PS2 VU microcode
+        return <Cpu className={`${sizeClass} text-purple-400`} />;
+      
+      // PS2 Specific
       case 'elf':
+        return <Cpu className={`${sizeClass} text-green-500`} />;
       case 'irx':
-        return <Package className={`${sizeClass} text-ps2-purple`} />;
+        return <Puzzle className={`${sizeClass} text-blue-400`} />;
+      case 'cnf':
+        return <Settings className={`${sizeClass} text-cyan-400`} />;
+      case 'bup':
+      case 'psu':
+        return <Database className={`${sizeClass} text-orange-400`} />;
+      case 'iso':
+      case 'bin':
+      case 'cue':
+        return <Binary className={`${sizeClass} text-gray-500`} />;
+      
+      // Object/Binary files
+      case 'o':
+      case 'obj':
+      case 'a':
+      case 'so':
+      case 'dll':
+      case 'dylib':
+        return <Binary className={`${sizeClass} text-gray-400`} />;
+      case 'exe':
+        return <Zap className={`${sizeClass} text-blue-400`} />;
+      
+      // Lock files
+      case 'lock':
+        return <Lock className={`${sizeClass} text-yellow-500`} />;
+      
+      // Log files
+      case 'log':
+        return <Scroll className={`${sizeClass} text-gray-500`} />;
+      
+      // GraphQL
+      case 'graphql':
+      case 'gql':
+        return <Link className={`${sizeClass} text-pink-500`} />;
+      
+      // Prisma
+      case 'prisma':
+        return <Database className={`${sizeClass} text-indigo-400`} />;
+      
+      // Map files
+      case 'map':
+        return <FileQuestion className={`${sizeClass} text-gray-400`} />;
+      
       default:
         return <File className={`${sizeClass} text-muted-foreground`} />;
     }
