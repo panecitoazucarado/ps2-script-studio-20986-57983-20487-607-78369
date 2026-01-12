@@ -166,7 +166,16 @@ export function IDELayoutContent() {
 
     setIsCloning(true);
     setShowTerminal(true);
-    setCloneProgress(['Iniciando clonación...']);
+    
+    // Professional git clone style output
+    const startTime = Date.now();
+    setCloneProgress([
+      '',
+      '\x1b[1;36m┌─────────────────────────────────────────────────────────────────┐\x1b[0m',
+      '\x1b[1;36m│\x1b[0m  \x1b[1;37mATHENA IDE - Git Clone\x1b[0m                                         \x1b[1;36m│\x1b[0m',
+      '\x1b[1;36m└─────────────────────────────────────────────────────────────────┘\x1b[0m',
+      ''
+    ]);
 
     try {
       // Parse GitHub URL to get owner and repo
@@ -178,8 +187,12 @@ export function IDELayoutContent() {
       const [, owner, repoName] = urlMatch;
       const repo = repoName.replace(/\.git$/, ''); // Remove .git suffix if present
 
-      setCloneProgress(prev => [...prev, `Conectando a GitHub: ${owner}/${repo}`]);
-      setCloneProgress(prev => [...prev, 'Descargando repositorio via proxy...']);
+      setCloneProgress(prev => [...prev, 
+        `\x1b[1;33m$\x1b[0m git clone https://github.com/${owner}/${repo}.git`,
+        '',
+        `Cloning into '\x1b[1;36m${repo}\x1b[0m'...`,
+        `remote: Enumerating objects... \x1b[2m(connecting)\x1b[0m`
+      ]);
 
       // Use edge function to bypass CORS
       const { supabase } = await import('@/integrations/supabase/client');
@@ -195,8 +208,18 @@ export function IDELayoutContent() {
         throw new Error(data.error || 'No se recibieron datos del repositorio');
       }
 
-      setCloneProgress(prev => [...prev, `Recibido: ${(data.size / 1024).toFixed(1)} KB`]);
-      setCloneProgress(prev => [...prev, 'Procesando archivo ZIP...']);
+      const sizeKB = (data.size / 1024).toFixed(2);
+      const sizeMB = (data.size / (1024 * 1024)).toFixed(2);
+      const sizeDisplay = data.size > 1024 * 1024 ? `${sizeMB} MiB` : `${sizeKB} KiB`;
+      
+      setCloneProgress(prev => [...prev, 
+        `remote: Counting objects: \x1b[1;32mdone\x1b[0m`,
+        `remote: Compressing objects: 100% \x1b[1;32mdone\x1b[0m`,
+        `Receiving objects: 100% | \x1b[1;33m${sizeDisplay}\x1b[0m`,
+        `Resolving deltas: 100% \x1b[1;32mdone\x1b[0m`,
+        ''
+      ]);
+      setCloneProgress(prev => [...prev, 'Unpacking objects: \x1b[2m(processing archive)\x1b[0m']);
 
       // Decode base64 to binary
       const binaryString = atob(data.zipData);
@@ -208,7 +231,8 @@ export function IDELayoutContent() {
       const zip = new JSZip();
       const contents = await zip.loadAsync(bytes);
 
-      setCloneProgress(prev => [...prev, `Encontrados ${Object.keys(contents.files).length} archivos`]);
+      const totalEntries = Object.keys(contents.files).length;
+      setCloneProgress(prev => [...prev, `Unpacking objects: 100% (${totalEntries}/${totalEntries}) \x1b[1;32mdone\x1b[0m`]);
 
       // Convert zip contents to FileNode tree (robust: creates missing intermediate folders)
       const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -222,6 +246,9 @@ export function IDELayoutContent() {
       };
 
       let fileCount = 0;
+      let folderCount = 0;
+      const fileTypes: Record<string, number> = {};
+      const allFiles: string[] = [];
 
       const getOrCreateFolder = (parent: FileNode, folderName: string) => {
         parent.children ||= [];
@@ -230,6 +257,7 @@ export function IDELayoutContent() {
         if (existing) return existing;
         const created: FileNode = { name: folderName, type: 'folder', path: folderPath, children: [] };
         parent.children.push(created);
+        folderCount++;
         return created;
       };
 
@@ -258,6 +286,11 @@ export function IDELayoutContent() {
         // Create file
         const fileName = parts[parts.length - 1];
         const filePath = `${currentFolder.path}/${fileName}`;
+
+        // Track file extension
+        const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() || 'other' : 'no-ext';
+        fileTypes[ext] = (fileTypes[ext] || 0) + 1;
+        allFiles.push(cleanPath);
 
         // Avoid duplicates
         currentFolder.children ||= [];
@@ -292,9 +325,80 @@ export function IDELayoutContent() {
 
       sortTree(repoRoot.children || []);
 
-      setCloneProgress(prev => [...prev, '✓ Estructura de carpetas construida']);
-      setCloneProgress(prev => [...prev, `✓ ${fileCount} archivos listos en el Explorador`]);
-      setCloneProgress(prev => [...prev, `✓ Clonación completada: ${repo}`]);
+      // Calculate elapsed time
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+
+      // Build file tree preview (show first few items)
+      const buildTreePreview = (node: FileNode, prefix = '', isLast = true, depth = 0): string[] => {
+        if (depth > 3) return []; // Limit depth
+        const lines: string[] = [];
+        const connector = isLast ? '└── ' : '├── ';
+        const icon = node.type === 'folder' ? '\x1b[1;34m📁\x1b[0m' : '\x1b[0;37m📄\x1b[0m';
+        const nameColor = node.type === 'folder' ? '\x1b[1;34m' : '\x1b[0;37m';
+        lines.push(`${prefix}${connector}${icon} ${nameColor}${node.name}\x1b[0m`);
+        
+        if (node.type === 'folder' && node.children) {
+          const newPrefix = prefix + (isLast ? '    ' : '│   ');
+          const visibleChildren = node.children.slice(0, 5);
+          const hasMore = node.children.length > 5;
+          
+          visibleChildren.forEach((child, idx) => {
+            const childIsLast = idx === visibleChildren.length - 1 && !hasMore;
+            lines.push(...buildTreePreview(child, newPrefix, childIsLast, depth + 1));
+          });
+          
+          if (hasMore) {
+            lines.push(`${newPrefix}└── \x1b[2m... and ${node.children.length - 5} more\x1b[0m`);
+          }
+        }
+        return lines;
+      };
+
+      // Get sorted file type stats
+      const sortedTypes = Object.entries(fileTypes)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8);
+
+      const typeStatsLines = sortedTypes.map(([ext, count]) => {
+        const bar = '█'.repeat(Math.min(Math.ceil(count / fileCount * 20), 20));
+        const pct = ((count / fileCount) * 100).toFixed(1);
+        return `  \x1b[0;36m.${ext.padEnd(12)}\x1b[0m ${String(count).padStart(4)} files \x1b[0;32m${bar}\x1b[0m ${pct}%`;
+      });
+
+      // Build tree preview from root
+      const treeLines = repoRoot.children ? 
+        repoRoot.children.slice(0, 8).flatMap((child, idx) => 
+          buildTreePreview(child, '', idx === Math.min(repoRoot.children!.length - 1, 7), 0)
+        ) : [];
+
+      if (repoRoot.children && repoRoot.children.length > 8) {
+        treeLines.push(`└── \x1b[2m... and ${repoRoot.children.length - 8} more items\x1b[0m`);
+      }
+
+      setCloneProgress(prev => [...prev, 
+        '',
+        '\x1b[1;32m✓\x1b[0m Clone completed successfully!',
+        '',
+        '\x1b[1;36m┌─ Repository Statistics ─────────────────────────────────────────┐\x1b[0m',
+        `\x1b[1;36m│\x1b[0m  Repository:    \x1b[1;37m${owner}/${repo}\x1b[0m`,
+        `\x1b[1;36m│\x1b[0m  Total Files:   \x1b[1;33m${fileCount}\x1b[0m`,
+        `\x1b[1;36m│\x1b[0m  Total Folders: \x1b[1;33m${folderCount}\x1b[0m`,
+        `\x1b[1;36m│\x1b[0m  Download Size: \x1b[1;33m${sizeDisplay}\x1b[0m`,
+        `\x1b[1;36m│\x1b[0m  Clone Time:    \x1b[1;33m${elapsed}s\x1b[0m`,
+        '\x1b[1;36m└─────────────────────────────────────────────────────────────────┘\x1b[0m',
+        '',
+        '\x1b[1;35m┌─ File Types Breakdown ───────────────────────────────────────────┐\x1b[0m',
+        ...typeStatsLines,
+        '\x1b[1;35m└─────────────────────────────────────────────────────────────────┘\x1b[0m',
+        '',
+        `\x1b[1;34m┌─ Project Structure (${repo}/) ────────────────────────────────────┐\x1b[0m`,
+        ...treeLines,
+        '\x1b[1;34m└─────────────────────────────────────────────────────────────────┘\x1b[0m',
+        '',
+        `\x1b[1;32m$\x1b[0m cd ${repo}`,
+        `\x1b[2mProject loaded into File Explorer. Ready to code! 🚀\x1b[0m`,
+        ''
+      ]);
 
       setProjectFiles([repoRoot]);
       setFileSystemVersion(prev => prev + 1);
