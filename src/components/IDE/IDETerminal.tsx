@@ -337,6 +337,70 @@ export function IDETerminal({ onClose, onCloneRepository, isCloning, cloneProgre
     }
   };
 
+  const parseAnsiToSpans = (text: string): React.ReactNode[] => {
+    // Parse ANSI escape codes and convert to styled spans
+    const ansiRegex = /\x1b\[([0-9;]+)m/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let currentStyles: React.CSSProperties = {};
+    let match;
+    let keyCounter = 0;
+
+    const resetStyles = (): React.CSSProperties => ({});
+    
+    const getStyleFromCode = (code: number): React.CSSProperties => {
+      switch (code) {
+        case 0: return resetStyles(); // Reset
+        case 1: return { fontWeight: 'bold' }; // Bold
+        case 2: return { opacity: 0.6 }; // Dim
+        case 30: return { color: '#1e1e1e' }; // Black
+        case 31: return { color: '#f87171' }; // Red
+        case 32: return { color: '#4ade80' }; // Green
+        case 33: return { color: '#facc15' }; // Yellow
+        case 34: return { color: '#60a5fa' }; // Blue
+        case 35: return { color: '#c084fc' }; // Magenta
+        case 36: return { color: '#22d3ee' }; // Cyan
+        case 37: return { color: '#e2e8f0' }; // White
+        default: return {};
+      }
+    };
+
+    while ((match = ansiRegex.exec(text)) !== null) {
+      // Add text before this match with current styles
+      if (match.index > lastIndex) {
+        const textSegment = text.slice(lastIndex, match.index);
+        parts.push(
+          <span key={keyCounter++} style={currentStyles}>
+            {textSegment}
+          </span>
+        );
+      }
+
+      // Parse the style codes
+      const codes = match[1].split(';').map(Number);
+      for (const code of codes) {
+        if (code === 0) {
+          currentStyles = resetStyles();
+        } else {
+          currentStyles = { ...currentStyles, ...getStyleFromCode(code) };
+        }
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push(
+        <span key={keyCounter++} style={currentStyles}>
+          {text.slice(lastIndex)}
+        </span>
+      );
+    }
+
+    return parts.length > 0 ? parts : [text];
+  };
+
   const getLineColor = (type: TerminalLine['type']) => {
     switch (type) {
       case 'error': return 'text-red-400';
@@ -452,7 +516,7 @@ export function IDETerminal({ onClose, onCloneRepository, isCloning, cloneProgre
       >
         {activeTab.lines.map((line) => (
           <div key={line.id} className={`${getLineColor(line.type)} leading-5 whitespace-pre-wrap break-all`}>
-            {line.content}
+            {line.content.includes('\x1b[') ? parseAnsiToSpans(line.content) : line.content}
           </div>
         ))}
         
