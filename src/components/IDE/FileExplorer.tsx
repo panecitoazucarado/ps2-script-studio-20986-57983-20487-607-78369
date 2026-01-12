@@ -2097,8 +2097,13 @@ export function FileExplorer({
       case 'hlsl':
       case 'shader':
         return <Layers className={`${sizeClass} text-purple-500`} />;
-      case 'vcl':  // PS2 VU microcode
-        return <Cpu className={`${sizeClass} text-purple-400`} />;
+      case 'vcl':  // PS2 VU microcode (VCL preprocessor)
+      case 'vsm':  // PS2 VU Shader Microcode (Vector Unit assembly)
+      case 'dsm':  // PS2 VIF/DMA microcode
+        return <Cpu className={`${sizeClass} text-fuchsia-500`} />;
+      case 'vu':   // Raw VU assembly
+      case 'vum':  // VU microprogram
+        return <Cpu className={`${sizeClass} text-violet-400`} />;
       
       // PS2 Specific
       case 'elf':
