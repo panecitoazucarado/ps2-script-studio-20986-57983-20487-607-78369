@@ -1060,6 +1060,16 @@ export function IDELayoutContent() {
             onCloneRepository={handleCloneRepository}
             isCloning={isCloning}
             cloneProgress={cloneProgress}
+            projectFiles={projectFiles}
+            onDeleteFiles={(paths) => {
+              // Remove files from projectFiles state
+              setProjectFiles(prev => prev.filter(f => !paths.some(p => p === `/${f.name}` || p === f.name)));
+              setFileSystemVersion(prev => prev + 1);
+            }}
+            onClearClonedData={() => {
+              setProjectFiles([]);
+              setFileSystemVersion(prev => prev + 1);
+            }}
           />
         </div>
       )}
