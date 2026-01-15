@@ -12,7 +12,12 @@ import {
   HardDrive,
   FolderOpen,
   AlertTriangle,
-  Globe
+  Globe,
+  File,
+  Folder,
+  Search,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -30,6 +35,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { FileNode } from '@/types/athena';
+
+// ==================== AUTOCOMPLETE SYSTEM ====================
+interface AutocompleteSuggestion {
+  value: string;
+  type: 'file' | 'folder' | 'command';
+  path?: string;
+  description?: string;
+}
 
 // ==================== LOCALIZATION SYSTEM ====================
 type Language = 'en' | 'es' | 'pt' | 'fr' | 'de' | 'ja' | 'zh' | 'ko' | 'ru' | 'it';
@@ -2061,17 +2074,264 @@ export function IDETerminal({
     setRepoToDelete(null);
   }, [repoToDelete, clonedRepos, saveClonedRepos, onDeleteFiles, addLine, t]);
 
-  // Available commands for autocomplete
-  const availableCommands = [
-    'help', 'clear', 'cls', 'ls', 'cd', 'pwd', 'cat', 'head', 'tail', 'tree',
-    'find', 'wc', 'grep', 'git', 'npm', 'yarn', 'make', 'repos', 'rm', 'du',
-    'echo', 'date', 'whoami', 'uname', 'history', 'ps2-build', 'ps2-run', 'exit',
-    'lang', 'language', 'alias', 'unalias', 'export', 'env', 'printenv', 'set',
-    'unset', 'touch', 'mkdir', 'chmod', 'cp', 'mv', 'diff', 'sort', 'uniq',
-    'which', 'type', 'man', 'info', 'time', 'uptime', 'neofetch', 'htop', 'top',
-    'curl', 'wget', 'ping', 'ssh', 'scp', 'tar', 'gzip', 'gunzip', 'zip', 'unzip',
-    'awk', 'sed', 'xargs', 'tee', 'hexdump', 'xxd', 'stat', 'file', 'strings'
-  ];
+  // Available commands for autocomplete with descriptions
+  const commandsWithDescriptions: Record<string, string> = {
+    'help': 'Display available commands',
+    'clear': 'Clear terminal screen',
+    'cls': 'Clear terminal screen (Windows)',
+    'ls': 'List directory contents',
+    'dir': 'List directory contents (Windows)',
+    'cd': 'Change directory',
+    'pwd': 'Print working directory',
+    'cat': 'Display file contents',
+    'head': 'Show first lines of file',
+    'tail': 'Show last lines of file',
+    'tree': 'Display directory tree',
+    'find': 'Search for files',
+    'wc': 'Count lines/words/chars',
+    'grep': 'Search text in files',
+    'git': 'Git version control',
+    'npm': 'Node package manager',
+    'yarn': 'Yarn package manager',
+    'make': 'Build with Makefile',
+    'repos': 'Manage cloned repositories',
+    'rm': 'Remove files/directories',
+    'delete': 'Delete file with search',
+    'del': 'Delete file (Windows)',
+    'du': 'Show disk usage',
+    'echo': 'Print text',
+    'date': 'Show current date/time',
+    'whoami': 'Display current user',
+    'uname': 'System information',
+    'history': 'Show command history',
+    'ps2-build': 'Build PS2 project',
+    'ps2-run': 'Run in PS2 emulator',
+    'exit': 'Close terminal',
+    'lang': 'Change terminal language',
+    'language': 'Change terminal language',
+    'alias': 'Define command alias',
+    'unalias': 'Remove alias',
+    'export': 'Set environment variable',
+    'env': 'Show environment variables',
+    'printenv': 'Print environment variables',
+    'set': 'Set shell options',
+    'unset': 'Unset environment variable',
+    'touch': 'Create empty file',
+    'mkdir': 'Create directory',
+    'rmdir': 'Remove empty directory',
+    'chmod': 'Change file permissions',
+    'cp': 'Copy files',
+    'mv': 'Move/rename files',
+    'diff': 'Compare files',
+    'sort': 'Sort file contents',
+    'uniq': 'Filter duplicates',
+    'which': 'Locate command',
+    'type': 'Display command type',
+    'man': 'Display manual page',
+    'info': 'Display info page',
+    'time': 'Time a command',
+    'uptime': 'System uptime',
+    'neofetch': 'System info display',
+    'htop': 'Process viewer',
+    'top': 'Process viewer',
+    'curl': 'Transfer data from URL',
+    'wget': 'Download files',
+    'ping': 'Network connectivity test',
+    'ssh': 'Secure shell',
+    'scp': 'Secure copy',
+    'tar': 'Archive files',
+    'gzip': 'Compress files',
+    'gunzip': 'Decompress files',
+    'zip': 'Create zip archive',
+    'unzip': 'Extract zip archive',
+    'awk': 'Pattern processing',
+    'sed': 'Stream editor',
+    'xargs': 'Build arguments',
+    'tee': 'Read from stdin, write to stdout and files',
+    'hexdump': 'Display file in hexadecimal',
+    'xxd': 'Make a hexdump',
+    'stat': 'Display file status',
+    'file': 'Determine file type',
+    'strings': 'Print strings in binary',
+    'open': 'Open file in editor',
+    'code': 'Open file in VS Code',
+    'less': 'View file contents',
+    'more': 'View file contents',
+    'nano': 'Text editor',
+    'vim': 'Vi improved editor',
+    'vi': 'Vi editor',
+  };
+
+  const availableCommands = Object.keys(commandsWithDescriptions);
+
+  // Autocomplete state
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<AutocompleteSuggestion[]>([]);
+  const [autocompleteIndex, setAutocompleteIndex] = useState(0);
+  const [fileToDelete, setFileToDelete] = useState<{ path: string; name: string } | null>(null);
+  const [showFileDeleteDialog, setShowFileDeleteDialog] = useState(false);
+
+  // Get all files recursively for search
+  const getAllFiles = useCallback((): AutocompleteSuggestion[] => {
+    const files: AutocompleteSuggestion[] = [];
+    
+    const traverse = (node: FileNode, basePath: string) => {
+      const fullPath = basePath ? `${basePath}/${node.name}` : node.name;
+      files.push({
+        value: node.name,
+        type: node.type === 'folder' ? 'folder' : 'file',
+        path: '/' + fullPath,
+      });
+      if (node.children) {
+        node.children.forEach(child => traverse(child, fullPath));
+      }
+    };
+    
+    projectFiles.forEach(node => traverse(node, ''));
+    return files;
+  }, [projectFiles]);
+
+  // Search files by pattern
+  const searchFiles = useCallback((pattern: string): AutocompleteSuggestion[] => {
+    if (!pattern) return [];
+    const allFiles = getAllFiles();
+    const lowerPattern = pattern.toLowerCase();
+    
+    return allFiles
+      .filter(f => f.value.toLowerCase().includes(lowerPattern) || f.path?.toLowerCase().includes(lowerPattern))
+      .sort((a, b) => {
+        // Prioritize exact matches
+        const aExact = a.value.toLowerCase() === lowerPattern;
+        const bExact = b.value.toLowerCase() === lowerPattern;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        
+        // Then prioritize starts with
+        const aStarts = a.value.toLowerCase().startsWith(lowerPattern);
+        const bStarts = b.value.toLowerCase().startsWith(lowerPattern);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        
+        return a.value.localeCompare(b.value);
+      })
+      .slice(0, 15);
+  }, [getAllFiles]);
+
+  // Generate autocomplete suggestions based on input
+  const generateSuggestions = useCallback((input: string): AutocompleteSuggestion[] => {
+    const parts = input.trim().split(/\s+/);
+    const cmd = parts[0]?.toLowerCase() || '';
+    const lastPart = parts[parts.length - 1] || '';
+    
+    // If typing first word, suggest commands
+    if (parts.length === 1) {
+      return availableCommands
+        .filter(c => c.startsWith(cmd))
+        .map(c => ({
+          value: c,
+          type: 'command' as const,
+          description: commandsWithDescriptions[c],
+        }))
+        .slice(0, 10);
+    }
+    
+    // For delete/rm commands, search all files
+    if (['delete', 'del', 'rm'].includes(cmd)) {
+      return searchFiles(lastPart);
+    }
+    
+    // For cd command, only show folders
+    if (cmd === 'cd') {
+      const targetDir = activeTab.currentDirectory === '~' ? '/' : activeTab.currentDirectory.replace('~', '');
+      const entries = listDirectory(targetDir);
+      if (entries) {
+        return entries
+          .filter(e => e.type === 'folder' && e.name.toLowerCase().startsWith(lastPart.toLowerCase()))
+          .map(e => ({
+            value: e.name,
+            type: 'folder' as const,
+            path: targetDir === '/' ? `/${e.name}` : `${targetDir}/${e.name}`,
+          }))
+          .slice(0, 10);
+      }
+    }
+    
+    // For file-related commands, show files in current directory
+    if (['cat', 'head', 'tail', 'less', 'more', 'grep', 'wc', 'stat', 'file', 'open', 'code', 'vim', 'vi', 'nano'].includes(cmd)) {
+      const targetDir = activeTab.currentDirectory === '~' ? '/' : activeTab.currentDirectory.replace('~', '');
+      const entries = listDirectory(targetDir);
+      if (entries) {
+        return entries
+          .filter(e => e.name.toLowerCase().startsWith(lastPart.toLowerCase()))
+          .map(e => ({
+            value: e.name,
+            type: e.type === 'folder' ? 'folder' as const : 'file' as const,
+            path: targetDir === '/' ? `/${e.name}` : `${targetDir}/${e.name}`,
+          }))
+          .slice(0, 10);
+      }
+    }
+    
+    // Default: show files in current directory
+    const targetDir = activeTab.currentDirectory === '~' ? '/' : activeTab.currentDirectory.replace('~', '');
+    const entries = listDirectory(targetDir);
+    if (entries) {
+      return entries
+        .filter(e => e.name.toLowerCase().startsWith(lastPart.toLowerCase()))
+        .map(e => ({
+          value: e.name,
+          type: e.type === 'folder' ? 'folder' as const : 'file' as const,
+          path: targetDir === '/' ? `/${e.name}` : `${targetDir}/${e.name}`,
+        }))
+        .slice(0, 10);
+    }
+    
+    return [];
+  }, [activeTab.currentDirectory, listDirectory, searchFiles, availableCommands, commandsWithDescriptions]);
+
+  // Update suggestions when input changes
+  useEffect(() => {
+    if (inputValue.length > 0) {
+      const suggestions = generateSuggestions(inputValue);
+      setAutocompleteSuggestions(suggestions);
+      setShowAutocomplete(suggestions.length > 0);
+      setAutocompleteIndex(0);
+    } else {
+      setShowAutocomplete(false);
+      setAutocompleteSuggestions([]);
+    }
+  }, [inputValue, generateSuggestions]);
+
+  // Apply autocomplete suggestion
+  const applySuggestion = useCallback((suggestion: AutocompleteSuggestion) => {
+    const parts = inputValue.trim().split(/\s+/);
+    
+    if (parts.length === 1) {
+      // Completing command
+      setInputValue(suggestion.value + ' ');
+    } else {
+      // Completing argument
+      parts[parts.length - 1] = suggestion.value + (suggestion.type === 'folder' ? '/' : '');
+      setInputValue(parts.join(' '));
+    }
+    
+    setShowAutocomplete(false);
+    inputRef.current?.focus();
+  }, [inputValue]);
+
+  // Handle file deletion
+  const handleDeleteFile = useCallback(() => {
+    if (!fileToDelete) return;
+    
+    // Find and remove the file from project files
+    if (onDeleteFiles) {
+      onDeleteFiles([fileToDelete.path]);
+    }
+    
+    addLine('success', `\x1b[1;32m✓\x1b[0m File deleted: ${fileToDelete.name}`);
+    setShowFileDeleteDialog(false);
+    setFileToDelete(null);
+  }, [fileToDelete, onDeleteFiles, addLine]);
 
   // Execute command
   const executeCommand = useCallback((command: string) => {
@@ -2788,16 +3048,229 @@ export function IDETerminal({
             setRepoToDelete(repo);
             setShowDeleteDialog(true);
           } else {
-            addLine('error', `rm: '${args[1]}': ${t.delete.noSuchRepo}`);
-            addLine('info', t.delete.useReposHint.replace('"repos"', '\x1b[1;33m"repos"\x1b[0m'));
+            // Try to delete a specific file
+            const filePath = resolvePath(args[1], activeTab.currentDirectory);
+            const allFiles = getAllFiles();
+            const file = allFiles.find(f => f.path === filePath || f.path === `/${args[1]}` || f.value === args[1]);
+            
+            if (file) {
+              setFileToDelete({ path: file.path || `/${args[1]}`, name: file.value });
+              setShowFileDeleteDialog(true);
+            } else {
+              addLine('error', `rm: '${args[1]}': ${t.delete.noSuchRepo}`);
+              addLine('info', t.delete.useReposHint.replace('"repos"', '\x1b[1;33m"repos"\x1b[0m'));
+            }
           }
         } else if (args[0] && !args[0].startsWith('-')) {
-          addLine('error', `rm: '${args[0]}': Use rm -rf for directories`);
+          // Single file deletion
+          const filePath = resolvePath(args[0], activeTab.currentDirectory);
+          const allFiles = getAllFiles();
+          const file = allFiles.find(f => f.path === filePath || f.path === `/${args[0]}` || f.value === args[0]);
+          
+          if (file) {
+            setFileToDelete({ path: file.path || `/${args[0]}`, name: file.value });
+            setShowFileDeleteDialog(true);
+          } else {
+            addLine('error', `rm: '${args[0]}': ${t.commands.noSuchFile}`);
+          }
         } else {
           addLine('error', `rm: ${t.commands.missingOperand}`);
-          addLine('info', t.delete.usageHint);
+          addLine('info', 'Usage: rm <file> or rm -rf <directory>');
         }
         break;
+
+      case 'delete':
+      case 'del': {
+        if (!args[0]) {
+          addLines([
+            { type: 'info', content: '' },
+            { type: 'system', content: '\x1b[1;31m📁 Delete File/Directory\x1b[0m' },
+            { type: 'info', content: '' },
+            { type: 'output', content: '  Usage: delete <filename>' },
+            { type: 'output', content: '         del <filename>' },
+            { type: 'info', content: '' },
+            { type: 'output', content: '  \x1b[2mTip: Start typing and use Tab for autocomplete\x1b[0m' },
+            { type: 'output', content: '  \x1b[2mThe autocomplete will search all files in the project\x1b[0m' },
+            { type: 'info', content: '' },
+          ]);
+          break;
+        }
+        
+        const searchTerm = args.join(' ');
+        const allFiles = getAllFiles();
+        const matchingFiles = allFiles.filter(f => 
+          f.value.toLowerCase().includes(searchTerm.toLowerCase()) || 
+          f.path?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        
+        if (matchingFiles.length === 0) {
+          addLine('error', `delete: '${searchTerm}': ${t.commands.noSuchFile}`);
+          break;
+        }
+        
+        if (matchingFiles.length === 1) {
+          const file = matchingFiles[0];
+          setFileToDelete({ path: file.path || `/${file.value}`, name: file.value });
+          setShowFileDeleteDialog(true);
+        } else {
+          // Show matching files for user to choose
+          addLines([
+            { type: 'info', content: '' },
+            { type: 'output', content: `\x1b[1;33mMultiple files match '${searchTerm}':\x1b[0m` },
+            { type: 'info', content: '' },
+          ]);
+          
+          matchingFiles.slice(0, 10).forEach((file, idx) => {
+            const icon = file.type === 'folder' ? '📁' : '📄';
+            const color = file.type === 'folder' ? '\x1b[1;34m' : '\x1b[0m';
+            addLine('output', `  ${idx + 1}. ${icon} ${color}${file.path}\x1b[0m`);
+          });
+          
+          if (matchingFiles.length > 10) {
+            addLine('info', `  \x1b[2m... and ${matchingFiles.length - 10} more\x1b[0m`);
+          }
+          
+          addLines([
+            { type: 'info', content: '' },
+            { type: 'output', content: '\x1b[2mBe more specific or use the full path\x1b[0m' },
+            { type: 'info', content: '' },
+          ]);
+        }
+        break;
+      }
+
+      case 'dir': {
+        // Windows-style directory listing
+        const showAll = args.includes('/a');
+        const targetPath = args.find(a => !a.startsWith('/')) || activeTab.currentDirectory;
+        const resolvedPath = resolvePath(targetPath, activeTab.currentDirectory);
+        
+        const entries = listDirectory(resolvedPath);
+        
+        if (!entries) {
+          addLine('error', `dir: ${t.commands.noSuchDirectory}: '${targetPath}'`);
+          break;
+        }
+
+        addLines([
+          { type: 'info', content: '' },
+          { type: 'output', content: ` Volume in drive C has no label.` },
+          { type: 'output', content: ` Volume Serial Number is ATHE-NA1D` },
+          { type: 'info', content: '' },
+          { type: 'output', content: ` Directory of ${resolvedPath === '/' ? 'C:\\' : 'C:' + resolvedPath.replace(/\//g, '\\')}` },
+          { type: 'info', content: '' },
+        ]);
+
+        if (entries.length === 0) {
+          addLine('output', '               0 File(s)              0 bytes');
+          addLine('output', '               0 Dir(s)   free bytes');
+          break;
+        }
+
+        const filteredEntries = showAll ? entries : entries.filter(e => !e.name.startsWith('.'));
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        
+        let fileCount = 0;
+        let dirCount = 0;
+        
+        // Add . and .. entries
+        addLine('output', `${dateStr}  ${timeStr}    <DIR>          \x1b[1;34m.\x1b[0m`);
+        addLine('output', `${dateStr}  ${timeStr}    <DIR>          \x1b[1;34m..\x1b[0m`);
+        dirCount += 2;
+        
+        filteredEntries.forEach(entry => {
+          if (entry.type === 'folder') {
+            addLine('output', `${dateStr}  ${timeStr}    <DIR>          \x1b[1;34m${entry.name}\x1b[0m`);
+            dirCount++;
+          } else {
+            const size = Math.floor(Math.random() * 50000) + 100;
+            addLine('output', `${dateStr}  ${timeStr}    ${String(size).padStart(14)} ${entry.name}`);
+            fileCount++;
+          }
+        });
+        
+        addLines([
+          { type: 'output', content: `              ${fileCount} File(s)          ${Math.floor(Math.random() * 100000)} bytes` },
+          { type: 'output', content: `              ${dirCount} Dir(s)   ${Math.floor(Math.random() * 1000000000)} bytes free` },
+          { type: 'info', content: '' },
+        ]);
+        break;
+      }
+
+      case 'rmdir': {
+        if (!args[0]) {
+          addLine('error', 'rmdir: missing operand');
+          break;
+        }
+        const dirPath = resolvePath(args[0], activeTab.currentDirectory);
+        const entries = listDirectory(dirPath);
+        
+        if (entries === null) {
+          addLine('error', `rmdir: '${args[0]}': ${t.commands.noSuchDirectory}`);
+        } else if (entries.length > 0 && !args.includes('-r')) {
+          addLine('error', `rmdir: '${args[0]}': Directory not empty (use -r to force)`);
+        } else {
+          setFileToDelete({ path: dirPath, name: args[0] });
+          setShowFileDeleteDialog(true);
+        }
+        break;
+      }
+
+      case 'cp': {
+        if (args.length < 2) {
+          addLine('error', 'cp: missing file operand');
+          addLine('info', 'Usage: cp <source> <destination>');
+        } else {
+          addLine('info', `\x1b[2mcp: '${args[0]}' -> '${args[1]}' (simulated)\x1b[0m`);
+        }
+        break;
+      }
+
+      case 'mv': {
+        if (args.length < 2) {
+          addLine('error', 'mv: missing file operand');
+          addLine('info', 'Usage: mv <source> <destination>');
+        } else {
+          addLine('info', `\x1b[2mmv: '${args[0]}' -> '${args[1]}' (simulated)\x1b[0m`);
+        }
+        break;
+      }
+
+      case 'open':
+      case 'code': {
+        if (!args[0]) {
+          addLine('error', `${cmd}: missing file operand`);
+        } else {
+          const filePath = resolvePath(args[0], activeTab.currentDirectory);
+          addLine('info', `\x1b[2mOpening ${args[0]} in editor...\x1b[0m`);
+          // Could trigger file opening in the IDE
+        }
+        break;
+      }
+
+      case 'less':
+      case 'more': {
+        if (!args[0]) {
+          addLine('error', `${cmd}: ${t.commands.missingOperand}`);
+          break;
+        }
+        const filePath = resolvePath(args[0], activeTab.currentDirectory);
+        const content = readFile(filePath);
+        
+        if (content !== null) {
+          const lines = content.split('\n');
+          const pageSize = 20;
+          lines.slice(0, pageSize).forEach(line => addLine('output', line));
+          if (lines.length > pageSize) {
+            addLine('info', `\x1b[7m-- More -- (${lines.length - pageSize} lines remaining)\x1b[0m`);
+          }
+        } else {
+          addLine('error', `${cmd}: ${args[0]}: ${t.commands.noSuchFile}`);
+        }
+        break;
+      }
 
       case 'git':
         if (args[0] === 'clone' && args[1]) {
@@ -3002,17 +3475,45 @@ export function IDETerminal({
       saveClonedRepos, onClearClonedData, projectFiles, t, language, aliases, envVars, availableCommands]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle autocomplete navigation
+    if (showAutocomplete && autocompleteSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setAutocompleteIndex(prev => 
+          prev < autocompleteSuggestions.length - 1 ? prev + 1 : 0
+        );
+        return;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setAutocompleteIndex(prev => 
+          prev > 0 ? prev - 1 : autocompleteSuggestions.length - 1
+        );
+        return;
+      } else if (e.key === 'Tab' || (e.key === 'Enter' && autocompleteIndex >= 0)) {
+        e.preventDefault();
+        if (autocompleteSuggestions[autocompleteIndex]) {
+          applySuggestion(autocompleteSuggestions[autocompleteIndex]);
+        }
+        return;
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowAutocomplete(false);
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !activeTab.isRunning) {
+      setShowAutocomplete(false);
       executeCommand(inputValue);
       setInputValue('');
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp' && !showAutocomplete) {
       e.preventDefault();
       if (commandHistory.length > 0) {
         const newIndex = historyIndex < commandHistory.length - 1 ? historyIndex + 1 : historyIndex;
         setHistoryIndex(newIndex);
         setInputValue(commandHistory[commandHistory.length - 1 - newIndex] || '');
       }
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowDown' && !showAutocomplete) {
       e.preventDefault();
       if (historyIndex > 0) {
         const newIndex = historyIndex - 1;
@@ -3022,27 +3523,42 @@ export function IDETerminal({
         setHistoryIndex(-1);
         setInputValue('');
       }
-    } else if (e.key === 'Tab') {
+    } else if (e.key === 'Tab' && !showAutocomplete) {
       e.preventDefault();
       const parts = inputValue.split(' ');
       const lastPart = parts[parts.length - 1];
       
       if (parts.length === 1) {
         const match = availableCommands.find(c => c.startsWith(lastPart));
-        if (match) setInputValue(match);
+        if (match) setInputValue(match + ' ');
       } else {
-        const targetDir = activeTab.currentDirectory === '~' ? '/' : activeTab.currentDirectory.replace('~', '');
-        const entries = listDirectory(targetDir);
-        if (entries) {
-          const match = entries.find(e => e.name.startsWith(lastPart));
-          if (match) {
-            parts[parts.length - 1] = match.name + (match.type === 'folder' ? '/' : '');
+        // For delete/rm, search all files
+        const cmd = parts[0].toLowerCase();
+        if (['delete', 'del', 'rm'].includes(cmd)) {
+          const matches = searchFiles(lastPart);
+          if (matches.length === 1) {
+            parts[parts.length - 1] = matches[0].value;
             setInputValue(parts.join(' '));
+          } else if (matches.length > 1) {
+            setAutocompleteSuggestions(matches);
+            setShowAutocomplete(true);
+            setAutocompleteIndex(0);
+          }
+        } else {
+          const targetDir = activeTab.currentDirectory === '~' ? '/' : activeTab.currentDirectory.replace('~', '');
+          const entries = listDirectory(targetDir);
+          if (entries) {
+            const match = entries.find(e => e.name.startsWith(lastPart));
+            if (match) {
+              parts[parts.length - 1] = match.name + (match.type === 'folder' ? '/' : '');
+              setInputValue(parts.join(' '));
+            }
           }
         }
       }
     } else if (e.key === 'c' && e.ctrlKey) {
       e.preventDefault();
+      setShowAutocomplete(false);
       if (activeTab.isRunning) {
         setTabs(prev => prev.map((tab, idx) => 
           idx === activeTabIndex ? { ...tab, isRunning: false } : tab
@@ -3056,6 +3572,8 @@ export function IDETerminal({
       setTabs(prev => prev.map((tab, idx) => 
         idx === activeTabIndex ? { ...tab, lines: [] } : tab
       ));
+    } else if (e.key === 'Escape') {
+      setShowAutocomplete(false);
     }
   };
 
@@ -3322,7 +3840,7 @@ export function IDETerminal({
         {/* Terminal Content */}
         <div 
           ref={scrollRef}
-          className="flex-1 overflow-auto p-2 font-mono text-sm"
+          className="flex-1 overflow-auto p-2 font-mono text-sm relative"
           style={{ fontFamily: 'Menlo, Monaco, "Courier New", monospace' }}
         >
           {activeTab.lines.map((line) => (
@@ -3331,27 +3849,86 @@ export function IDETerminal({
             </div>
           ))}
           
-          {/* Input Line */}
-          <div className="flex items-center text-foreground/90 leading-5">
-            <span className="text-green-400">{activeTab.currentDirectory}</span>
-            <span className="text-foreground/70 mx-1">$</span>
-            {activeTab.isRunning ? (
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                {t.status.running}
-                <span className="text-xs">({t.status.cancelHint})</span>
-              </span>
-            ) : (
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="flex-1 bg-transparent outline-none border-none text-foreground/90 caret-white"
-                autoFocus
-                spellCheck={false}
-              />
+          {/* Input Line with Autocomplete */}
+          <div className="relative">
+            <div className="flex items-center text-foreground/90 leading-5">
+              <span className="text-green-400">{activeTab.currentDirectory}</span>
+              <span className="text-foreground/70 mx-1">$</span>
+              {activeTab.isRunning ? (
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                  {t.status.running}
+                  <span className="text-xs">({t.status.cancelHint})</span>
+                </span>
+              ) : (
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
+                  className="flex-1 bg-transparent outline-none border-none text-foreground/90 caret-white"
+                  autoFocus
+                  spellCheck={false}
+                />
+              )}
+            </div>
+
+            {/* Autocomplete Dropdown */}
+            {showAutocomplete && autocompleteSuggestions.length > 0 && !activeTab.isRunning && (
+              <div className="absolute left-0 bottom-full mb-1 w-full max-w-md z-50 bg-[#252526] border border-[#3c3c3c] rounded-md shadow-lg overflow-hidden">
+                <div className="px-2 py-1 border-b border-[#3c3c3c] bg-[#2d2d2d] flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <Search className="w-3 h-3" />
+                  <span>Suggestions • ↑↓ Navigate • Tab/Enter Select • Esc Cancel</span>
+                </div>
+                <div className="max-h-48 overflow-y-auto">
+                  {autocompleteSuggestions.map((suggestion, idx) => (
+                    <div
+                      key={`${suggestion.value}-${idx}`}
+                      className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors ${
+                        idx === autocompleteIndex 
+                          ? 'bg-[#094771] text-white' 
+                          : 'hover:bg-[#2a2d2e] text-foreground/90'
+                      }`}
+                      onClick={() => applySuggestion(suggestion)}
+                      onMouseEnter={() => setAutocompleteIndex(idx)}
+                    >
+                      {suggestion.type === 'command' ? (
+                        <Terminal className="w-4 h-4 text-purple-400 shrink-0" />
+                      ) : suggestion.type === 'folder' ? (
+                        <Folder className="w-4 h-4 text-blue-400 shrink-0" />
+                      ) : (
+                        <File className="w-4 h-4 text-gray-400 shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-medium truncate ${
+                            suggestion.type === 'folder' ? 'text-blue-400' : 
+                            suggestion.type === 'command' ? 'text-purple-300' : ''
+                          }`}>
+                            {suggestion.value}
+                            {suggestion.type === 'folder' && '/'}
+                          </span>
+                          {suggestion.description && (
+                            <span className="text-[10px] text-muted-foreground truncate">
+                              {suggestion.description}
+                            </span>
+                          )}
+                        </div>
+                        {suggestion.path && suggestion.type !== 'command' && (
+                          <div className="text-[10px] text-muted-foreground truncate">
+                            {suggestion.path}
+                          </div>
+                        )}
+                      </div>
+                      {idx === autocompleteIndex && (
+                        <span className="text-[10px] bg-[#333] px-1 rounded">Tab</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -3405,6 +3982,49 @@ export function IDETerminal({
             >
               <Trash2 className="w-4 h-4 mr-2" />
               {t.delete.deleteBtn}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* File Delete Confirmation Dialog */}
+      <Dialog open={showFileDeleteDialog} onOpenChange={setShowFileDeleteDialog}>
+        <DialogContent className="bg-[#252526] border-[#3c3c3c] text-foreground">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-400">
+              <Trash2 className="w-5 h-5" />
+              Delete File
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Are you sure you want to delete <strong className="text-foreground">{fileToDelete?.name}</strong>?
+              <br />
+              <span className="text-xs text-muted-foreground mt-1 block">
+                Path: {fileToDelete?.path}
+              </span>
+              <br />
+              <span className="text-amber-400 text-xs">
+                ⚠ This action cannot be undone.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowFileDeleteDialog(false);
+                setFileToDelete(null);
+              }}
+              className="hover:bg-[#333333]"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteFile}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete File
             </Button>
           </DialogFooter>
         </DialogContent>
