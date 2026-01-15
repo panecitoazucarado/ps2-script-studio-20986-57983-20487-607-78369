@@ -2166,7 +2166,6 @@ export function IDETerminal({
 
   // Autocomplete state
   const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<AutocompleteSuggestion[]>([]);
   const [autocompleteIndex, setAutocompleteIndex] = useState(0);
   const [fileToDelete, setFileToDelete] = useState<{ path: string; name: string } | null>(null);
   const [showFileDeleteDialog, setShowFileDeleteDialog] = useState(false);
@@ -2191,35 +2190,11 @@ export function IDETerminal({
     return files;
   }, [projectFiles]);
 
-  // Search files by pattern
-  const searchFiles = useCallback((pattern: string): AutocompleteSuggestion[] => {
-    if (!pattern) return [];
-    const allFiles = getAllFiles();
-    const lowerPattern = pattern.toLowerCase();
+  // Memoize suggestions based on inputValue only - avoid useEffect infinite loop
+  const currentSuggestions = useMemo(() => {
+    if (inputValue.length === 0) return [];
     
-    return allFiles
-      .filter(f => f.value.toLowerCase().includes(lowerPattern) || f.path?.toLowerCase().includes(lowerPattern))
-      .sort((a, b) => {
-        // Prioritize exact matches
-        const aExact = a.value.toLowerCase() === lowerPattern;
-        const bExact = b.value.toLowerCase() === lowerPattern;
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-        
-        // Then prioritize starts with
-        const aStarts = a.value.toLowerCase().startsWith(lowerPattern);
-        const bStarts = b.value.toLowerCase().startsWith(lowerPattern);
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-        
-        return a.value.localeCompare(b.value);
-      })
-      .slice(0, 15);
-  }, [getAllFiles]);
-
-  // Generate autocomplete suggestions based on input
-  const generateSuggestions = useCallback((input: string): AutocompleteSuggestion[] => {
-    const parts = input.trim().split(/\s+/);
+    const parts = inputValue.trim().split(/\s+/);
     const cmd = parts[0]?.toLowerCase() || '';
     const lastPart = parts[parts.length - 1] || '';
     
@@ -2236,12 +2211,28 @@ export function IDETerminal({
     }
     
     // For delete/rm commands, search all files
-    if (['delete', 'del', 'rm'].includes(cmd)) {
-      return searchFiles(lastPart);
+    if (['delete', 'del', 'rm'].includes(cmd) && lastPart.length > 0) {
+      const allFiles = getAllFiles();
+      const lowerPattern = lastPart.toLowerCase();
+      
+      return allFiles
+        .filter(f => f.value.toLowerCase().includes(lowerPattern) || f.path?.toLowerCase().includes(lowerPattern))
+        .sort((a, b) => {
+          const aExact = a.value.toLowerCase() === lowerPattern;
+          const bExact = b.value.toLowerCase() === lowerPattern;
+          if (aExact && !bExact) return -1;
+          if (!aExact && bExact) return 1;
+          const aStarts = a.value.toLowerCase().startsWith(lowerPattern);
+          const bStarts = b.value.toLowerCase().startsWith(lowerPattern);
+          if (aStarts && !bStarts) return -1;
+          if (!aStarts && bStarts) return 1;
+          return a.value.localeCompare(b.value);
+        })
+        .slice(0, 15);
     }
     
     // For cd command, only show folders
-    if (cmd === 'cd') {
+    if (cmd === 'cd' && lastPart.length > 0) {
       const targetDir = activeTab.currentDirectory === '~' ? '/' : activeTab.currentDirectory.replace('~', '');
       const entries = listDirectory(targetDir);
       if (entries) {
@@ -2257,7 +2248,7 @@ export function IDETerminal({
     }
     
     // For file-related commands, show files in current directory
-    if (['cat', 'head', 'tail', 'less', 'more', 'grep', 'wc', 'stat', 'file', 'open', 'code', 'vim', 'vi', 'nano'].includes(cmd)) {
+    if (['cat', 'head', 'tail', 'less', 'more', 'grep', 'wc', 'stat', 'file', 'open', 'code', 'vim', 'vi', 'nano'].includes(cmd) && lastPart.length > 0) {
       const targetDir = activeTab.currentDirectory === '~' ? '/' : activeTab.currentDirectory.replace('~', '');
       const entries = listDirectory(targetDir);
       if (entries) {
@@ -2272,35 +2263,8 @@ export function IDETerminal({
       }
     }
     
-    // Default: show files in current directory
-    const targetDir = activeTab.currentDirectory === '~' ? '/' : activeTab.currentDirectory.replace('~', '');
-    const entries = listDirectory(targetDir);
-    if (entries) {
-      return entries
-        .filter(e => e.name.toLowerCase().startsWith(lastPart.toLowerCase()))
-        .map(e => ({
-          value: e.name,
-          type: e.type === 'folder' ? 'folder' as const : 'file' as const,
-          path: targetDir === '/' ? `/${e.name}` : `${targetDir}/${e.name}`,
-        }))
-        .slice(0, 10);
-    }
-    
     return [];
-  }, [activeTab.currentDirectory, listDirectory, searchFiles, availableCommands, commandsWithDescriptions]);
-
-  // Update suggestions when input changes
-  useEffect(() => {
-    if (inputValue.length > 0) {
-      const suggestions = generateSuggestions(inputValue);
-      setAutocompleteSuggestions(suggestions);
-      setShowAutocomplete(suggestions.length > 0);
-      setAutocompleteIndex(0);
-    } else {
-      setShowAutocomplete(false);
-      setAutocompleteSuggestions([]);
-    }
-  }, [inputValue, generateSuggestions]);
+  }, [inputValue, activeTab.currentDirectory, projectFiles]);
 
   // Apply autocomplete suggestion
   const applySuggestion = useCallback((suggestion: AutocompleteSuggestion) => {
@@ -3472,27 +3436,29 @@ export function IDETerminal({
     }
   }, [activeTab, addLine, addLines, onCloneRepository, onClose, activeTabIndex, 
       resolvePath, listDirectory, readFile, clonedRepos, storageStats, 
-      saveClonedRepos, onClearClonedData, projectFiles, t, language, aliases, envVars, availableCommands]);
+      saveClonedRepos, onClearClonedData, projectFiles, t, language, aliases, envVars, availableCommands, getAllFiles, onDeleteFiles]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    const hasSuggestions = showAutocomplete && currentSuggestions.length > 0;
+    
     // Handle autocomplete navigation
-    if (showAutocomplete && autocompleteSuggestions.length > 0) {
+    if (hasSuggestions) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setAutocompleteIndex(prev => 
-          prev < autocompleteSuggestions.length - 1 ? prev + 1 : 0
+          prev < currentSuggestions.length - 1 ? prev + 1 : 0
         );
         return;
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setAutocompleteIndex(prev => 
-          prev > 0 ? prev - 1 : autocompleteSuggestions.length - 1
+          prev > 0 ? prev - 1 : currentSuggestions.length - 1
         );
         return;
-      } else if (e.key === 'Tab' || (e.key === 'Enter' && autocompleteIndex >= 0)) {
+      } else if (e.key === 'Tab') {
         e.preventDefault();
-        if (autocompleteSuggestions[autocompleteIndex]) {
-          applySuggestion(autocompleteSuggestions[autocompleteIndex]);
+        if (currentSuggestions[autocompleteIndex]) {
+          applySuggestion(currentSuggestions[autocompleteIndex]);
         }
         return;
       } else if (e.key === 'Escape') {
@@ -3506,14 +3472,15 @@ export function IDETerminal({
       setShowAutocomplete(false);
       executeCommand(inputValue);
       setInputValue('');
-    } else if (e.key === 'ArrowUp' && !showAutocomplete) {
+      setAutocompleteIndex(0);
+    } else if (e.key === 'ArrowUp' && !hasSuggestions) {
       e.preventDefault();
       if (commandHistory.length > 0) {
         const newIndex = historyIndex < commandHistory.length - 1 ? historyIndex + 1 : historyIndex;
         setHistoryIndex(newIndex);
         setInputValue(commandHistory[commandHistory.length - 1 - newIndex] || '');
       }
-    } else if (e.key === 'ArrowDown' && !showAutocomplete) {
+    } else if (e.key === 'ArrowDown' && !hasSuggestions) {
       e.preventDefault();
       if (historyIndex > 0) {
         const newIndex = historyIndex - 1;
@@ -3523,7 +3490,7 @@ export function IDETerminal({
         setHistoryIndex(-1);
         setInputValue('');
       }
-    } else if (e.key === 'Tab' && !showAutocomplete) {
+    } else if (e.key === 'Tab' && !hasSuggestions) {
       e.preventDefault();
       const parts = inputValue.split(' ');
       const lastPart = parts[parts.length - 1];
@@ -3532,15 +3499,10 @@ export function IDETerminal({
         const match = availableCommands.find(c => c.startsWith(lastPart));
         if (match) setInputValue(match + ' ');
       } else {
-        // For delete/rm, search all files
         const cmd = parts[0].toLowerCase();
-        if (['delete', 'del', 'rm'].includes(cmd)) {
-          const matches = searchFiles(lastPart);
-          if (matches.length === 1) {
-            parts[parts.length - 1] = matches[0].value;
-            setInputValue(parts.join(' '));
-          } else if (matches.length > 1) {
-            setAutocompleteSuggestions(matches);
+        if (['delete', 'del', 'rm'].includes(cmd) && lastPart.length > 0) {
+          // Show autocomplete for delete commands
+          if (currentSuggestions.length > 0) {
             setShowAutocomplete(true);
             setAutocompleteIndex(0);
           }
@@ -3876,14 +3838,14 @@ export function IDETerminal({
             </div>
 
             {/* Autocomplete Dropdown */}
-            {showAutocomplete && autocompleteSuggestions.length > 0 && !activeTab.isRunning && (
+            {showAutocomplete && currentSuggestions.length > 0 && !activeTab.isRunning && (
               <div className="absolute left-0 bottom-full mb-1 w-full max-w-md z-50 bg-[#252526] border border-[#3c3c3c] rounded-md shadow-lg overflow-hidden">
                 <div className="px-2 py-1 border-b border-[#3c3c3c] bg-[#2d2d2d] flex items-center gap-2 text-[10px] text-muted-foreground">
                   <Search className="w-3 h-3" />
-                  <span>Suggestions • ↑↓ Navigate • Tab/Enter Select • Esc Cancel</span>
+                  <span>Suggestions • ↑↓ Navigate • Tab Select • Esc Cancel</span>
                 </div>
                 <div className="max-h-48 overflow-y-auto">
-                  {autocompleteSuggestions.map((suggestion, idx) => (
+                  {currentSuggestions.map((suggestion, idx) => (
                     <div
                       key={`${suggestion.value}-${idx}`}
                       className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors ${
