@@ -284,31 +284,183 @@ export function CodeEditor({
     setDragOverIndex(null);
   }, []);
 
-  const getFileIcon = (filename: string) => {
+  // Comprehensive file type detection
+  const getFileTypeInfo = (filename: string): { 
+    language: string; 
+    displayName: string; 
+    color: string;
+    icon: React.ReactNode;
+    category: string;
+  } => {
     const ext = filename.split('.').pop()?.toLowerCase();
-    switch (ext) {
-      case 'js':
-      case 'jsx':
-      case 'ts':
-      case 'tsx':
-        return <Code2 className="w-3.5 h-3.5 shrink-0 text-yellow-500" />;
-      case 'json':
-        return <FileJson className="w-3.5 h-3.5 shrink-0 text-green-500" />;
-      case 'html':
-      case 'css':
-        return <FileCode className="w-3.5 h-3.5 shrink-0 text-blue-500" />;
-      case 'png':
-      case 'jpg':
-      case 'jpeg':
-      case 'gif':
-      case 'svg':
-        return <ImageIcon className="w-3.5 h-3.5 shrink-0 text-purple-500" />;
-      case 'txt':
-      case 'md':
-        return <FileText className="w-3.5 h-3.5 shrink-0 text-gray-500" />;
-      default:
-        return <FileCode className="w-3.5 h-3.5 shrink-0" />;
+    const basename = filename.toLowerCase();
+    
+    // Special filenames first (no extension)
+    const specialFiles: Record<string, { language: string; displayName: string; color: string; category: string }> = {
+      'makefile': { language: 'makefile', displayName: 'Makefile', color: 'text-orange-500', category: 'Build' },
+      'dockerfile': { language: 'dockerfile', displayName: 'Dockerfile', color: 'text-cyan-500', category: 'Container' },
+      'cmakelists.txt': { language: 'cmake', displayName: 'CMake', color: 'text-green-500', category: 'Build' },
+      '.gitignore': { language: 'gitignore', displayName: 'Git Ignore', color: 'text-gray-500', category: 'Git' },
+      '.gitattributes': { language: 'gitattributes', displayName: 'Git Attrs', color: 'text-gray-500', category: 'Git' },
+      '.editorconfig': { language: 'editorconfig', displayName: 'EditorConfig', color: 'text-gray-500', category: 'Config' },
+      '.env': { language: 'dotenv', displayName: 'Environment', color: 'text-yellow-600', category: 'Config' },
+      '.env.local': { language: 'dotenv', displayName: 'Env Local', color: 'text-yellow-600', category: 'Config' },
+      '.env.production': { language: 'dotenv', displayName: 'Env Prod', color: 'text-yellow-600', category: 'Config' },
+      '.babelrc': { language: 'json', displayName: 'Babel', color: 'text-yellow-500', category: 'Config' },
+      '.eslintrc': { language: 'json', displayName: 'ESLint', color: 'text-purple-500', category: 'Config' },
+      '.prettierrc': { language: 'json', displayName: 'Prettier', color: 'text-pink-500', category: 'Config' },
+      'package.json': { language: 'json', displayName: 'Package', color: 'text-green-500', category: 'Node' },
+      'package-lock.json': { language: 'json', displayName: 'Lock File', color: 'text-green-600', category: 'Node' },
+      'tsconfig.json': { language: 'json', displayName: 'TypeScript Config', color: 'text-blue-500', category: 'Config' },
+      'vite.config.ts': { language: 'typescript', displayName: 'Vite Config', color: 'text-purple-500', category: 'Config' },
+      'tailwind.config.ts': { language: 'typescript', displayName: 'Tailwind', color: 'text-cyan-500', category: 'Config' },
+      'readme.md': { language: 'markdown', displayName: 'README', color: 'text-blue-400', category: 'Docs' },
+      'license': { language: 'plaintext', displayName: 'License', color: 'text-gray-500', category: 'Docs' },
+      'changelog.md': { language: 'markdown', displayName: 'Changelog', color: 'text-blue-400', category: 'Docs' },
+    };
+
+    // Check special filenames
+    if (specialFiles[basename]) {
+      const info = specialFiles[basename];
+      return {
+        ...info,
+        icon: getIconForType(info.language, info.color)
+      };
     }
+
+    // Extension-based detection
+    const extensionMap: Record<string, { language: string; displayName: string; color: string; category: string }> = {
+      // JavaScript/TypeScript
+      'js': { language: 'javascript', displayName: 'JavaScript', color: 'text-yellow-400', category: 'Script' },
+      'jsx': { language: 'javascript', displayName: 'React JSX', color: 'text-cyan-400', category: 'React' },
+      'ts': { language: 'typescript', displayName: 'TypeScript', color: 'text-blue-500', category: 'Script' },
+      'tsx': { language: 'typescript', displayName: 'React TSX', color: 'text-blue-400', category: 'React' },
+      'mjs': { language: 'javascript', displayName: 'ES Module', color: 'text-yellow-500', category: 'Script' },
+      'cjs': { language: 'javascript', displayName: 'CommonJS', color: 'text-yellow-600', category: 'Script' },
+      
+      // Web
+      'html': { language: 'html', displayName: 'HTML', color: 'text-orange-500', category: 'Web' },
+      'htm': { language: 'html', displayName: 'HTML', color: 'text-orange-500', category: 'Web' },
+      'css': { language: 'css', displayName: 'CSS', color: 'text-blue-500', category: 'Style' },
+      'scss': { language: 'scss', displayName: 'SCSS', color: 'text-pink-500', category: 'Style' },
+      'sass': { language: 'sass', displayName: 'Sass', color: 'text-pink-400', category: 'Style' },
+      'less': { language: 'less', displayName: 'Less', color: 'text-blue-600', category: 'Style' },
+      
+      // Data
+      'json': { language: 'json', displayName: 'JSON', color: 'text-yellow-500', category: 'Data' },
+      'jsonc': { language: 'jsonc', displayName: 'JSON+Comments', color: 'text-yellow-500', category: 'Data' },
+      'yaml': { language: 'yaml', displayName: 'YAML', color: 'text-red-400', category: 'Data' },
+      'yml': { language: 'yaml', displayName: 'YAML', color: 'text-red-400', category: 'Data' },
+      'xml': { language: 'xml', displayName: 'XML', color: 'text-orange-400', category: 'Data' },
+      'toml': { language: 'toml', displayName: 'TOML', color: 'text-gray-400', category: 'Config' },
+      'ini': { language: 'ini', displayName: 'INI', color: 'text-gray-500', category: 'Config' },
+      'cfg': { language: 'ini', displayName: 'Config', color: 'text-gray-500', category: 'Config' },
+      'conf': { language: 'ini', displayName: 'Config', color: 'text-gray-500', category: 'Config' },
+      'cnf': { language: 'ini', displayName: 'Config', color: 'text-gray-500', category: 'Config' },
+      
+      // C/C++/PS2
+      'c': { language: 'c', displayName: 'C', color: 'text-blue-600', category: 'Native' },
+      'h': { language: 'c', displayName: 'C Header', color: 'text-blue-500', category: 'Native' },
+      'cpp': { language: 'cpp', displayName: 'C++', color: 'text-blue-500', category: 'Native' },
+      'cc': { language: 'cpp', displayName: 'C++', color: 'text-blue-500', category: 'Native' },
+      'cxx': { language: 'cpp', displayName: 'C++', color: 'text-blue-500', category: 'Native' },
+      'hpp': { language: 'cpp', displayName: 'C++ Header', color: 'text-blue-400', category: 'Native' },
+      'hxx': { language: 'cpp', displayName: 'C++ Header', color: 'text-blue-400', category: 'Native' },
+      
+      // Assembly/Low-level
+      's': { language: 'assembly', displayName: 'Assembly', color: 'text-red-500', category: 'ASM' },
+      'asm': { language: 'assembly', displayName: 'Assembly', color: 'text-red-500', category: 'ASM' },
+      'vcl': { language: 'assembly', displayName: 'VU Microcode', color: 'text-purple-500', category: 'PS2' },
+      'vsm': { language: 'assembly', displayName: 'VU Shader', color: 'text-purple-400', category: 'PS2' },
+      'dsm': { language: 'assembly', displayName: 'DMA Script', color: 'text-purple-600', category: 'PS2' },
+      
+      // Shaders
+      'glsl': { language: 'glsl', displayName: 'GLSL', color: 'text-green-500', category: 'Shader' },
+      'vert': { language: 'glsl', displayName: 'Vertex Shader', color: 'text-green-400', category: 'Shader' },
+      'frag': { language: 'glsl', displayName: 'Fragment Shader', color: 'text-green-600', category: 'Shader' },
+      'hlsl': { language: 'hlsl', displayName: 'HLSL', color: 'text-blue-400', category: 'Shader' },
+      
+      // Scripts
+      'py': { language: 'python', displayName: 'Python', color: 'text-yellow-500', category: 'Script' },
+      'lua': { language: 'lua', displayName: 'Lua', color: 'text-blue-500', category: 'Script' },
+      'rb': { language: 'ruby', displayName: 'Ruby', color: 'text-red-500', category: 'Script' },
+      'sh': { language: 'shell', displayName: 'Shell', color: 'text-green-500', category: 'Script' },
+      'bash': { language: 'shell', displayName: 'Bash', color: 'text-green-500', category: 'Script' },
+      'zsh': { language: 'shell', displayName: 'Zsh', color: 'text-green-400', category: 'Script' },
+      'bat': { language: 'bat', displayName: 'Batch', color: 'text-gray-500', category: 'Script' },
+      'cmd': { language: 'bat', displayName: 'Command', color: 'text-gray-500', category: 'Script' },
+      'ps1': { language: 'powershell', displayName: 'PowerShell', color: 'text-blue-500', category: 'Script' },
+      
+      // Build
+      'mak': { language: 'makefile', displayName: 'Makefile', color: 'text-orange-500', category: 'Build' },
+      'mk': { language: 'makefile', displayName: 'Makefile', color: 'text-orange-500', category: 'Build' },
+      'cmake': { language: 'cmake', displayName: 'CMake', color: 'text-green-500', category: 'Build' },
+      'ld': { language: 'linker', displayName: 'Linker Script', color: 'text-orange-600', category: 'Build' },
+      
+      // Documentation
+      'md': { language: 'markdown', displayName: 'Markdown', color: 'text-blue-400', category: 'Docs' },
+      'mdx': { language: 'mdx', displayName: 'MDX', color: 'text-blue-500', category: 'Docs' },
+      'txt': { language: 'plaintext', displayName: 'Text', color: 'text-gray-500', category: 'Docs' },
+      'rst': { language: 'restructuredtext', displayName: 'RST', color: 'text-gray-500', category: 'Docs' },
+      
+      // Images
+      'png': { language: 'image', displayName: 'PNG', color: 'text-purple-500', category: 'Image' },
+      'jpg': { language: 'image', displayName: 'JPEG', color: 'text-purple-500', category: 'Image' },
+      'jpeg': { language: 'image', displayName: 'JPEG', color: 'text-purple-500', category: 'Image' },
+      'gif': { language: 'image', displayName: 'GIF', color: 'text-purple-500', category: 'Image' },
+      'svg': { language: 'xml', displayName: 'SVG', color: 'text-orange-400', category: 'Image' },
+      'ico': { language: 'image', displayName: 'Icon', color: 'text-purple-400', category: 'Image' },
+      'webp': { language: 'image', displayName: 'WebP', color: 'text-purple-500', category: 'Image' },
+      
+      // Other
+      'sql': { language: 'sql', displayName: 'SQL', color: 'text-blue-500', category: 'Database' },
+      'graphql': { language: 'graphql', displayName: 'GraphQL', color: 'text-pink-500', category: 'API' },
+      'gql': { language: 'graphql', displayName: 'GraphQL', color: 'text-pink-500', category: 'API' },
+      'wasm': { language: 'wasm', displayName: 'WebAssembly', color: 'text-purple-600', category: 'Binary' },
+      'elf': { language: 'binary', displayName: 'ELF Binary', color: 'text-gray-600', category: 'Binary' },
+      'irx': { language: 'binary', displayName: 'IOP Module', color: 'text-cyan-600', category: 'PS2' },
+    };
+
+    if (ext && extensionMap[ext]) {
+      const info = extensionMap[ext];
+      return {
+        ...info,
+        icon: getIconForType(info.language, info.color)
+      };
+    }
+
+    // Default fallback
+    return {
+      language: 'plaintext',
+      displayName: 'Plain Text',
+      color: 'text-gray-400',
+      category: 'File',
+      icon: <FileText className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+    };
+  };
+
+  const getIconForType = (language: string, color: string): React.ReactNode => {
+    const iconClass = `w-3.5 h-3.5 shrink-0 ${color}`;
+    
+    switch (language) {
+      case 'javascript':
+      case 'typescript':
+        return <Code2 className={iconClass} />;
+      case 'json':
+      case 'jsonc':
+        return <FileJson className={iconClass} />;
+      case 'image':
+        return <ImageIcon className={iconClass} />;
+      case 'markdown':
+      case 'plaintext':
+        return <FileText className={iconClass} />;
+      default:
+        return <FileCode className={iconClass} />;
+    }
+  };
+
+  const getFileIcon = (filename: string) => {
+    return getFileTypeInfo(filename).icon;
   };
 
   useEffect(() => {
@@ -353,23 +505,7 @@ export function CodeEditor({
   }, [activeTabIndex, openTabs, onTabChange, handleReopenLastClosed]);
 
   const getLanguage = (filename: string): string => {
-    const ext = filename.split('.').pop()?.toLowerCase();
-    switch (ext) {
-      case 'js':
-      case 'jsx':
-        return 'javascript';
-      case 'ts':
-      case 'tsx':
-        return 'typescript';
-      case 'json':
-        return 'json';
-      case 'html':
-        return 'html';
-      case 'css':
-        return 'css';
-      default:
-        return 'javascript';
-    }
+    return getFileTypeInfo(filename).language;
   };
 
   const getCursorPosition = () => {
@@ -536,47 +672,90 @@ export function CodeEditor({
           )}
         </div>
 
-        {/* Actions Row */}
-        <div className="flex items-center justify-between px-3 py-2 bg-[hsl(var(--ide-editor))]/50">
+        {/* Professional Actions Row */}
+        <div className="flex items-center justify-between px-3 py-1.5 bg-[hsl(var(--ide-editor))]/50 border-t border-border/30">
+          {/* Left: File Info */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-medium text-foreground">{currentFile.name}</span>
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
-                {getLanguage(currentFile.name).toUpperCase()}
-              </Badge>
+            {/* File Icon & Name */}
+            <div className="flex items-center gap-2">
+              {getFileIcon(currentFile.name)}
+              <span className="font-medium text-xs text-foreground">{currentFile.name}</span>
+            </div>
+            
+            {/* Separator */}
+            <div className="h-4 w-px bg-border/50" />
+            
+            {/* File Type Badge */}
+            {(() => {
+              const fileInfo = getFileTypeInfo(currentFile.name);
+              return (
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant="outline" 
+                    className={`text-[10px] px-2 py-0.5 h-5 font-medium border-border/50 ${fileInfo.color}`}
+                  >
+                    {fileInfo.displayName}
+                  </Badge>
+                  <Badge 
+                    variant="secondary" 
+                    className="text-[10px] px-1.5 py-0.5 h-5 bg-muted/50 text-muted-foreground"
+                  >
+                    {fileInfo.category}
+                  </Badge>
+                </div>
+              );
+            })()}
+            
+            {/* Separator */}
+            <div className="h-4 w-px bg-border/50" />
+            
+            {/* Line Count & Encoding */}
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <span>Ln {lineCount}</span>
+              <span>•</span>
+              <span>UTF-8</span>
+              {modifiedTabs.has(activeTabIndex) && (
+                <>
+                  <span>•</span>
+                  <span className="text-[hsl(var(--ps2-orange))]">Modified</span>
+                </>
+              )}
             </div>
           </div>
           
-          <div className="flex items-center gap-1.5">
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1">
             <Button 
               variant="ghost" 
               size="sm" 
-              className="h-7 px-2.5 text-xs hover:bg-muted"
+              className="h-6 px-2 text-[10px] hover:bg-muted gap-1"
               onClick={handleSave}
               title="Save file (Ctrl+S)"
             >
-              <Save className="w-3.5 h-3.5 mr-1.5" />
+              <Save className="w-3 h-3" />
               Save
             </Button>
+            
+            <div className="h-4 w-px bg-border/50" />
             
             <Button 
               onClick={onRun} 
               size="sm" 
-              className="h-7 px-2.5 text-xs bg-[hsl(var(--ps2-purple))] hover:bg-[hsl(var(--ps2-purple))]/80 text-primary-foreground"
+              className="h-6 px-2 text-[10px] bg-[hsl(var(--ps2-green))] hover:bg-[hsl(var(--ps2-green))]/80 text-primary-foreground gap-1"
               title="Run script (F5)"
             >
-              <Play className="w-3.5 h-3.5 mr-1.5" />
+              <Play className="w-3 h-3" />
               Run
             </Button>
 
             <Button 
               variant="ghost" 
               size="sm" 
-              className="h-7 px-2.5 text-xs hover:bg-muted"
+              className="h-6 px-2 text-[10px] hover:bg-muted gap-1"
               onClick={handleExport}
               title="Export current file"
             >
-              <Download className="w-3.5 h-3.5 mr-1.5" />
+              <Download className="w-3 h-3" />
               Export
             </Button>
           </div>
