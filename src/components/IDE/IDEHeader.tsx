@@ -1,6 +1,14 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   Menu, 
   Save, 
@@ -17,7 +25,14 @@ import {
   Eye,
   EyeOff,
   Sidebar,
-  Bot
+  Bot,
+  Terminal,
+  Wrench,
+  FileSearch,
+  Bug,
+  Cpu,
+  Activity,
+  ChevronDown
 } from 'lucide-react';
 import { WindowConfigMenu } from './WindowConfigMenu';
 
@@ -25,20 +40,24 @@ interface IDEHeaderProps {
   showFileExplorer: boolean;
   showPreview: boolean;
   showAIChat: boolean;
+  showTerminal?: boolean;
   onToggleFileExplorer: () => void;
   onTogglePreview: () => void;
   onToggleAIChat: () => void;
   onToggleAIChatWindow: () => void;
+  onToggleTerminal?: () => void;
 }
 
 export function IDEHeader({ 
   showFileExplorer, 
   showPreview,
   showAIChat,
+  showTerminal,
   onToggleFileExplorer, 
   onTogglePreview,
   onToggleAIChat,
-  onToggleAIChatWindow
+  onToggleAIChatWindow,
+  onToggleTerminal
 }: IDEHeaderProps) {
   return (
     <header className="ide-statusbar border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -88,6 +107,82 @@ export function IDEHeader({
               <Bot className="w-4 h-4 text-ps2-purple" />
               <span className="hidden sm:inline text-ps2-purple">IA Developer</span>
             </Button>
+
+            <Separator orientation="vertical" className="h-6 mx-1" />
+
+            {/* Development Tools Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost"
+                  size="sm" 
+                  className="h-8 px-3 gap-2"
+                >
+                  <Wrench className="w-4 h-4 text-ps2-orange" />
+                  <span className="hidden sm:inline">Herramientas</span>
+                  <ChevronDown className="w-3 h-3 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-56">
+                <DropdownMenuLabel className="flex items-center gap-2">
+                  <Wrench className="w-4 h-4" />
+                  Herramientas de Desarrollo
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                
+                <DropdownMenuItem 
+                  onClick={onToggleTerminal}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Terminal className="w-4 h-4 text-ps2-green" />
+                  <div className="flex flex-col">
+                    <span>Terminal ZSH</span>
+                    <span className="text-xs text-muted-foreground">Línea de comandos integrada</span>
+                  </div>
+                  {showTerminal && (
+                    <Badge variant="secondary" className="ml-auto text-xs">Activo</Badge>
+                  )}
+                </DropdownMenuItem>
+
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50" disabled>
+                  <Bug className="w-4 h-4 text-ps2-red" />
+                  <div className="flex flex-col">
+                    <span>Depurador</span>
+                    <span className="text-xs text-muted-foreground">Debug de código PS2</span>
+                  </div>
+                  <Badge variant="outline" className="ml-auto text-xs">Próximamente</Badge>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50" disabled>
+                  <Cpu className="w-4 h-4 text-ps2-blue" />
+                  <div className="flex flex-col">
+                    <span>Monitor de Rendimiento</span>
+                    <span className="text-xs text-muted-foreground">CPU, GPU, Memoria</span>
+                  </div>
+                  <Badge variant="outline" className="ml-auto text-xs">Próximamente</Badge>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50" disabled>
+                  <FileSearch className="w-4 h-4 text-ps2-cyan" />
+                  <div className="flex flex-col">
+                    <span>Buscador Global</span>
+                    <span className="text-xs text-muted-foreground">Buscar en todo el proyecto</span>
+                  </div>
+                  <Badge variant="outline" className="ml-auto text-xs">Próximamente</Badge>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50" disabled>
+                  <Activity className="w-4 h-4 text-ps2-purple" />
+                  <div className="flex flex-col">
+                    <span>Profiler EE/VU</span>
+                    <span className="text-xs text-muted-foreground">Análisis de rendimiento</span>
+                  </div>
+                  <Badge variant="outline" className="ml-auto text-xs">Próximamente</Badge>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
