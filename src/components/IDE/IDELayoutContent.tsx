@@ -630,10 +630,12 @@ export function IDELayoutContent() {
           showFileExplorer={showFileExplorer && windows.fileExplorer.docked}
           showPreview={showPreview && windows.preview.docked}
           showAIChat={windows.aiChat.visible}
+          showTerminal={showTerminal}
           onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
           onToggleAIChat={() => toggleWindowVisibility('aiChat')}
           onTogglePreview={() => setShowPreview(!showPreview)}
           onToggleAIChatWindow={() => toggleWindowVisibility('aiChat')}
+          onToggleTerminal={() => setShowTerminal(!showTerminal)}
         />
 
         <div className="flex-1 overflow-hidden">
