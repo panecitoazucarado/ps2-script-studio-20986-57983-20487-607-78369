@@ -61,136 +61,129 @@ export function IDEHeader({
 }: IDEHeaderProps) {
   return (
     <header className="ide-statusbar border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center justify-between px-4 py-2.5 gap-4">
-        {/* Left: Logo */}
-        <div className="flex items-center gap-2 shrink-0">
-          <Gamepad2 className="w-5 h-5 text-ps2-purple" />
-          <span className="font-bold text-base gradient-text">ATHENA ENV</span>
-          <Badge variant="outline" className="text-xs border-ps2-blue text-ps2-blue px-1.5 py-0">
+      <div className="flex items-center justify-between px-2 sm:px-3 py-1.5 gap-2">
+        {/* Left: Logo - Compact */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Gamepad2 className="w-4 h-4 text-ps2-purple" />
+          <span className="font-bold text-sm gradient-text hidden md:inline">ATHENA</span>
+          <Badge variant="outline" className="text-[10px] border-ps2-blue text-ps2-blue px-1 py-0 h-4">
             PS2
           </Badge>
         </div>
 
-        {/* Center: View Controls */}
-        <div className="flex items-center gap-2 flex-1 justify-center">
-          <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+        {/* Center: View Controls - Compact & Responsive */}
+        <div className="flex items-center flex-1 justify-center">
+          <div className="flex items-center gap-0.5 bg-muted/40 rounded-md p-0.5">
             <Button 
               variant={showFileExplorer ? "secondary" : "ghost"}
               size="sm" 
-              className="h-8 px-3 gap-2"
+              className="h-7 px-2 gap-1.5 text-xs"
               onClick={onToggleFileExplorer}
+              title="Explorador de archivos"
             >
-              <Sidebar className="w-4 h-4" />
-              <span className="hidden sm:inline">Explorador</span>
+              <Sidebar className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Explorador</span>
             </Button>
-            
-            <Separator orientation="vertical" className="h-6 mx-1" />
             
             <Button 
               variant={showPreview ? "secondary" : "ghost"}
               size="sm" 
-              className="h-8 px-3 gap-2"
+              className="h-7 px-2 gap-1.5 text-xs"
               onClick={onTogglePreview}
+              title="Vista previa PS2"
             >
-              <MonitorPlay className="w-4 h-4" />
-              <span className="hidden sm:inline">Vista Previa</span>
+              <MonitorPlay className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Preview</span>
             </Button>
-            
-            <Separator orientation="vertical" className="h-6 mx-1" />
             
             <Button 
               variant={showAIChat ? "secondary" : "ghost"}
               size="sm" 
-              className="h-8 px-3 gap-2 bg-gradient-to-r from-ps2-purple/10 to-ps2-cyan/10 hover:from-ps2-purple/20 hover:to-ps2-cyan/20"
+              className="h-7 px-2 gap-1.5 text-xs bg-gradient-to-r from-ps2-purple/10 to-ps2-cyan/10 hover:from-ps2-purple/20 hover:to-ps2-cyan/20"
               onClick={onToggleAIChatWindow}
+              title="Asistente IA"
             >
-              <Bot className="w-4 h-4 text-ps2-purple" />
-              <span className="hidden sm:inline text-ps2-purple">IA Developer</span>
+              <Bot className="w-3.5 h-3.5 text-ps2-purple" />
+              <span className="hidden lg:inline text-ps2-purple">IA</span>
             </Button>
-
-            <Separator orientation="vertical" className="h-6 mx-1" />
 
             {/* Development Tools Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
-                  variant="ghost"
+                  variant={showTerminal ? "secondary" : "ghost"}
                   size="sm" 
-                  className="h-8 px-3 gap-2"
+                  className="h-7 px-2 gap-1 text-xs"
+                  title="Herramientas de desarrollo"
                 >
-                  <Wrench className="w-4 h-4 text-ps2-orange" />
-                  <span className="hidden sm:inline">Herramientas</span>
-                  <ChevronDown className="w-3 h-3 opacity-50" />
+                  <Wrench className="w-3.5 h-3.5 text-ps2-orange" />
+                  <span className="hidden lg:inline">Tools</span>
+                  <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="w-56">
-                <DropdownMenuLabel className="flex items-center gap-2">
-                  <Wrench className="w-4 h-4" />
-                  Herramientas de Desarrollo
+              <DropdownMenuContent align="center" className="w-52">
+                <DropdownMenuLabel className="flex items-center gap-2 text-xs py-1.5">
+                  <Wrench className="w-3.5 h-3.5" />
+                  Herramientas Dev
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 
                 <DropdownMenuItem 
                   onClick={onToggleTerminal}
-                  className="flex items-center gap-2 cursor-pointer"
+                  className="flex items-center gap-2 cursor-pointer py-1.5"
                 >
-                  <Terminal className="w-4 h-4 text-ps2-green" />
-                  <div className="flex flex-col">
-                    <span>Terminal ZSH</span>
-                    <span className="text-xs text-muted-foreground">Línea de comandos integrada</span>
+                  <Terminal className="w-3.5 h-3.5 text-ps2-green" />
+                  <div className="flex flex-col flex-1">
+                    <span className="text-xs">Terminal ZSH</span>
+                    <span className="text-[10px] text-muted-foreground">Línea de comandos</span>
                   </div>
                   {showTerminal && (
-                    <Badge variant="secondary" className="ml-auto text-xs">Activo</Badge>
+                    <div className="w-1.5 h-1.5 rounded-full bg-ps2-green ml-auto" />
                   )}
                 </DropdownMenuItem>
 
-                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50" disabled>
-                  <Bug className="w-4 h-4 text-ps2-red" />
-                  <div className="flex flex-col">
-                    <span>Depurador</span>
-                    <span className="text-xs text-muted-foreground">Debug de código PS2</span>
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50 py-1.5" disabled>
+                  <Bug className="w-3.5 h-3.5 text-ps2-red" />
+                  <div className="flex flex-col flex-1">
+                    <span className="text-xs">Depurador</span>
+                    <span className="text-[10px] text-muted-foreground">Debug PS2</span>
                   </div>
-                  <Badge variant="outline" className="ml-auto text-xs">Próximamente</Badge>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50" disabled>
-                  <Cpu className="w-4 h-4 text-ps2-blue" />
-                  <div className="flex flex-col">
-                    <span>Monitor de Rendimiento</span>
-                    <span className="text-xs text-muted-foreground">CPU, GPU, Memoria</span>
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50 py-1.5" disabled>
+                  <Cpu className="w-3.5 h-3.5 text-ps2-blue" />
+                  <div className="flex flex-col flex-1">
+                    <span className="text-xs">Monitor</span>
+                    <span className="text-[10px] text-muted-foreground">CPU/GPU/RAM</span>
                   </div>
-                  <Badge variant="outline" className="ml-auto text-xs">Próximamente</Badge>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50" disabled>
-                  <FileSearch className="w-4 h-4 text-ps2-cyan" />
-                  <div className="flex flex-col">
-                    <span>Buscador Global</span>
-                    <span className="text-xs text-muted-foreground">Buscar en todo el proyecto</span>
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50 py-1.5" disabled>
+                  <FileSearch className="w-3.5 h-3.5 text-ps2-cyan" />
+                  <div className="flex flex-col flex-1">
+                    <span className="text-xs">Buscador</span>
+                    <span className="text-[10px] text-muted-foreground">Buscar en proyecto</span>
                   </div>
-                  <Badge variant="outline" className="ml-auto text-xs">Próximamente</Badge>
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50" disabled>
-                  <Activity className="w-4 h-4 text-ps2-purple" />
-                  <div className="flex flex-col">
-                    <span>Profiler EE/VU</span>
-                    <span className="text-xs text-muted-foreground">Análisis de rendimiento</span>
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer opacity-50 py-1.5" disabled>
+                  <Activity className="w-3.5 h-3.5 text-ps2-purple" />
+                  <div className="flex flex-col flex-1">
+                    <span className="text-xs">Profiler EE/VU</span>
+                    <span className="text-[10px] text-muted-foreground">Rendimiento</span>
                   </div>
-                  <Badge variant="outline" className="ml-auto text-xs">Próximamente</Badge>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            <Github className="w-4 h-4" />
+        {/* Right: Actions - Compact */}
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="GitHub">
+            <Github className="w-3.5 h-3.5" />
           </Button>
           
           <WindowConfigMenu />
