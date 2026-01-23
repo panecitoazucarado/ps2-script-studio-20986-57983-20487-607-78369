@@ -74,38 +74,586 @@ export function CodeEditor({
     setLineCount(lines);
   }, [code]);
 
+  // Configure C/C++ language support
+  const configureCLanguageSupport = useCallback((monaco: Monaco) => {
+    // Register C language configuration for better tokenization
+    monaco.languages.setLanguageConfiguration('c', {
+      comments: {
+        lineComment: '//',
+        blockComment: ['/*', '*/']
+      },
+      brackets: [
+        ['{', '}'],
+        ['[', ']'],
+        ['(', ')']
+      ],
+      autoClosingPairs: [
+        { open: '{', close: '}' },
+        { open: '[', close: ']' },
+        { open: '(', close: ')' },
+        { open: '"', close: '"', notIn: ['string'] },
+        { open: "'", close: "'", notIn: ['string', 'comment'] },
+        { open: '/*', close: ' */', notIn: ['string'] }
+      ],
+      surroundingPairs: [
+        { open: '{', close: '}' },
+        { open: '[', close: ']' },
+        { open: '(', close: ')' },
+        { open: '"', close: '"' },
+        { open: "'", close: "'" }
+      ],
+      folding: {
+        markers: {
+          start: /^\s*#pragma\s+region\b/,
+          end: /^\s*#pragma\s+endregion\b/
+        }
+      },
+      indentationRules: {
+        increaseIndentPattern: /^.*\{[^}"']*$|^.*\([^)"']*$/,
+        decreaseIndentPattern: /^\s*[\}\]].*$/
+      },
+      wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
+      onEnterRules: [
+        {
+          // Match: /** | /* | /**  (but not /*)
+          beforeText: /^\s*\/\*\*(?!\/)([^\*]|\*(?!\/))*$/,
+          afterText: /^\s*\*\/$/,
+          action: { indentAction: monaco.languages.IndentAction.IndentOutdent, appendText: ' * ' }
+        },
+        {
+          // Match: /** |
+          beforeText: /^\s*\/\*\*(?!\/)([^\*]|\*(?!\/))*$/,
+          action: { indentAction: monaco.languages.IndentAction.None, appendText: ' * ' }
+        },
+        {
+          // Match:  * |
+          beforeText: /^(\t|[ ])*[ ]\*([ ]([^\*]|\*(?!\/))*)?$/,
+          action: { indentAction: monaco.languages.IndentAction.None, appendText: '* ' }
+        },
+        {
+          // Match:  */|
+          beforeText: /^(\t|[ ])*[ ]\*\/\s*$/,
+          action: { indentAction: monaco.languages.IndentAction.None, removeText: 1 }
+        }
+      ]
+    });
+
+    // Register C++ language configuration
+    monaco.languages.setLanguageConfiguration('cpp', {
+      comments: {
+        lineComment: '//',
+        blockComment: ['/*', '*/']
+      },
+      brackets: [
+        ['{', '}'],
+        ['[', ']'],
+        ['(', ')'],
+        ['<', '>']
+      ],
+      autoClosingPairs: [
+        { open: '{', close: '}' },
+        { open: '[', close: ']' },
+        { open: '(', close: ')' },
+        { open: '<', close: '>', notIn: ['string', 'comment'] },
+        { open: '"', close: '"', notIn: ['string'] },
+        { open: "'", close: "'", notIn: ['string', 'comment'] },
+        { open: '/*', close: ' */', notIn: ['string'] }
+      ],
+      surroundingPairs: [
+        { open: '{', close: '}' },
+        { open: '[', close: ']' },
+        { open: '(', close: ')' },
+        { open: '<', close: '>' },
+        { open: '"', close: '"' },
+        { open: "'", close: "'" }
+      ],
+      folding: {
+        markers: {
+          start: /^\s*#pragma\s+region\b/,
+          end: /^\s*#pragma\s+endregion\b/
+        }
+      },
+      indentationRules: {
+        increaseIndentPattern: /^.*\{[^}"']*$|^.*\([^)"']*$/,
+        decreaseIndentPattern: /^\s*[\}\]].*$/
+      },
+      wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
+      onEnterRules: [
+        {
+          beforeText: /^\s*\/\*\*(?!\/)([^\*]|\*(?!\/))*$/,
+          afterText: /^\s*\*\/$/,
+          action: { indentAction: monaco.languages.IndentAction.IndentOutdent, appendText: ' * ' }
+        },
+        {
+          beforeText: /^\s*\/\*\*(?!\/)([^\*]|\*(?!\/))*$/,
+          action: { indentAction: monaco.languages.IndentAction.None, appendText: ' * ' }
+        },
+        {
+          beforeText: /^(\t|[ ])*[ ]\*([ ]([^\*]|\*(?!\/))*)?$/,
+          action: { indentAction: monaco.languages.IndentAction.None, appendText: '* ' }
+        },
+        {
+          beforeText: /^(\t|[ ])*[ ]\*\/\s*$/,
+          action: { indentAction: monaco.languages.IndentAction.None, removeText: 1 }
+        }
+      ]
+    });
+
+    // Register C/C++ code snippets
+    const cSnippets = [
+      {
+        label: 'inc',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: '#include <${1:header}.h>',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Include system header'
+      },
+      {
+        label: 'incl',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: '#include "${1:header}.h"',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Include local header'
+      },
+      {
+        label: 'main',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'int main(int argc, char *argv[])\n{\n\t${1:// code}\n\treturn 0;\n}',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Main function'
+      },
+      {
+        label: 'func',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: '${1:void} ${2:function_name}(${3:void})\n{\n\t${4:// code}\n}',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Function definition'
+      },
+      {
+        label: 'for',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'for (${1:int} ${2:i} = 0; ${2:i} < ${3:count}; ${2:i}++)\n{\n\t${4:// code}\n}',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'For loop'
+      },
+      {
+        label: 'while',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'while (${1:condition})\n{\n\t${2:// code}\n}',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'While loop'
+      },
+      {
+        label: 'if',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'if (${1:condition})\n{\n\t${2:// code}\n}',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'If statement'
+      },
+      {
+        label: 'ifelse',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'if (${1:condition})\n{\n\t${2:// code}\n}\nelse\n{\n\t${3:// code}\n}',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'If-else statement'
+      },
+      {
+        label: 'switch',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'switch (${1:expression})\n{\n\tcase ${2:value}:\n\t\t${3:// code}\n\t\tbreak;\n\tdefault:\n\t\t${4:// code}\n\t\tbreak;\n}',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Switch statement'
+      },
+      {
+        label: 'struct',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'typedef struct ${1:name}\n{\n\t${2:// members}\n} ${1:name}_t;',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Struct definition with typedef'
+      },
+      {
+        label: 'enum',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'typedef enum ${1:name}\n{\n\t${2:VALUE1},\n\t${3:VALUE2}\n} ${1:name}_t;',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Enum definition with typedef'
+      },
+      {
+        label: 'define',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: '#define ${1:NAME} ${2:value}',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Preprocessor define'
+      },
+      {
+        label: 'ifndef',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: '#ifndef ${1:HEADER_H}\n#define ${1:HEADER_H}\n\n${2:// code}\n\n#endif /* ${1:HEADER_H} */',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Include guard'
+      },
+      {
+        label: 'printf',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'printf("${1:%s}\\n", ${2:value});',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Printf statement'
+      },
+      {
+        label: 'malloc',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: '${1:type} *${2:ptr} = (${1:type} *)malloc(sizeof(${1:type}) * ${3:count});',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Malloc allocation'
+      },
+      {
+        label: 'memset',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'memset(${1:ptr}, ${2:0}, sizeof(${3:type}));',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Memset call'
+      },
+      {
+        label: 'memcpy',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'memcpy(${1:dest}, ${2:src}, ${3:size});',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'Memcpy call'
+      }
+    ];
+
+    // PS2-specific snippets
+    const ps2Snippets = [
+      {
+        label: 'ps2inc',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: '#include <kernel.h>\n#include <sifcmd.h>\n#include <libcdvd.h>',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'PS2 SDK common includes'
+      },
+      {
+        label: 'dmapacket',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'DMATAG ${1:tag} __attribute__((aligned(16))) = {\n\t.QWC = ${2:0},\n\t.PCE = ${3:0},\n\t.ID = ${4:DMA_TAG_END},\n\t.IRQ = ${5:0},\n\t.ADDR = ${6:0}\n};',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'DMA packet structure'
+      },
+      {
+        label: 'giftag',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'u64 giftag[2] __attribute__((aligned(16))) = {\n\tGIF_SET_TAG(${1:nloop}, ${2:1}, ${3:0}, ${4:0}, ${5:GIF_FLG_PACKED}, ${6:1}),\n\tGIF_REG_AD\n};',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'GIF tag for GS'
+      },
+      {
+        label: 'vudata',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        insertText: 'typedef struct __attribute__((aligned(16)))\n{\n\tfloat x, y, z, w;\n} ${1:VECTOR};',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        documentation: 'VU aligned vector struct'
+      }
+    ];
+
+    // Register completion provider for C
+    monaco.languages.registerCompletionItemProvider('c', {
+      provideCompletionItems: (model, position) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn
+        };
+        
+        const suggestions = [...cSnippets, ...ps2Snippets].map(snippet => ({
+          ...snippet,
+          range
+        }));
+
+        return { suggestions };
+      }
+    });
+
+    // Register completion provider for C++
+    monaco.languages.registerCompletionItemProvider('cpp', {
+      provideCompletionItems: (model, position) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn
+        };
+        
+        const cppSnippets = [
+          ...cSnippets,
+          ...ps2Snippets,
+          {
+            label: 'class',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: 'class ${1:ClassName}\n{\npublic:\n\t${1:ClassName}();\n\t~${1:ClassName}();\n\nprivate:\n\t${2:// members}\n};',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: 'Class definition'
+          },
+          {
+            label: 'namespace',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: 'namespace ${1:name}\n{\n\t${2:// code}\n}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: 'Namespace'
+          },
+          {
+            label: 'template',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: 'template<typename ${1:T}>\n${2:class} ${3:Name}\n{\n\t${4:// code}\n};',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: 'Template class'
+          }
+        ];
+        
+        return { suggestions: cppSnippets.map(s => ({ ...s, range })) };
+      }
+    });
+  }, []);
+
   const handleEditorDidMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
     
-    // Configure Monaco Editor for PS2 development
+    // Configure C/C++ language support
+    configureCLanguageSupport(monaco);
+    
+    // Configure Monaco Editor for professional C/C++/PS2 development
     editor.updateOptions({
+      // Font settings
       fontSize: 14,
-      fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', 'Consolas', monospace",
       fontLigatures: true,
-      minimap: { enabled: true },
-      scrollBeyondLastLine: false,
+      fontWeight: '400',
+      letterSpacing: 0.5,
+      
+      // Minimap with enhanced visibility
+      minimap: { 
+        enabled: true,
+        maxColumn: 120,
+        renderCharacters: false,
+        showSlider: 'mouseover',
+        side: 'right',
+        scale: 1
+      },
+      
+      // Scroll and layout
+      scrollBeyondLastLine: true,
       automaticLayout: true,
-      tabSize: 2,
-      insertSpaces: true,
+      smoothScrolling: true,
+      cursorSmoothCaretAnimation: 'on',
+      cursorBlinking: 'smooth',
+      cursorStyle: 'line',
+      cursorWidth: 2,
+      
+      // Indentation - 4 spaces for C/C++
+      tabSize: 4,
+      insertSpaces: false, // Use tabs for C/C++
+      detectIndentation: true,
+      
+      // Formatting
       formatOnPaste: true,
       formatOnType: true,
+      
+      // IntelliSense
       suggestOnTriggerCharacters: true,
+      acceptSuggestionOnCommitCharacter: true,
+      acceptSuggestionOnEnter: 'on',
       quickSuggestions: {
-        other: true,
-        comments: true,
-        strings: true,
+        other: 'on',
+        comments: 'off',
+        strings: 'on',
       },
+      suggestSelection: 'first',
+      snippetSuggestions: 'top',
+      wordBasedSuggestions: 'matchingDocuments',
+      
+      // Parameter hints
       parameterHints: {
         enabled: true,
+        cycle: true
       },
+      
+      // Auto-closing
       autoClosingBrackets: 'always',
       autoClosingQuotes: 'always',
+      autoClosingOvertype: 'always',
+      autoSurround: 'languageDefined',
       autoIndent: 'full',
+      
+      // Brackets
       bracketPairColorization: {
         enabled: true,
+        independentColorPoolPerBracketType: true
       },
+      guides: {
+        bracketPairs: true,
+        bracketPairsHorizontal: true,
+        highlightActiveBracketPair: true,
+        indentation: true,
+        highlightActiveIndentation: true
+      },
+      matchBrackets: 'always',
+      
+      // Folding
+      folding: true,
+      foldingStrategy: 'auto',
+      foldingHighlight: true,
+      showFoldingControls: 'always',
+      unfoldOnClickAfterEndOfLine: true,
+      
+      // Whitespace and rendering
+      renderWhitespace: 'selection',
+      renderControlCharacters: true,
+      renderLineHighlight: 'all',
+      renderLineHighlightOnlyWhenFocus: false,
+      
+      // Line numbers
+      lineNumbers: 'on',
+      lineNumbersMinChars: 4,
+      lineDecorationsWidth: 10,
+      
+      // Gutter
+      glyphMargin: true,
+      
+      // Find/Replace
+      find: {
+        addExtraSpaceOnTop: true,
+        autoFindInSelection: 'multiline',
+        seedSearchStringFromSelection: 'selection'
+      },
+      
+      // Word wrap
+      wordWrap: 'off',
+      wordWrapColumn: 120,
+      wrappingIndent: 'same',
+      
+      // Links
+      links: true,
+      
+      // Mouse
+      mouseWheelZoom: true,
+      multiCursorModifier: 'ctrlCmd',
+      
+      // Hover
+      hover: {
+        enabled: true,
+        delay: 300,
+        sticky: true
+      },
+      
+      // Sticky scroll - shows context at top
+      stickyScroll: {
+        enabled: true,
+        maxLineCount: 5
+      },
+      
+      // Inlay hints
+      inlayHints: {
+        enabled: 'on'
+      },
+      
+      // Selection
+      selectionHighlight: true,
+      occurrencesHighlight: 'singleFile',
+      
+      // Rulers for code width guidance
+      rulers: [80, 120],
+      
+      // Padding
+      padding: {
+        top: 8,
+        bottom: 8
+      }
     });
+
+    // Define a professional dark theme optimized for C/C++
+    monaco.editor.defineTheme('ps2-dark-pro', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        // Comments
+        { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+        { token: 'comment.block', foreground: '6A9955', fontStyle: 'italic' },
+        { token: 'comment.line', foreground: '6A9955', fontStyle: 'italic' },
+        
+        // Keywords
+        { token: 'keyword', foreground: 'C586C0', fontStyle: 'bold' },
+        { token: 'keyword.control', foreground: 'C586C0' },
+        { token: 'keyword.operator', foreground: 'C586C0' },
+        
+        // Types
+        { token: 'type', foreground: '4EC9B0' },
+        { token: 'type.identifier', foreground: '4EC9B0' },
+        { token: 'storage.type', foreground: '569CD6', fontStyle: 'bold' },
+        
+        // Functions
+        { token: 'function', foreground: 'DCDCAA' },
+        { token: 'function.declaration', foreground: 'DCDCAA', fontStyle: 'bold' },
+        
+        // Variables
+        { token: 'variable', foreground: '9CDCFE' },
+        { token: 'variable.parameter', foreground: '9CDCFE', fontStyle: 'italic' },
+        
+        // Strings
+        { token: 'string', foreground: 'CE9178' },
+        { token: 'string.escape', foreground: 'D7BA7D' },
+        
+        // Numbers
+        { token: 'number', foreground: 'B5CEA8' },
+        { token: 'number.hex', foreground: 'B5CEA8' },
+        
+        // Preprocessor
+        { token: 'preprocessor', foreground: '9B9B9B' },
+        { token: 'meta.preprocessor', foreground: 'C586C0' },
+        
+        // Operators
+        { token: 'operator', foreground: 'D4D4D4' },
+        
+        // Punctuation
+        { token: 'delimiter', foreground: 'D4D4D4' },
+        { token: 'delimiter.bracket', foreground: 'FFD700' },
+        
+        // Constants
+        { token: 'constant', foreground: '4FC1FF' },
+        { token: 'constant.language', foreground: '569CD6' },
+        
+        // Namespace
+        { token: 'namespace', foreground: '4EC9B0' }
+      ],
+      colors: {
+        'editor.background': '#0D1117',
+        'editor.foreground': '#E6EDF3',
+        'editor.lineHighlightBackground': '#161B22',
+        'editor.selectionBackground': '#264F78',
+        'editor.inactiveSelectionBackground': '#3A3D41',
+        'editorCursor.foreground': '#58A6FF',
+        'editorLineNumber.foreground': '#484F58',
+        'editorLineNumber.activeForeground': '#E6EDF3',
+        'editorIndentGuide.background1': '#21262D',
+        'editorIndentGuide.activeBackground1': '#3B4048',
+        'editorBracketMatch.background': '#17E5E633',
+        'editorBracketMatch.border': '#17E5E6',
+        'editor.findMatchBackground': '#9E6A03',
+        'editor.findMatchHighlightBackground': '#F2CC6044',
+        'editorGutter.background': '#0D1117',
+        'editorRuler.foreground': '#21262D',
+        'minimap.background': '#0D1117',
+        'scrollbarSlider.background': '#484F5833',
+        'scrollbarSlider.hoverBackground': '#484F5855',
+        'scrollbarSlider.activeBackground': '#484F5888',
+        'editorStickyScroll.background': '#161B22',
+        'editorStickyScrollHover.background': '#1F242C'
+      }
+    });
+
+    // Apply the custom theme
+    monaco.editor.setTheme('ps2-dark-pro');
 
     // Add keyboard shortcuts
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
@@ -122,7 +670,52 @@ export function CodeEditor({
         handleCloseCurrentTab();
       }
     });
-  }, [onRun, openTabs]);
+
+    // Ctrl+/ for toggle comment
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash, () => {
+      editor.trigger('keyboard', 'editor.action.commentLine', null);
+    });
+
+    // Ctrl+Shift+/ for block comment
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Slash, () => {
+      editor.trigger('keyboard', 'editor.action.blockComment', null);
+    });
+
+    // Ctrl+D for duplicate line
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
+      editor.trigger('keyboard', 'editor.action.copyLinesDownAction', null);
+    });
+
+    // Alt+Up/Down for move line
+    editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.UpArrow, () => {
+      editor.trigger('keyboard', 'editor.action.moveLinesUpAction', null);
+    });
+
+    editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.DownArrow, () => {
+      editor.trigger('keyboard', 'editor.action.moveLinesDownAction', null);
+    });
+
+    // Ctrl+Shift+K for delete line
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyK, () => {
+      editor.trigger('keyboard', 'editor.action.deleteLines', null);
+    });
+
+    // F2 for rename symbol
+    editor.addCommand(monaco.KeyCode.F2, () => {
+      editor.trigger('keyboard', 'editor.action.rename', null);
+    });
+
+    // Ctrl+G for go to line
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyG, () => {
+      editor.trigger('keyboard', 'editor.action.gotoLine', null);
+    });
+
+    // Ctrl+P for quick open (command palette)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
+      editor.trigger('keyboard', 'editor.action.quickCommand', null);
+    });
+
+  }, [onRun, openTabs, configureCLanguageSupport]);
 
   const handleEditorChange = useCallback((value: string | undefined) => {
     if (value !== undefined) {
