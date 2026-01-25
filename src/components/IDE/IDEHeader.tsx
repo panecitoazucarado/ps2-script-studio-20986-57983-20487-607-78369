@@ -32,7 +32,9 @@ import {
   Bug,
   Cpu,
   Activity,
-  ChevronDown
+  ChevronDown,
+  FilePlus2,
+  Sparkles
 } from 'lucide-react';
 import { WindowConfigMenu } from './WindowConfigMenu';
 
@@ -46,6 +48,7 @@ interface IDEHeaderProps {
   onToggleAIChat: () => void;
   onToggleAIChatWindow: () => void;
   onToggleTerminal?: () => void;
+  onOpenQuickCreate?: () => void;
 }
 
 export function IDEHeader({ 
@@ -57,7 +60,8 @@ export function IDEHeader({
   onTogglePreview,
   onToggleAIChat,
   onToggleAIChatWindow,
-  onToggleTerminal
+  onToggleTerminal,
+  onOpenQuickCreate
 }: IDEHeaderProps) {
   return (
     <header className="ide-statusbar border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -128,6 +132,20 @@ export function IDEHeader({
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 
+                {/* Quick Create Templates */}
+                <DropdownMenuItem 
+                  onClick={onOpenQuickCreate}
+                  className="flex items-center gap-2 cursor-pointer py-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-ps2-purple" />
+                  <div className="flex flex-col flex-1">
+                    <span className="text-xs">Plantillas Rápidas</span>
+                    <span className="text-[10px] text-muted-foreground">Crear archivos PS2</span>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
                 <DropdownMenuItem 
                   onClick={onToggleTerminal}
                   className="flex items-center gap-2 cursor-pointer py-1.5"

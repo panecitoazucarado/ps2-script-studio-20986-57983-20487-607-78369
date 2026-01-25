@@ -9,6 +9,7 @@ import { IDEStatusBar } from './IDEStatusBar';
 import { FloatingWindow } from './FloatingWindow';
 import { AIDeveloperChat } from './AIDeveloperChat';
 import { IDETerminal } from './IDETerminal';
+import { QuickCreateTemplates } from './QuickCreateTemplates';
 import { FileNode } from '@/types/athena';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +51,10 @@ export function IDELayoutContent() {
   const [cloneUrl, setCloneUrl] = useState('');
   const [isCloning, setIsCloning] = useState(false);
   const [cloneProgress, setCloneProgress] = useState<string[]>([]);
+  
+  // Quick Create Templates state
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
+  const [quickCreateTargetFolder, setQuickCreateTargetFolder] = useState('/');
 
   const fileExplorerHeaderRef = useRef<HTMLDivElement>(null);
   const previewHeaderRef = useRef<HTMLDivElement>(null);
@@ -636,6 +641,27 @@ export function IDELayoutContent() {
           onTogglePreview={() => setShowPreview(!showPreview)}
           onToggleAIChatWindow={() => toggleWindowVisibility('aiChat')}
           onToggleTerminal={() => setShowTerminal(!showTerminal)}
+          onOpenQuickCreate={() => setShowQuickCreate(true)}
+        />
+        
+        {/* Quick Create Templates Dialog */}
+        <QuickCreateTemplates
+          open={showQuickCreate}
+          onOpenChange={setShowQuickCreate}
+          targetFolder={quickCreateTargetFolder}
+          onCreateFile={(extension, content) => {
+            const fileName = `nuevo_archivo.${extension}`;
+            const newFile: FileNode = {
+              name: fileName,
+              type: 'file',
+              path: `${quickCreateTargetFolder}/${fileName}`,
+              content
+            };
+            handleFileSelect(newFile);
+            setProjectFiles(prev => [...prev, newFile]);
+            setFileSystemVersion(prev => prev + 1);
+            toast.success(`Archivo ${fileName} creado exitosamente`);
+          }}
         />
 
         <div className="flex-1 overflow-hidden">
