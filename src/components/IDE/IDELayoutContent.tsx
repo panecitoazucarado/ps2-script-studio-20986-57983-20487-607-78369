@@ -10,6 +10,7 @@ import { FloatingWindow } from './FloatingWindow';
 import { AIDeveloperChat } from './AIDeveloperChat';
 import { IDETerminal } from './IDETerminal';
 import { QuickCreateTemplates } from './QuickCreateTemplates';
+import { PS2VisualBuilder } from './PS2VisualBuilder';
 import { FileNode } from '@/types/athena';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +56,9 @@ export function IDELayoutContent() {
   // Quick Create Templates state
   const [showQuickCreate, setShowQuickCreate] = useState(false);
   const [quickCreateTargetFolder, setQuickCreateTargetFolder] = useState('/');
+  
+  // Visual Builder state
+  const [showVisualBuilder, setShowVisualBuilder] = useState(false);
 
   const fileExplorerHeaderRef = useRef<HTMLDivElement>(null);
   const previewHeaderRef = useRef<HTMLDivElement>(null);
@@ -642,6 +646,7 @@ export function IDELayoutContent() {
           onToggleAIChatWindow={() => toggleWindowVisibility('aiChat')}
           onToggleTerminal={() => setShowTerminal(!showTerminal)}
           onOpenQuickCreate={() => setShowQuickCreate(true)}
+          onOpenVisualBuilder={() => setShowVisualBuilder(true)}
         />
         
         {/* Quick Create Templates Dialog */}
@@ -661,6 +666,36 @@ export function IDELayoutContent() {
             setProjectFiles(prev => [...prev, newFile]);
             setFileSystemVersion(prev => prev + 1);
             toast.success(`Archivo ${fileName} creado exitosamente`);
+          }}
+        />
+        
+        {/* PS2 Visual UI Builder */}
+        <PS2VisualBuilder
+          open={showVisualBuilder}
+          onOpenChange={setShowVisualBuilder}
+          onGenerateCode={(generatedCode) => {
+            // Create a new file with the generated code or update current
+            if (selectedFile && selectedFile.type === 'file') {
+              // Update current file
+              setCode(generatedCode);
+              setOpenTabs((prev: FileNode[]) => prev.map((tab, idx) => 
+                idx === activeTabIndex ? { ...tab, content: generatedCode } : tab
+              ));
+              setProjectFiles(prev => updateFileInTree(prev, selectedFile.path, generatedCode));
+              toast.success('Código generado aplicado al archivo actual');
+            } else {
+              // Create new file
+              const newFile: FileNode = {
+                name: 'ui_generated.js',
+                type: 'file',
+                path: '/ui_generated.js',
+                content: generatedCode
+              };
+              handleFileSelect(newFile);
+              setProjectFiles(prev => [...prev, newFile]);
+              setFileSystemVersion(prev => prev + 1);
+              toast.success('Archivo ui_generated.js creado con el código generado');
+            }
           }}
         />
 
