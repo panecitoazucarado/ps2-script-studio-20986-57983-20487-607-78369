@@ -34,7 +34,8 @@ import {
   Activity,
   ChevronDown,
   FilePlus2,
-  Sparkles
+  Sparkles,
+  PenTool
 } from 'lucide-react';
 import { WindowConfigMenu } from './WindowConfigMenu';
 
@@ -49,6 +50,7 @@ interface IDEHeaderProps {
   onToggleAIChatWindow: () => void;
   onToggleTerminal?: () => void;
   onOpenQuickCreate?: () => void;
+  onOpenVisualBuilder?: () => void;
 }
 
 export function IDEHeader({ 
@@ -61,7 +63,8 @@ export function IDEHeader({
   onToggleAIChat,
   onToggleAIChatWindow,
   onToggleTerminal,
-  onOpenQuickCreate
+  onOpenQuickCreate,
+  onOpenVisualBuilder
 }: IDEHeaderProps) {
   return (
     <header className="ide-statusbar border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -132,6 +135,18 @@ export function IDEHeader({
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 
+                {/* Visual UI Builder */}
+                <DropdownMenuItem 
+                  onClick={onOpenVisualBuilder}
+                  className="flex items-center gap-2 cursor-pointer py-1.5"
+                >
+                  <PenTool className="w-3.5 h-3.5 text-ps2-cyan" />
+                  <div className="flex flex-col flex-1">
+                    <span className="text-xs">Visual UI Builder</span>
+                    <span className="text-[10px] text-muted-foreground">Diseño visual 640x448</span>
+                  </div>
+                </DropdownMenuItem>
+
                 {/* Quick Create Templates */}
                 <DropdownMenuItem 
                   onClick={onOpenQuickCreate}
