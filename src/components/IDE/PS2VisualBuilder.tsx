@@ -149,21 +149,33 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     setSelectedId(newComponent.id);
   }, [components.length, snapToGrid]);
 
-  // Component mouse down handler
+  // Component mouse down handler - for dragging
   const handleComponentMouseDown = useCallback((e: React.MouseEvent, comp: PS2Component) => {
-    if (comp.locked) return;
     e.stopPropagation();
+    e.preventDefault();
+    
+    // Always select component on click, even if locked
+    setSelectedId(comp.id);
+    
+    // Only start dragging if not locked
+    if (comp.locked) return;
     
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     
-    setSelectedId(comp.id);
     setIsDragging(true);
     setDragOffset({
       x: (e.clientX - rect.left) / zoom - comp.x,
       y: (e.clientY - rect.top) / zoom - comp.y
     });
   }, [zoom]);
+
+  // Component click handler - for selection only
+  const handleComponentClick = useCallback((e: React.MouseEvent, comp: PS2Component) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setSelectedId(comp.id);
+  }, []);
 
   // Resize handle mouse down
   const handleResizeMouseDown = useCallback((e: React.MouseEvent, handle: string) => {
@@ -390,10 +402,10 @@ os.setInterval(() => {
       top: comp.y * zoom,
       width: comp.width * zoom,
       height: comp.height * zoom,
-      zIndex: comp.zIndex,
+      zIndex: comp.zIndex + 10, // Ensure components are above canvas background
       opacity: comp.visible ? 1 : 0.3,
-      cursor: comp.locked ? 'not-allowed' : 'move',
-      pointerEvents: comp.locked ? 'none' : 'auto'
+      cursor: comp.locked ? 'default' : 'move',
+      userSelect: 'none'
     };
 
     // Simplified visual representations
@@ -548,6 +560,7 @@ os.setInterval(() => {
         style={baseStyle}
         className={`${isSelected ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-transparent' : ''} transition-shadow`}
         onMouseDown={(e) => handleComponentMouseDown(e, comp)}
+        onClick={(e) => handleComponentClick(e, comp)}
       >
         {getVisual()}
         
@@ -569,7 +582,7 @@ os.setInterval(() => {
         )}
       </div>
     );
-  }, [selectedId, zoom, handleComponentMouseDown, handleResizeMouseDown]);
+  }, [selectedId, zoom, handleComponentMouseDown, handleComponentClick, handleResizeMouseDown]);
 
   // Color input component
   const ColorInput = ({ label, value, onChange }: { label: string; value: PS2Color; onChange: (color: PS2Color) => void }) => {
@@ -830,7 +843,12 @@ os.setInterval(() => {
                   ` : 'none',
                   backgroundSize: `${gridSize * zoom}px ${gridSize * zoom}px`
                 }}
-                onClick={() => setSelectedId(null)}
+                onMouseDown={(e) => {
+                  // Only deselect if clicking directly on canvas, not on a component
+                  if (e.target === e.currentTarget) {
+                    setSelectedId(null);
+                  }
+                }}
               >
                 {/* Safe area guide */}
                 <div 
