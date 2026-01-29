@@ -1010,12 +1010,60 @@ os.setInterval(() => {
               </TabsContent>
               
               {showCode && (
-                <TabsContent value="code" className="flex-1 m-0 overflow-hidden">
-                  <ScrollArea className="h-full">
-                    <pre className="p-3 text-[10px] font-mono text-green-400 whitespace-pre-wrap">
-                      {generateFullCode()}
-                    </pre>
+                <TabsContent value="code" className="flex-1 m-0 overflow-hidden flex flex-col">
+                  {/* Mini Editor Header */}
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-[#1a1a2e] border-b border-[#2a2a4a]">
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <div className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
+                      </div>
+                      <span className="text-[10px] text-gray-400 font-mono">ui_generated.js</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="outline" className="text-[8px] h-4 px-1.5 border-emerald-500/50 text-emerald-400">
+                        JavaScript
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(generateFullCode());
+                        }}
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Mini Code Editor */}
+                  <ScrollArea className="flex-1 bg-[#0d0d1a]">
+                    <div className="flex text-[10px] font-mono leading-relaxed">
+                      {/* Line Numbers */}
+                      <div className="select-none text-right pr-3 pl-2 py-2 bg-[#0a0a15] text-gray-600 border-r border-[#1a1a3a] sticky left-0">
+                        {generateFullCode().split('\n').map((_, i) => (
+                          <div key={i} className="h-[14px]">{i + 1}</div>
+                        ))}
+                      </div>
+                      
+                      {/* Code Content with Syntax Highlighting */}
+                      <div className="flex-1 py-2 pl-3 pr-4 overflow-x-auto">
+                        {generateFullCode().split('\n').map((line, i) => (
+                          <div key={i} className="h-[14px] whitespace-pre">
+                            {highlightSyntax(line)}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </ScrollArea>
+                  
+                  {/* Mini Editor Footer */}
+                  <div className="flex items-center justify-between px-3 py-1 bg-[#12122a] border-t border-[#2a2a4a] text-[9px] text-gray-500">
+                    <span>{generateFullCode().split('\n').length} líneas</span>
+                    <span>UTF-8 • AthenaEnv JS</span>
+                  </div>
                 </TabsContent>
               )}
             </Tabs>
@@ -1024,4 +1072,142 @@ os.setInterval(() => {
       </DialogContent>
     </Dialog>
   );
+}
+
+// Syntax highlighting helper function
+function highlightSyntax(line: string): React.ReactNode {
+  // Empty line
+  if (!line.trim()) return <span>&nbsp;</span>;
+  
+  // Comment lines
+  if (line.trim().startsWith('//')) {
+    return <span className="text-gray-500 italic">{line}</span>;
+  }
+  
+  // Decorative comment lines (═══)
+  if (line.includes('═══') || line.includes('───')) {
+    return <span className="text-gray-600">{line}</span>;
+  }
+  
+  // Tokenize and highlight
+  const tokens: React.ReactNode[] = [];
+  let remaining = line;
+  let keyIndex = 0;
+  
+  // Keywords
+  const keywords = ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'new', 'true', 'false'];
+  const builtins = ['Screen', 'Color', 'Font', 'Draw', 'Pads', 'os', 'Math'];
+  const methods = ['setParam', 'clear', 'flip', 'print', 'rect', 'circle', 'line', 'triangle', 'get', 'update', 'setInterval'];
+  
+  // Process the line character by character with regex matching
+  while (remaining.length > 0) {
+    let matched = false;
+    
+    // String literals (double quotes)
+    const stringMatch = remaining.match(/^"[^"]*"/);
+    if (stringMatch) {
+      tokens.push(<span key={keyIndex++} className="text-amber-400">{stringMatch[0]}</span>);
+      remaining = remaining.slice(stringMatch[0].length);
+      matched = true;
+      continue;
+    }
+    
+    // String literals (single quotes)
+    const singleStringMatch = remaining.match(/^'[^']*'/);
+    if (singleStringMatch) {
+      tokens.push(<span key={keyIndex++} className="text-amber-400">{singleStringMatch[0]}</span>);
+      remaining = remaining.slice(singleStringMatch[0].length);
+      matched = true;
+      continue;
+    }
+    
+    // Numbers
+    const numberMatch = remaining.match(/^\b\d+\.?\d*\b/);
+    if (numberMatch) {
+      tokens.push(<span key={keyIndex++} className="text-purple-400">{numberMatch[0]}</span>);
+      remaining = remaining.slice(numberMatch[0].length);
+      matched = true;
+      continue;
+    }
+    
+    // Keywords
+    for (const kw of keywords) {
+      const kwRegex = new RegExp(`^\\b${kw}\\b`);
+      const kwMatch = remaining.match(kwRegex);
+      if (kwMatch) {
+        tokens.push(<span key={keyIndex++} className="text-pink-400 font-medium">{kwMatch[0]}</span>);
+        remaining = remaining.slice(kwMatch[0].length);
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+    
+    // Built-in objects
+    for (const bi of builtins) {
+      const biRegex = new RegExp(`^\\b${bi}\\b`);
+      const biMatch = remaining.match(biRegex);
+      if (biMatch) {
+        tokens.push(<span key={keyIndex++} className="text-cyan-400">{biMatch[0]}</span>);
+        remaining = remaining.slice(biMatch[0].length);
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+    
+    // Methods
+    for (const mt of methods) {
+      const mtRegex = new RegExp(`^\\b${mt}\\b`);
+      const mtMatch = remaining.match(mtRegex);
+      if (mtMatch) {
+        tokens.push(<span key={keyIndex++} className="text-yellow-300">{mtMatch[0]}</span>);
+        remaining = remaining.slice(mtMatch[0].length);
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+    
+    // Function names (word followed by parenthesis)
+    const funcMatch = remaining.match(/^(\w+)(?=\()/);
+    if (funcMatch) {
+      tokens.push(<span key={keyIndex++} className="text-blue-400">{funcMatch[0]}</span>);
+      remaining = remaining.slice(funcMatch[0].length);
+      matched = true;
+      continue;
+    }
+    
+    // Operators and punctuation
+    const opMatch = remaining.match(/^[{}()\[\];,.:=<>+\-*\/&|!?]+/);
+    if (opMatch) {
+      tokens.push(<span key={keyIndex++} className="text-gray-400">{opMatch[0]}</span>);
+      remaining = remaining.slice(opMatch[0].length);
+      matched = true;
+      continue;
+    }
+    
+    // Identifiers and other text
+    const identMatch = remaining.match(/^\w+/);
+    if (identMatch) {
+      tokens.push(<span key={keyIndex++} className="text-gray-200">{identMatch[0]}</span>);
+      remaining = remaining.slice(identMatch[0].length);
+      matched = true;
+      continue;
+    }
+    
+    // Whitespace
+    const wsMatch = remaining.match(/^\s+/);
+    if (wsMatch) {
+      tokens.push(<span key={keyIndex++}>{wsMatch[0]}</span>);
+      remaining = remaining.slice(wsMatch[0].length);
+      continue;
+    }
+    
+    // Fallback: single character
+    tokens.push(<span key={keyIndex++} className="text-gray-300">{remaining[0]}</span>);
+    remaining = remaining.slice(1);
+  }
+  
+  return <>{tokens}</>;
 }
