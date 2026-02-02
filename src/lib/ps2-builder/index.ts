@@ -10,6 +10,7 @@ import { listTemplates } from './templates/list-templates';
 import { indicatorTemplates } from './templates/indicator-templates';
 import { mediaTemplates } from './templates/media-templates';
 import { advancedTemplates } from './templates/advanced-templates';
+import { calculatorTemplates } from './templates/calculator-templates';
 
 // Combine all templates
 export const allTemplates: ComponentTemplate[] = [
@@ -21,7 +22,8 @@ export const allTemplates: ComponentTemplate[] = [
   ...listTemplates,
   ...indicatorTemplates,
   ...mediaTemplates,
-  ...advancedTemplates
+  ...advancedTemplates,
+  ...calculatorTemplates
 ];
 
 // Get templates by category
