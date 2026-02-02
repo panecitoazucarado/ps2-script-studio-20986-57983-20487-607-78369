@@ -40,7 +40,7 @@ const btn_${comp.id.slice(0, 6)} = {
     }
     
     font.color = ${colorToAthena(comp.props.textColor)};
-    font.scale = 1.0f;
+    font.scale = 1.0;
     const tw = font.getTextSize(this.text).width;
     font.print(this.x + (this.width - tw) / 2, this.y + 10, this.text);
   },
@@ -72,7 +72,7 @@ btn_${comp.id.slice(0, 6)}.draw();`
       placeholderColor: defaultColor(100, 100, 130, 128),
       maxLength: 32
     },
-    codeGenerator: (comp: PS2Component) => `// TextBox Component (requires Keyboard.init())
+    codeGenerator: (comp: PS2Component) => `// TextBox Component
 const textbox_${comp.id.slice(0, 6)} = {
   x: ${comp.x}, y: ${comp.y},
   width: ${comp.width}, height: ${comp.height},
@@ -92,7 +92,7 @@ const textbox_${comp.id.slice(0, 6)} = {
     Draw.line(this.x + this.width, this.y + this.height, this.x, this.y + this.height, borderCol);
     Draw.line(this.x, this.y + this.height, this.x, this.y, borderCol);
     
-    font.scale = 0.9f;
+    font.scale = 0.9;
     font.color = this.value 
       ? ${colorToAthena(comp.props.textColor)}
       : ${colorToAthena(comp.props.placeholderColor)};
@@ -102,14 +102,6 @@ const textbox_${comp.id.slice(0, 6)} = {
     if (this.focused) {
       const cursorX = this.x + 8 + font.getTextSize(this.value).width;
       Draw.rect(cursorX, this.y + 6, 2, this.height - 12, Color.new(255, 255, 255, 200));
-    }
-  },
-  
-  handleInput: function() {
-    if (!this.focused) return;
-    const char = Keyboard.get();
-    if (char && this.value.length < this.maxLength) {
-      this.value += char;
     }
   }
 };
@@ -159,7 +151,7 @@ const checkbox_${comp.id.slice(0, 6)} = {
     
     // Label
     font.color = ${colorToAthena(comp.props.labelColor)};
-    font.scale = 0.9f;
+    font.scale = 0.9;
     font.print(this.x + 26, this.y + 2, this.label);
   },
   
@@ -212,7 +204,7 @@ const radio_${comp.id.slice(0, 6)} = {
     
     // Label
     font.color = ${colorToAthena(comp.props.labelColor)};
-    font.scale = 0.9f;
+    font.scale = 0.9;
     font.print(this.x + 26, this.y + 2, this.label);
   }
 };
@@ -269,7 +261,7 @@ const slider_${comp.id.slice(0, 6)} = {
     
     ${comp.props.showValue ? `// Value text
     font.color = Color.new(255, 255, 255, 128);
-    font.scale = 0.75f;
+    font.scale = 0.75;
     font.print(this.x + this.width + 8, this.y + 6, String(this.value));` : ''}
   },
   
@@ -329,7 +321,7 @@ const toggle_${comp.id.slice(0, 6)} = {
     
     // Label
     font.color = ${colorToAthena(comp.props.labelColor)};
-    font.scale = 0.85f;
+    font.scale = 0.85;
     font.print(this.x + 52, this.y + 6, this.label);
   },
   

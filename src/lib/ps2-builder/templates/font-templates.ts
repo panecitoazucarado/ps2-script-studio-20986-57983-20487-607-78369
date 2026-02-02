@@ -22,7 +22,7 @@ export const fontTemplates: ComponentTemplate[] = [
     },
     codeGenerator: (comp: PS2Component) => `// Text Label
 font.color = ${colorToAthena(comp.props.color)};
-font.scale = ${comp.props.scale.toFixed(2)}f;
+font.scale = ${comp.props.scale.toFixed(2)};
 font.print(${comp.x}, ${comp.y}, "${comp.props.text}");`
   },
 
@@ -40,23 +40,23 @@ font.print(${comp.x}, ${comp.y}, "${comp.props.text}");`
       text: 'TÍTULO PRINCIPAL',
       color: defaultColor(0, 255, 255, 128),
       scale: 1.75,
-      dropshadow: 2.0,
-      dropshadowColor: defaultColor(0, 0, 0, 128)
+      shadowOffset: 2
     },
-    codeGenerator: (comp: PS2Component) => `// Title with Dropshadow
+    codeGenerator: (comp: PS2Component) => `// Title with Shadow
+// Shadow
+font.color = Color.new(0, 0, 0, 128);
+font.scale = ${comp.props.scale.toFixed(2)};
+font.print(${comp.x + comp.props.shadowOffset}, ${comp.y + comp.props.shadowOffset}, "${comp.props.text}");
+// Main text
 font.color = ${colorToAthena(comp.props.color)};
-font.scale = ${comp.props.scale.toFixed(2)}f;
-font.dropshadow = ${comp.props.dropshadow.toFixed(1)}f;
-font.dropshadow_color = ${colorToAthena(comp.props.dropshadowColor)};
-font.print(${comp.x}, ${comp.y}, "${comp.props.text}");
-font.dropshadow = 0.0f; // Reset`
+font.print(${comp.x}, ${comp.y}, "${comp.props.text}");`
   },
 
-  // Outlined Text
+  // Outlined Text (simulated with multiple prints)
   {
     type: 'outline-text',
     name: 'Texto con Borde',
-    description: 'Texto con outline/contorno',
+    description: 'Texto con outline/contorno simulado',
     icon: 'Type',
     category: 'font',
     subcategory: 'Estilos',
@@ -66,17 +66,20 @@ font.dropshadow = 0.0f; // Reset`
     defaultProps: {
       text: 'TEXTO CONTORNEADO',
       color: defaultColor(255, 255, 0, 128),
-      scale: 1.5,
-      outline: 1.5,
-      outlineColor: defaultColor(0, 0, 0, 128)
+      outlineColor: defaultColor(0, 0, 0, 128),
+      scale: 1.5
     },
-    codeGenerator: (comp: PS2Component) => `// Outlined Text
+    codeGenerator: (comp: PS2Component) => `// Outlined Text (simulated)
+font.scale = ${comp.props.scale.toFixed(2)};
+font.color = ${colorToAthena(comp.props.outlineColor)};
+// Outline passes
+font.print(${comp.x - 1}, ${comp.y}, "${comp.props.text}");
+font.print(${comp.x + 1}, ${comp.y}, "${comp.props.text}");
+font.print(${comp.x}, ${comp.y - 1}, "${comp.props.text}");
+font.print(${comp.x}, ${comp.y + 1}, "${comp.props.text}");
+// Main text
 font.color = ${colorToAthena(comp.props.color)};
-font.scale = ${comp.props.scale.toFixed(2)}f;
-font.outline = ${comp.props.outline.toFixed(1)}f;
-font.outline_color = ${colorToAthena(comp.props.outlineColor)};
-font.print(${comp.x}, ${comp.y}, "${comp.props.text}");
-font.outline = 0.0f; // Reset`
+font.print(${comp.x}, ${comp.y}, "${comp.props.text}");`
   },
 
   // Aligned Text (Center)
@@ -98,10 +101,10 @@ font.outline = 0.0f; // Reset`
     },
     codeGenerator: (comp: PS2Component) => `// Centered Text
 font.color = ${colorToAthena(comp.props.color)};
-font.scale = ${comp.props.scale.toFixed(2)}f;
-font.align = Font.ALIGN_CENTER;
-font.print(${comp.x}, ${comp.y}, "${comp.props.text}");
-font.align = Font.ALIGN_NONE; // Reset`
+font.scale = ${comp.props.scale.toFixed(2)};
+const textWidth_${comp.id.slice(0, 4)} = font.getTextSize("${comp.props.text}").width;
+const centerX_${comp.id.slice(0, 4)} = ${comp.x} + (${comp.props.containerWidth} - textWidth_${comp.id.slice(0, 4)}) / 2;
+font.print(centerX_${comp.id.slice(0, 4)}, ${comp.y}, "${comp.props.text}");`
   },
 
   // FPS Counter
@@ -122,9 +125,10 @@ font.align = Font.ALIGN_NONE; // Reset`
     },
     codeGenerator: (comp: PS2Component) => `// FPS Counter
 font.color = ${colorToAthena(comp.props.color)};
-font.scale = ${comp.props.scale.toFixed(3)}f;
-const fps = Screen.getFPS(1000);
-font.print(${comp.x}, ${comp.y}, ${comp.props.showLabel ? '"FPS: " + ' : ''}fps.toFixed(1));`
+font.scale = ${comp.props.scale.toFixed(3)};
+Screen.setFrameCounter(true);
+const fps_${comp.id.slice(0, 4)} = Screen.getFPS(1000);
+font.print(${comp.x}, ${comp.y}, ${comp.props.showLabel ? '"FPS: " + ' : ''}fps_${comp.id.slice(0, 4)}.toFixed(1));`
   },
 
   // Dynamic Value Display
@@ -140,17 +144,17 @@ font.print(${comp.x}, ${comp.y}, ${comp.props.showLabel ? '"FPS: " + ' : ''}fps.
     defaultHeight: 24,
     defaultProps: {
       label: 'Score: ',
-      variableName: 'playerScore',
+      defaultValue: '0',
       color: defaultColor(255, 255, 255, 128),
       valueColor: defaultColor(255, 255, 0, 128),
       scale: 1.0
     },
     codeGenerator: (comp: PS2Component) => `// Dynamic Value Display
-font.scale = ${comp.props.scale.toFixed(2)}f;
+font.scale = ${comp.props.scale.toFixed(2)};
 font.color = ${colorToAthena(comp.props.color)};
 font.print(${comp.x}, ${comp.y}, "${comp.props.label}");
-const labelWidth_${comp.id.slice(0, 4)} = font.getTextSize("${comp.props.label}").width;
+const labelW_${comp.id.slice(0, 4)} = font.getTextSize("${comp.props.label}").width;
 font.color = ${colorToAthena(comp.props.valueColor)};
-font.print(${comp.x} + labelWidth_${comp.id.slice(0, 4)}, ${comp.y}, String(${comp.props.variableName}));`
+font.print(${comp.x} + labelW_${comp.id.slice(0, 4)}, ${comp.y}, "${comp.props.defaultValue}");`
   }
 ];
