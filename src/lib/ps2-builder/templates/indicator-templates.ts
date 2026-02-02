@@ -39,7 +39,7 @@ const progress_${comp.id.slice(0, 6)} = {
     
     ${comp.props.showText ? `// Percentage text
     font.color = ${colorToAthena(comp.props.textColor)};
-    font.scale = 0.7f;
+    font.scale = 0.7;
     const pct = Math.floor((this.value / this.max) * 100) + "%";
     const tw = font.getTextSize(pct).width;
     font.print(this.x + (this.width - tw) / 2, this.y + 5, pct);` : ''}
@@ -106,7 +106,7 @@ const healthbar_${comp.id.slice(0, 6)} = {
     
     // Label
     font.color = Color.new(255, 255, 255, 128);
-    font.scale = 0.65f;
+    font.scale = 0.65;
     font.print(this.x + 4, this.y + 3, "${comp.props.label}: " + this.value + "/" + this.max);
   }
 };
@@ -148,12 +148,12 @@ const gauge_${comp.id.slice(0, 6)} = {
     
     // Center text
     font.color = ${colorToAthena(comp.props.textColor)};
-    font.scale = 0.6f;
+    font.scale = 0.6;
     const txt = String(Math.floor((this.value / this.max) * 100));
     const tw = font.getTextSize(txt).width;
     font.print(this.x - tw / 2, this.y - 6, txt);
     
-    font.scale = 0.5f;
+    font.scale = 0.5;
     const lw = font.getTextSize("${comp.props.label}").width;
     font.print(this.x - lw / 2, this.y + 8, "${comp.props.label}");
   }
@@ -224,7 +224,7 @@ spinner_${comp.id.slice(0, 6)}.draw();`
 Draw.rect(${comp.x}, ${comp.y}, ${comp.width}, ${comp.height}, ${colorToAthena(comp.props.bgColor)});
 ${comp.props.showDot ? `Draw.circle(${comp.x + 12}, ${comp.y + Math.floor(comp.height / 2)}, 5, ${colorToAthena(comp.props.dotColor)}, true);` : ''}
 font.color = ${colorToAthena(comp.props.textColor)};
-font.scale = 0.75f;
+font.scale = 0.75;
 font.print(${comp.x + (comp.props.showDot ? 22 : 8)}, ${comp.y + 6}, "${comp.props.text}");`
   },
 
@@ -240,28 +240,27 @@ font.print(${comp.x + (comp.props.showDot ? 22 : 8)}, ${comp.y + 6}, "${comp.pro
     defaultWidth: 120,
     defaultHeight: 40,
     defaultProps: {
-      variableName: 'gameTime',
+      initialSeconds: 60,
       bgColor: defaultColor(30, 30, 50, 255),
       textColor: defaultColor(255, 255, 0, 128),
       label: 'TIME',
-      labelColor: defaultColor(150, 150, 180, 128),
-      format: 'mm:ss'
+      labelColor: defaultColor(150, 150, 180, 128)
     },
     codeGenerator: (comp: PS2Component) => `// Timer Display
 Draw.rect(${comp.x}, ${comp.y}, ${comp.width}, ${comp.height}, ${colorToAthena(comp.props.bgColor)});
 
 // Label
 font.color = ${colorToAthena(comp.props.labelColor)};
-font.scale = 0.6f;
+font.scale = 0.6;
 font.print(${comp.x + 8}, ${comp.y + 4}, "${comp.props.label}");
 
-// Time value
+// Time value (using frameCount as demo)
 font.color = ${colorToAthena(comp.props.textColor)};
-font.scale = 1.1f;
-const totalSec_${comp.id.slice(0, 4)} = Math.floor(${comp.props.variableName} / 1000);
-const mins = Math.floor(totalSec_${comp.id.slice(0, 4)} / 60);
-const secs = totalSec_${comp.id.slice(0, 4)} % 60;
-const timeStr = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
-font.print(${comp.x + 8}, ${comp.y + 16}, timeStr);`
+font.scale = 1.1;
+const totalSec_${comp.id.slice(0, 4)} = ${comp.props.initialSeconds} - Math.floor(frameCount / 60);
+const mins_${comp.id.slice(0, 4)} = Math.floor(Math.max(0, totalSec_${comp.id.slice(0, 4)}) / 60);
+const secs_${comp.id.slice(0, 4)} = Math.max(0, totalSec_${comp.id.slice(0, 4)}) % 60;
+const timeStr_${comp.id.slice(0, 4)} = String(mins_${comp.id.slice(0, 4)}).padStart(2, '0') + ':' + String(secs_${comp.id.slice(0, 4)}).padStart(2, '0');
+font.print(${comp.x + 8}, ${comp.y + 16}, timeStr_${comp.id.slice(0, 4)});`
   }
 ];

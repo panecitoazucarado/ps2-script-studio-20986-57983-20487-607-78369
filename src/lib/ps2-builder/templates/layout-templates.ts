@@ -25,7 +25,7 @@ export const layoutTemplates: ComponentTemplate[] = [
 Draw.rect(${comp.x}, ${comp.y}, ${comp.width}, ${comp.height}, ${colorToAthena(comp.props.bgColor)});
 ${comp.props.showDivider ? `Draw.rect(${comp.x}, ${comp.y + comp.height - 2}, ${comp.width}, 2, ${colorToAthena(comp.props.dividerColor)});` : ''}
 font.color = ${colorToAthena(comp.props.textColor)};
-font.scale = 1.25f;
+font.scale = 1.25;
 font.print(${comp.x + 16}, ${comp.y + 12}, "${comp.props.title}");`
   },
 
@@ -50,7 +50,7 @@ font.print(${comp.x + 16}, ${comp.y + 12}, "${comp.props.title}");`
 ${comp.props.showDivider ? `Draw.rect(${comp.x}, ${comp.y}, ${comp.width}, 1, ${colorToAthena(comp.props.dividerColor)});` : ''}
 Draw.rect(${comp.x}, ${comp.y + 1}, ${comp.width}, ${comp.height - 1}, ${colorToAthena(comp.props.bgColor)});
 font.color = ${colorToAthena(comp.props.textColor)};
-font.scale = 0.8f;
+font.scale = 0.8;
 font.print(${comp.x + 12}, ${comp.y + 10}, "${comp.props.text}");`
   },
 
@@ -81,7 +81,7 @@ Draw.rect(${comp.x}, ${comp.y}, ${comp.width}, ${comp.height}, ${colorToAthena(c
 ${comp.props.showTitle ? `// Title bar
 Draw.rect(${comp.x}, ${comp.y}, ${comp.width}, ${th}, ${colorToAthena(comp.props.titleBgColor)});
 font.color = ${colorToAthena(comp.props.titleColor)};
-font.scale = 0.9f;
+font.scale = 0.9;
 font.print(${comp.x + 10}, ${comp.y + 6}, "${comp.props.title}");` : ''}
 // Border
 Draw.line(${comp.x}, ${comp.y}, ${comp.x + comp.width}, ${comp.y}, ${colorToAthena(comp.props.borderColor)});
@@ -115,27 +115,27 @@ Draw.line(${comp.x}, ${comp.y + comp.height}, ${comp.x}, ${comp.y}, ${colorToAth
 Draw.rect(0, 0, Screen.getMode().width, Screen.getMode().height, Color.new(0, 0, 0, ${comp.props.overlayOpacity}));
 
 // Dialog box
-const dlgX = ${comp.x}, dlgY = ${comp.y};
-const dlgW = ${comp.width}, dlgH = ${comp.height};
+const dlgX_${comp.id.slice(0, 4)} = ${comp.x}, dlgY_${comp.id.slice(0, 4)} = ${comp.y};
+const dlgW_${comp.id.slice(0, 4)} = ${comp.width}, dlgH_${comp.id.slice(0, 4)} = ${comp.height};
 
-Draw.rect(dlgX, dlgY, dlgW, dlgH, ${colorToAthena(comp.props.bgColor)});
+Draw.rect(dlgX_${comp.id.slice(0, 4)}, dlgY_${comp.id.slice(0, 4)}, dlgW_${comp.id.slice(0, 4)}, dlgH_${comp.id.slice(0, 4)}, ${colorToAthena(comp.props.bgColor)});
 
 // Title bar
-Draw.rect(dlgX, dlgY, dlgW, 32, Color.new(50, 60, 90, 255));
+Draw.rect(dlgX_${comp.id.slice(0, 4)}, dlgY_${comp.id.slice(0, 4)}, dlgW_${comp.id.slice(0, 4)}, 32, Color.new(50, 60, 90, 255));
 font.color = ${colorToAthena(comp.props.titleColor)};
-font.scale = 1.0f;
-font.print(dlgX + 12, dlgY + 8, "${comp.props.title}");
+font.scale = 1.0;
+font.print(dlgX_${comp.id.slice(0, 4)} + 12, dlgY_${comp.id.slice(0, 4)} + 8, "${comp.props.title}");
 
 // Message
 font.color = ${colorToAthena(comp.props.messageColor)};
-font.scale = 0.9f;
-font.print(dlgX + 16, dlgY + 50, "${comp.props.message}");
+font.scale = 0.9;
+font.print(dlgX_${comp.id.slice(0, 4)} + 16, dlgY_${comp.id.slice(0, 4)} + 50, "${comp.props.message}");
 
 // Border
-Draw.line(dlgX, dlgY, dlgX + dlgW, dlgY, ${colorToAthena(comp.props.borderColor)});
-Draw.line(dlgX + dlgW, dlgY, dlgX + dlgW, dlgY + dlgH, ${colorToAthena(comp.props.borderColor)});
-Draw.line(dlgX + dlgW, dlgY + dlgH, dlgX, dlgY + dlgH, ${colorToAthena(comp.props.borderColor)});
-Draw.line(dlgX, dlgY + dlgH, dlgX, dlgY, ${colorToAthena(comp.props.borderColor)});`
+Draw.line(dlgX_${comp.id.slice(0, 4)}, dlgY_${comp.id.slice(0, 4)}, dlgX_${comp.id.slice(0, 4)} + dlgW_${comp.id.slice(0, 4)}, dlgY_${comp.id.slice(0, 4)}, ${colorToAthena(comp.props.borderColor)});
+Draw.line(dlgX_${comp.id.slice(0, 4)} + dlgW_${comp.id.slice(0, 4)}, dlgY_${comp.id.slice(0, 4)}, dlgX_${comp.id.slice(0, 4)} + dlgW_${comp.id.slice(0, 4)}, dlgY_${comp.id.slice(0, 4)} + dlgH_${comp.id.slice(0, 4)}, ${colorToAthena(comp.props.borderColor)});
+Draw.line(dlgX_${comp.id.slice(0, 4)} + dlgW_${comp.id.slice(0, 4)}, dlgY_${comp.id.slice(0, 4)} + dlgH_${comp.id.slice(0, 4)}, dlgX_${comp.id.slice(0, 4)}, dlgY_${comp.id.slice(0, 4)} + dlgH_${comp.id.slice(0, 4)}, ${colorToAthena(comp.props.borderColor)});
+Draw.line(dlgX_${comp.id.slice(0, 4)}, dlgY_${comp.id.slice(0, 4)} + dlgH_${comp.id.slice(0, 4)}, dlgX_${comp.id.slice(0, 4)}, dlgY_${comp.id.slice(0, 4)}, ${colorToAthena(comp.props.borderColor)});`
   },
 
   // Sidebar
