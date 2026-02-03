@@ -1022,7 +1022,7 @@ os.setInterval(() => {
               </TabsContent>
               
               {showCode && (
-                <TabsContent value="code" className="flex-1 m-0 overflow-hidden flex flex-col">
+                <TabsContent value="code" className="flex-1 m-0 overflow-hidden flex flex-col min-h-0">
                   {/* Mini Editor Header */}
                   <div className="flex items-center justify-between px-3 py-1.5 bg-[#1a1a2e] border-b border-[#2a2a4a]">
                     <div className="flex items-center gap-2">
@@ -1051,7 +1051,7 @@ os.setInterval(() => {
                   </div>
                   
                   {/* Mini Code Editor - Professional scrollbars for both axes */}
-                  <ScrollArea className="flex-1 bg-[#0d0d1a] relative">
+                  <ScrollArea type="always" className="flex-1 min-h-0 bg-[#0d0d1a] relative">
                     <div className="flex text-[10px] font-mono leading-relaxed min-w-max pb-3 pr-3">
                       {/* Line Numbers - Sticky column */}
                       <div className="select-none text-right pr-3 pl-2 py-2 bg-[#0a0a15] text-gray-600 border-r border-[#1a1a3a] sticky left-0 z-10 min-w-[40px]">
@@ -1069,8 +1069,7 @@ os.setInterval(() => {
                         ))}
                       </div>
                     </div>
-                    <ScrollBar orientation="vertical" className="bg-[#1a1a3a]/50" />
-                    <ScrollBar orientation="horizontal" className="bg-[#1a1a3a]/50" />
+                    <ScrollBar orientation="horizontal" />
                   </ScrollArea>
                   
                   {/* Mini Editor Footer */}
