@@ -1051,26 +1051,27 @@ os.setInterval(() => {
                   </div>
                   
                   {/* Mini Code Editor - Professional scrollbars for both axes */}
-                  <ScrollArea type="always" className="flex-1 min-h-0 bg-[#0d0d1a] relative">
-                    <div className="flex text-[10px] font-mono leading-relaxed min-w-max pb-3 pr-3">
-                      {/* Line Numbers - Sticky column */}
-                      <div className="select-none text-right pr-3 pl-2 py-2 bg-[#0a0a15] text-gray-600 border-r border-[#1a1a3a] sticky left-0 z-10 min-w-[40px]">
-                        {generateFullCode().split('\n').map((_, i) => (
-                          <div key={i} className="h-[14px] leading-[14px]">{i + 1}</div>
-                        ))}
-                      </div>
-                      
-                      {/* Code Content with Syntax Highlighting */}
-                      <div className="flex-1 py-2 pl-3 pr-4">
-                        {generateFullCode().split('\n').map((line, i) => (
-                          <div key={i} className="h-[14px] leading-[14px] whitespace-pre">
-                            {highlightSyntax(line)}
-                          </div>
-                        ))}
+                  <div className="flex-1 min-h-0 bg-[#0d0d1a] relative overflow-hidden">
+                    <div className="absolute inset-0 overflow-auto code-editor-scroll">
+                      <div className="flex text-[10px] font-mono leading-relaxed min-w-max">
+                        {/* Line Numbers - Sticky column */}
+                        <div className="select-none text-right pr-3 pl-2 py-2 bg-[#0a0a15] text-gray-600 border-r border-[#1a1a3a] sticky left-0 z-10 min-w-[40px]">
+                          {generateFullCode().split('\n').map((_, i) => (
+                            <div key={i} className="h-[14px] leading-[14px]">{i + 1}</div>
+                          ))}
+                        </div>
+                        
+                        {/* Code Content with Syntax Highlighting */}
+                        <div className="flex-1 py-2 pl-3 pr-6 pb-4">
+                          {generateFullCode().split('\n').map((line, i) => (
+                            <div key={i} className="h-[14px] leading-[14px] whitespace-pre">
+                              {highlightSyntax(line)}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                  </div>
                   
                   {/* Mini Editor Footer */}
                   <div className="flex items-center justify-between px-3 py-1 bg-[#12122a] border-t border-[#2a2a4a] text-[9px] text-gray-500">

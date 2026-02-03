@@ -27,3 +27,28 @@
 .ide-scrollbar::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--accent));
 }
+
+/* Professional Code Editor Scrollbar - Visual UI Builder */
+.code-editor-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.code-editor-scroll::-webkit-scrollbar-track {
+  background: rgba(26, 26, 58, 0.5);
+  border-radius: 5px;
+}
+
+.code-editor-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.7), rgba(139, 92, 246, 0.7));
+  border-radius: 5px;
+  border: 2px solid rgba(26, 26, 58, 0.5);
+}
+
+.code-editor-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.9), rgba(139, 92, 246, 0.9));
+}
+
+.code-editor-scroll::-webkit-scrollbar-corner {
+  background: rgba(26, 26, 58, 0.5);
+}
