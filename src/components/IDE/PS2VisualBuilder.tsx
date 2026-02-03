@@ -1050,18 +1050,18 @@ os.setInterval(() => {
                     </div>
                   </div>
                   
-                  {/* Mini Code Editor */}
-                  <ScrollArea className="flex-1 bg-[#0d0d1a]">
-                    <div className="flex text-[10px] font-mono leading-relaxed">
+                  {/* Mini Code Editor - Smooth scroll in both directions */}
+                  <div className="flex-1 bg-[#0d0d1a] overflow-auto scroll-smooth" style={{ scrollBehavior: 'smooth' }}>
+                    <div className="flex text-[10px] font-mono leading-relaxed min-w-max">
                       {/* Line Numbers */}
-                      <div className="select-none text-right pr-3 pl-2 py-2 bg-[#0a0a15] text-gray-600 border-r border-[#1a1a3a] sticky left-0">
+                      <div className="select-none text-right pr-3 pl-2 py-2 bg-[#0a0a15] text-gray-600 border-r border-[#1a1a3a] sticky left-0 z-10">
                         {generateFullCode().split('\n').map((_, i) => (
                           <div key={i} className="h-[14px]">{i + 1}</div>
                         ))}
                       </div>
                       
                       {/* Code Content with Syntax Highlighting */}
-                      <div className="flex-1 py-2 pl-3 pr-4 overflow-x-auto">
+                      <div className="flex-1 py-2 pl-3 pr-4">
                         {generateFullCode().split('\n').map((line, i) => (
                           <div key={i} className="h-[14px] whitespace-pre">
                             {highlightSyntax(line)}
@@ -1069,7 +1069,7 @@ os.setInterval(() => {
                         ))}
                       </div>
                     </div>
-                  </ScrollArea>
+                  </div>
                   
                   {/* Mini Editor Footer */}
                   <div className="flex items-center justify-between px-3 py-1 bg-[#12122a] border-t border-[#2a2a4a] text-[9px] text-gray-500">
