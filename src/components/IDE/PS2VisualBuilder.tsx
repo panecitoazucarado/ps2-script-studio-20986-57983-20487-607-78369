@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -1050,26 +1050,28 @@ os.setInterval(() => {
                     </div>
                   </div>
                   
-                  {/* Mini Code Editor - Smooth scroll in both directions */}
-                  <div className="flex-1 bg-[#0d0d1a] overflow-auto scroll-smooth" style={{ scrollBehavior: 'smooth' }}>
-                    <div className="flex text-[10px] font-mono leading-relaxed min-w-max">
-                      {/* Line Numbers */}
-                      <div className="select-none text-right pr-3 pl-2 py-2 bg-[#0a0a15] text-gray-600 border-r border-[#1a1a3a] sticky left-0 z-10">
+                  {/* Mini Code Editor - Professional scrollbars for both axes */}
+                  <ScrollArea className="flex-1 bg-[#0d0d1a] relative">
+                    <div className="flex text-[10px] font-mono leading-relaxed min-w-max pb-3 pr-3">
+                      {/* Line Numbers - Sticky column */}
+                      <div className="select-none text-right pr-3 pl-2 py-2 bg-[#0a0a15] text-gray-600 border-r border-[#1a1a3a] sticky left-0 z-10 min-w-[40px]">
                         {generateFullCode().split('\n').map((_, i) => (
-                          <div key={i} className="h-[14px]">{i + 1}</div>
+                          <div key={i} className="h-[14px] leading-[14px]">{i + 1}</div>
                         ))}
                       </div>
                       
                       {/* Code Content with Syntax Highlighting */}
                       <div className="flex-1 py-2 pl-3 pr-4">
                         {generateFullCode().split('\n').map((line, i) => (
-                          <div key={i} className="h-[14px] whitespace-pre">
+                          <div key={i} className="h-[14px] leading-[14px] whitespace-pre">
                             {highlightSyntax(line)}
                           </div>
                         ))}
                       </div>
                     </div>
-                  </div>
+                    <ScrollBar orientation="vertical" className="bg-[#1a1a3a]/50" />
+                    <ScrollBar orientation="horizontal" className="bg-[#1a1a3a]/50" />
+                  </ScrollArea>
                   
                   {/* Mini Editor Footer */}
                   <div className="flex items-center justify-between px-3 py-1 bg-[#12122a] border-t border-[#2a2a4a] text-[9px] text-gray-500">
