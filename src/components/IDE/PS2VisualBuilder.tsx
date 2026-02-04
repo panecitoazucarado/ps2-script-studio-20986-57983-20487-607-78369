@@ -8,6 +8,9 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { ColorPickerPro } from './ColorPickerPro';
 import {
   Square, Circle, Type, Image as ImageIcon, Minus, CheckSquare, 
   Trash2, Copy, ChevronUp, ChevronDown, Code, Grid3x3, Layers, 
@@ -697,31 +700,154 @@ os.setInterval(() => {
     );
   }, [selectedId, zoom, handleComponentMouseDown, handleComponentClick, handleResizeMouseDown]);
 
-  // Color input component
-  const ColorInput = ({ label, value, onChange }: { label: string; value: PS2Color; onChange: (color: PS2Color) => void }) => {
-    const hexValue = `#${value.r.toString(16).padStart(2, '0')}${value.g.toString(16).padStart(2, '0')}${value.b.toString(16).padStart(2, '0')}`;
+  // Render circle-specific properties panel
+  const renderCircleProperties = () => {
+    if (!selectedComponent || selectedComponent.type !== 'circle') return null;
+    
+    const p = selectedComponent.props;
+    const radius = Math.floor(Math.min(selectedComponent.width, selectedComponent.height) / 2);
     
     return (
-      <div className="flex items-center gap-2">
-        <Label className="text-[10px] text-muted-foreground w-16 truncate">{label}</Label>
-        <input 
-          type="color" 
-          value={hexValue}
-          onChange={(e) => {
-            const hex = e.target.value;
-            onChange({
-              r: parseInt(hex.slice(1, 3), 16),
-              g: parseInt(hex.slice(3, 5), 16),
-              b: parseInt(hex.slice(5, 7), 16),
-              a: value.a
-            });
-          }}
-          className="w-7 h-5 cursor-pointer border-0 rounded"
-        />
-        <span className="text-[9px] text-muted-foreground font-mono">
-          {value.r},{value.g},{value.b}
-        </span>
+      <div className="space-y-3">
+        <div className="space-y-2 p-2 rounded bg-[#1a1a3a]/50 border border-[#2a2a4a]">
+          <Label className="text-[10px] text-purple-400 uppercase tracking-wider font-semibold flex items-center gap-1">
+            <Circle className="w-3 h-3" /> Propiedades del Círculo
+          </Label>
+          
+          {/* Fill Properties */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[9px] text-muted-foreground">Relleno</Label>
+              <Switch
+                checked={p.filled}
+                onCheckedChange={(checked) => updateComponentProp('filled', checked)}
+              />
+            </div>
+            
+            {p.filled && (
+              <ColorPickerPro
+                label="Color Relleno"
+                value={p.fillColor}
+                onChange={(color) => updateComponentProp('fillColor', color)}
+              />
+            )}
+          </div>
+          
+          {/* Border Properties */}
+          <Separator className="bg-[#2a2a4a]" />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[9px] text-muted-foreground">Borde</Label>
+              <Switch
+                checked={p.hasBorder}
+                onCheckedChange={(checked) => updateComponentProp('hasBorder', checked)}
+              />
+            </div>
+            
+            {p.hasBorder && (
+              <>
+                <ColorPickerPro
+                  label="Color Borde"
+                  value={p.borderColor}
+                  onChange={(color) => updateComponentProp('borderColor', color)}
+                />
+                <div className="flex items-center gap-2">
+                  <Label className="text-[9px] text-muted-foreground w-20">Grosor</Label>
+                  <Slider
+                    value={[p.borderWidth || 1]}
+                    min={1}
+                    max={10}
+                    step={1}
+                    onValueChange={([v]) => updateComponentProp('borderWidth', v)}
+                    className="flex-1"
+                  />
+                  <span className="text-[9px] text-muted-foreground font-mono w-6">{p.borderWidth || 1}px</span>
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Geometry */}
+          <Separator className="bg-[#2a2a4a]" />
+          <div className="space-y-2">
+            <Label className="text-[9px] text-cyan-400 font-semibold">Geometría</Label>
+            
+            <div className="flex items-center gap-2">
+              <Label className="text-[9px] text-muted-foreground w-20">Radio</Label>
+              <span className="text-[10px] font-mono text-cyan-300 bg-[#0d0d1a] px-2 py-0.5 rounded">
+                {radius}px
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Label className="text-[9px] text-muted-foreground w-20">Diámetro</Label>
+              <span className="text-[10px] font-mono text-cyan-300 bg-[#0d0d1a] px-2 py-0.5 rounded">
+                {radius * 2}px
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Label className="text-[9px] text-muted-foreground w-20">Centro X</Label>
+              <span className="text-[10px] font-mono text-green-300 bg-[#0d0d1a] px-2 py-0.5 rounded">
+                {selectedComponent.x + Math.floor(selectedComponent.width / 2)}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Label className="text-[9px] text-muted-foreground w-20">Centro Y</Label>
+              <span className="text-[10px] font-mono text-green-300 bg-[#0d0d1a] px-2 py-0.5 rounded">
+                {selectedComponent.y + Math.floor(selectedComponent.height / 2)}
+              </span>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <Label className="text-[9px] text-muted-foreground">Mantener Proporción</Label>
+              <Switch
+                checked={p.keepAspectRatio !== false}
+                onCheckedChange={(checked) => updateComponentProp('keepAspectRatio', checked)}
+              />
+            </div>
+          </div>
+          
+          {/* PS2 Specific */}
+          <Separator className="bg-[#2a2a4a]" />
+          <div className="space-y-2">
+            <Label className="text-[9px] text-orange-400 font-semibold">PS2 Específico</Label>
+            
+            <div className="flex items-center gap-2">
+              <Label className="text-[9px] text-muted-foreground w-20">Segmentos</Label>
+              <Slider
+                value={[p.segments || 32]}
+                min={8}
+                max={64}
+                step={4}
+                onValueChange={([v]) => updateComponentProp('segments', v)}
+                className="flex-1"
+              />
+              <span className="text-[9px] text-muted-foreground font-mono w-6">{p.segments || 32}</span>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <Label className="text-[9px] text-muted-foreground">Antialiasing</Label>
+              <Switch
+                checked={p.antialiased !== false}
+                onCheckedChange={(checked) => updateComponentProp('antialiased', checked)}
+              />
+            </div>
+          </div>
+        </div>
       </div>
+    );
+  };
+
+  // Color input component - now uses ColorPickerPro as fallback
+  const ColorInput = ({ label, value, onChange }: { label: string; value: PS2Color; onChange: (color: PS2Color) => void }) => {
+    return (
+      <ColorPickerPro
+        label={label}
+        value={value}
+        onChange={onChange}
+      />
     );
   };
 
@@ -1043,47 +1169,52 @@ os.setInterval(() => {
                       
                       <Separator className="bg-[#2a2a4a]" />
                       
-                      {/* Dynamic Props */}
-                      <div className="space-y-2">
-                        <Label className="text-[10px] text-cyan-400 uppercase tracking-wider">Propiedades</Label>
-                        {Object.entries(selectedComponent.props).map(([key, value]) => {
-                          if (typeof value === 'object' && value !== null && 'r' in value) {
-                            return (
-                              <ColorInput 
-                                key={key} 
-                                label={key} 
-                                value={value as PS2Color} 
-                                onChange={(color) => updateComponentProp(key, color)} 
-                              />
-                            );
-                          }
-                          if (typeof value === 'boolean') {
-                            return (
-                              <div key={key} className="flex items-center justify-between">
-                                <Label className="text-[10px] text-muted-foreground">{key}</Label>
-                                <input type="checkbox" checked={value} onChange={(e) => updateComponentProp(key, e.target.checked)} className="w-4 h-4" />
-                              </div>
-                            );
-                          }
-                          if (typeof value === 'number') {
-                            return (
-                              <div key={key} className="flex items-center gap-2">
-                                <Label className="text-[10px] text-muted-foreground w-16 truncate">{key}</Label>
-                                <Input type="number" value={value} onChange={(e) => updateComponentProp(key, Number(e.target.value))} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a] flex-1" />
-                              </div>
-                            );
-                          }
-                          if (typeof value === 'string') {
-                            return (
-                              <div key={key} className="space-y-1">
-                                <Label className="text-[10px] text-muted-foreground">{key}</Label>
-                                <Input value={value} onChange={(e) => updateComponentProp(key, e.target.value)} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
-                              </div>
-                            );
-                          }
-                          return null;
-                        })}
-                      </div>
+                      {/* Component-Specific Properties */}
+                      {selectedComponent.type === 'circle' ? (
+                        renderCircleProperties()
+                      ) : (
+                        /* Dynamic Props for other components */
+                        <div className="space-y-2">
+                          <Label className="text-[10px] text-cyan-400 uppercase tracking-wider">Propiedades</Label>
+                          {Object.entries(selectedComponent.props).map(([key, value]) => {
+                            if (typeof value === 'object' && value !== null && 'r' in value) {
+                              return (
+                                <ColorPickerPro 
+                                  key={key} 
+                                  label={key} 
+                                  value={value as PS2Color} 
+                                  onChange={(color) => updateComponentProp(key, color)} 
+                                />
+                              );
+                            }
+                            if (typeof value === 'boolean') {
+                              return (
+                                <div key={key} className="flex items-center justify-between">
+                                  <Label className="text-[10px] text-muted-foreground">{key}</Label>
+                                  <Switch checked={value} onCheckedChange={(checked) => updateComponentProp(key, checked)} />
+                                </div>
+                              );
+                            }
+                            if (typeof value === 'number') {
+                              return (
+                                <div key={key} className="flex items-center gap-2">
+                                  <Label className="text-[10px] text-muted-foreground w-16 truncate">{key}</Label>
+                                  <Input type="number" value={value} onChange={(e) => updateComponentProp(key, Number(e.target.value))} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a] flex-1" />
+                                </div>
+                              );
+                            }
+                            if (typeof value === 'string') {
+                              return (
+                                <div key={key} className="space-y-1">
+                                  <Label className="text-[10px] text-muted-foreground">{key}</Label>
+                                  <Input value={value} onChange={(e) => updateComponentProp(key, e.target.value)} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
+                                </div>
+                              );
+                            }
+                            return null;
+                          })}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="p-4 text-center text-gray-500 text-xs">

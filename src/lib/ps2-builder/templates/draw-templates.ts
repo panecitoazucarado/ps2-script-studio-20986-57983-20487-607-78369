@@ -72,25 +72,58 @@ Draw.line(${comp.x}, ${comp.y + comp.height}, ${comp.x}, ${comp.y}, ${bc});`;
     }
   },
 
-  // Circle
+  // Circle - Enhanced with full properties
   {
     type: 'circle',
     name: 'Círculo',
-    description: 'Círculo sólido o vacío',
+    description: 'Círculo con opciones avanzadas de renderizado PS2',
     icon: 'Circle',
     category: 'draw',
-    tags: ['circulo', 'circle', 'draw'],
+    tags: ['circulo', 'circle', 'draw', 'forma', 'shape'],
     defaultWidth: 80,
     defaultHeight: 80,
     defaultProps: {
       fillColor: defaultColor(200, 100, 100, 255),
-      filled: true
+      filled: true,
+      // Border properties
+      hasBorder: false,
+      borderColor: defaultColor(255, 255, 255, 255),
+      borderWidth: 2,
+      // Advanced properties
+      segments: 32, // Number of segments for circle smoothness (PS2 specific)
+      antialiased: true,
+      // Transform
+      scaleX: 1.0,
+      scaleY: 1.0,
+      // Aspect ratio lock
+      keepAspectRatio: true
     },
     codeGenerator: (comp: PS2Component) => {
-      const radius = Math.floor(Math.min(comp.width, comp.height) / 2);
+      const p = comp.props;
+      // Calculate radius based on dimensions and scale
+      const baseRadius = Math.floor(Math.min(comp.width, comp.height) / 2);
       const cx = comp.x + Math.floor(comp.width / 2);
       const cy = comp.y + Math.floor(comp.height / 2);
-      return `Draw.circle(${cx}, ${cy}, ${radius}, ${colorToAthena(comp.props.fillColor)}, ${comp.props.filled});`;
+      
+      let code = '';
+      
+      // Main circle
+      if (p.filled) {
+        code = `Draw.circle(${cx}, ${cy}, ${baseRadius}, ${colorToAthena(p.fillColor)}, true);`;
+      } else {
+        code = `Draw.circle(${cx}, ${cy}, ${baseRadius}, ${colorToAthena(p.fillColor)}, false);`;
+      }
+      
+      // Border/outline if enabled
+      if (p.hasBorder && p.borderWidth > 0) {
+        code += `\n// Circle border`;
+        code += `\nDraw.circle(${cx}, ${cy}, ${baseRadius}, ${colorToAthena(p.borderColor)}, false);`;
+        if (p.borderWidth > 1) {
+          code += `\nDraw.circle(${cx}, ${cy}, ${baseRadius - 1}, ${colorToAthena(p.borderColor)}, false);`;
+        }
+      }
+      
+      return code;
     }
   },
 
