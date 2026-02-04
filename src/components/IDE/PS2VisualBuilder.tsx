@@ -18,7 +18,8 @@ import {
   SeparatorHorizontal, BarChart3, Heart, Gauge, Loader, Timer, 
   Clock, Gamepad2, Box, FolderOpen, Play, AudioLines, Star, 
   TextCursor, Hash, Sparkles, RotateCw, Wallpaper, ImagePlay, 
-  AlignCenter, Rows3, FileText, Badge as BadgeIcon
+  AlignCenter, Rows3, FileText, Badge as BadgeIcon, GripVertical,
+  ChevronsUp, ChevronsDown, MoreHorizontal, Blend, Palette
 } from 'lucide-react';
 
 import {
@@ -111,6 +112,11 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
   const [activeCategory, setActiveCategory] = useState<ComponentCategory>('draw');
   const [searchQuery, setSearchQuery] = useState('');
   const [showLayers, setShowLayers] = useState(false);
+  
+  // Layer drag & drop state
+  const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
+  const [dragOverLayerId, setDragOverLayerId] = useState<string | null>(null);
+  const [layerContextMenu, setLayerContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   
   const canvasRef = useRef<HTMLDivElement>(null);
   const selectedComponent = components.find(c => c.id === selectedId);
@@ -274,25 +280,120 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     }
   }, [selectedComponent, snapToGrid]);
 
-  // Move layer
-  const handleMoveLayer = useCallback((direction: 'up' | 'down') => {
-    if (!selectedId) return;
-    
+  // Move layer - enhanced with multiple options
+  const handleMoveLayer = useCallback((componentId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
     setComponents(prev => {
-      const idx = prev.findIndex(c => c.id === selectedId);
+      const idx = prev.findIndex(c => c.id === componentId);
+      if (idx === -1) return prev;
+      
+      const newComps = [...prev];
+      
       if (direction === 'up' && idx < prev.length - 1) {
-        const newComps = [...prev];
         [newComps[idx], newComps[idx + 1]] = [newComps[idx + 1], newComps[idx]];
-        return newComps.map((c, i) => ({ ...c, zIndex: i }));
-      }
-      if (direction === 'down' && idx > 0) {
-        const newComps = [...prev];
+      } else if (direction === 'down' && idx > 0) {
         [newComps[idx], newComps[idx - 1]] = [newComps[idx - 1], newComps[idx]];
-        return newComps.map((c, i) => ({ ...c, zIndex: i }));
+      } else if (direction === 'top') {
+        const [comp] = newComps.splice(idx, 1);
+        newComps.push(comp);
+      } else if (direction === 'bottom') {
+        const [comp] = newComps.splice(idx, 1);
+        newComps.unshift(comp);
       }
-      return prev;
+      
+      return newComps.map((c, i) => ({ ...c, zIndex: i }));
     });
+  }, []);
+
+  // Delete specific component by ID
+  const handleDeleteComponent = useCallback((componentId: string) => {
+    setComponents(prev => {
+      const filtered = prev.filter(c => c.id !== componentId);
+      return filtered.map((c, i) => ({ ...c, zIndex: i }));
+    });
+    if (selectedId === componentId) {
+      setSelectedId(null);
+    }
   }, [selectedId]);
+
+  // Duplicate specific component by ID
+  const handleDuplicateComponent = useCallback((componentId: string) => {
+    const comp = components.find(c => c.id === componentId);
+    if (comp) {
+      const newComponent: PS2Component = {
+        ...JSON.parse(JSON.stringify(comp)),
+        id: generateId(),
+        x: snapToGrid(comp.x + 20),
+        y: snapToGrid(comp.y + 20),
+        name: `${comp.name}_copy`,
+        zIndex: components.length
+      };
+      setComponents(prev => [...prev, newComponent]);
+      setSelectedId(newComponent.id);
+    }
+  }, [components, snapToGrid]);
+
+  // Toggle lock for specific component
+  const handleToggleLockComponent = useCallback((componentId: string) => {
+    setComponents(prev => prev.map(c => 
+      c.id === componentId ? { ...c, locked: !c.locked } : c
+    ));
+  }, []);
+
+  // Toggle visibility for specific component
+  const handleToggleVisibilityComponent = useCallback((componentId: string) => {
+    setComponents(prev => prev.map(c => 
+      c.id === componentId ? { ...c, visible: !c.visible } : c
+    ));
+  }, []);
+
+  // Layer drag handlers
+  const handleLayerDragStart = useCallback((e: React.DragEvent, componentId: string) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', componentId);
+    setDraggedLayerId(componentId);
+  }, []);
+
+  const handleLayerDragOver = useCallback((e: React.DragEvent, componentId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (componentId !== draggedLayerId) {
+      setDragOverLayerId(componentId);
+    }
+  }, [draggedLayerId]);
+
+  const handleLayerDragLeave = useCallback(() => {
+    setDragOverLayerId(null);
+  }, []);
+
+  const handleLayerDrop = useCallback((e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedLayerId || draggedLayerId === targetId) {
+      setDraggedLayerId(null);
+      setDragOverLayerId(null);
+      return;
+    }
+
+    setComponents(prev => {
+      const draggedIdx = prev.findIndex(c => c.id === draggedLayerId);
+      const targetIdx = prev.findIndex(c => c.id === targetId);
+      
+      if (draggedIdx === -1 || targetIdx === -1) return prev;
+      
+      const newComps = [...prev];
+      const [draggedComp] = newComps.splice(draggedIdx, 1);
+      newComps.splice(targetIdx, 0, draggedComp);
+      
+      return newComps.map((c, i) => ({ ...c, zIndex: i }));
+    });
+
+    setDraggedLayerId(null);
+    setDragOverLayerId(null);
+  }, [draggedLayerId]);
+
+  const handleLayerDragEnd = useCallback(() => {
+    setDraggedLayerId(null);
+    setDragOverLayerId(null);
+  }, []);
 
   // Toggle lock
   const handleToggleLock = useCallback(() => {
@@ -788,13 +889,13 @@ os.setInterval(() => {
                 <Separator orientation="vertical" className="h-4 bg-[#2a2a4a]" />
                 
                 <Tooltip><TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleMoveLayer('up')} disabled={!selectedId}>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => selectedId && handleMoveLayer(selectedId, 'up')} disabled={!selectedId}>
                     <ChevronUp className="w-3.5 h-3.5" />
                   </Button>
                 </TooltipTrigger><TooltipContent>Subir capa</TooltipContent></Tooltip>
                 
                 <Tooltip><TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleMoveLayer('down')} disabled={!selectedId}>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => selectedId && handleMoveLayer(selectedId, 'down')} disabled={!selectedId}>
                     <ChevronDown className="w-3.5 h-3.5" />
                   </Button>
                 </TooltipTrigger><TooltipContent>Bajar capa</TooltipContent></Tooltip>
@@ -992,33 +1093,187 @@ os.setInterval(() => {
                 </ScrollArea>
               </TabsContent>
               
-              <TabsContent value="layers" className="flex-1 m-0 overflow-hidden">
-                <ScrollArea className="h-full">
-                  <div className="p-2 space-y-1">
-                    {[...components].reverse().map((comp, idx) => (
-                      <div 
-                        key={comp.id}
-                        onClick={() => setSelectedId(comp.id)}
-                        className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${
-                          comp.id === selectedId ? 'bg-purple-500/30' : 'hover:bg-[#1a1a3a]'
-                        }`}
+              <TabsContent value="layers" className="flex-1 m-0 overflow-hidden flex flex-col">
+                {/* Layers Header */}
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                    Capas ({components.length})
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Tooltip><TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-5 w-5 p-0"
+                        onClick={() => selectedId && handleMoveLayer(selectedId, 'top')}
+                        disabled={!selectedId}
                       >
-                        <span className="text-[9px] text-gray-500 w-4">{components.length - idx}</span>
-                        <div className="w-5 h-5 rounded bg-[#1a1a3a] flex items-center justify-center">
-                          {getTemplateIcon(getTemplateByType(comp.type)?.icon || 'Square')}
+                        <ChevronsUp className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger><TooltipContent>Al frente</TooltipContent></Tooltip>
+                    <Tooltip><TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-5 w-5 p-0"
+                        onClick={() => selectedId && handleMoveLayer(selectedId, 'bottom')}
+                        disabled={!selectedId}
+                      >
+                        <ChevronsDown className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger><TooltipContent>Al fondo</TooltipContent></Tooltip>
+                  </div>
+                </div>
+                
+                {/* Layers List with Drag & Drop */}
+                <ScrollArea className="flex-1">
+                  <div className="p-1.5 space-y-0.5">
+                    {[...components].reverse().map((comp, idx) => {
+                      const layerNumber = components.length - idx;
+                      const isSelected = comp.id === selectedId;
+                      const isDragged = comp.id === draggedLayerId;
+                      const isDragOver = comp.id === dragOverLayerId;
+                      
+                      return (
+                        <div 
+                          key={comp.id}
+                          draggable
+                          onDragStart={(e) => handleLayerDragStart(e, comp.id)}
+                          onDragOver={(e) => handleLayerDragOver(e, comp.id)}
+                          onDragLeave={handleLayerDragLeave}
+                          onDrop={(e) => handleLayerDrop(e, comp.id)}
+                          onDragEnd={handleLayerDragEnd}
+                          onClick={() => setSelectedId(comp.id)}
+                          className={`
+                            group flex items-center gap-1.5 px-1.5 py-1 rounded-md cursor-pointer
+                            transition-all duration-150 select-none
+                            ${isSelected ? 'bg-primary/20 ring-1 ring-primary/50' : 'hover:bg-muted/50'}
+                            ${isDragged ? 'opacity-50 scale-95' : ''}
+                            ${isDragOver ? 'ring-2 ring-primary bg-primary/10' : ''}
+                          `}
+                        >
+                          {/* Drag Handle */}
+                          <div className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-muted/80 opacity-50 group-hover:opacity-100">
+                            <GripVertical className="w-3 h-3 text-muted-foreground" />
+                          </div>
+                          
+                          {/* Layer Number */}
+                          <span className="text-[8px] text-muted-foreground w-3 text-center font-mono">
+                            {layerNumber}
+                          </span>
+                          
+                          {/* Component Icon */}
+                          <div className={`w-5 h-5 rounded flex items-center justify-center ${
+                            isSelected ? 'bg-primary/30' : 'bg-muted/50'
+                          }`}>
+                            {getTemplateIcon(getTemplateByType(comp.type)?.icon || 'Square')}
+                          </div>
+                          
+                          {/* Component Name */}
+                          <span className={`text-[10px] flex-1 truncate ${
+                            isSelected ? 'text-foreground font-medium' : 'text-muted-foreground'
+                          }`}>
+                            {comp.name}
+                          </span>
+                          
+                          {/* Quick Actions */}
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Visibility Toggle */}
+                            <Tooltip><TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleToggleVisibilityComponent(comp.id); }}
+                                className={`p-0.5 rounded hover:bg-muted/80 ${!comp.visible ? 'text-warning' : 'text-muted-foreground'}`}
+                              >
+                                {comp.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                              </button>
+                            </TooltipTrigger><TooltipContent>{comp.visible ? 'Ocultar' : 'Mostrar'}</TooltipContent></Tooltip>
+                            
+                            {/* Lock Toggle */}
+                            <Tooltip><TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleToggleLockComponent(comp.id); }}
+                                className={`p-0.5 rounded hover:bg-muted/80 ${comp.locked ? 'text-warning' : 'text-muted-foreground'}`}
+                              >
+                                {comp.locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                              </button>
+                            </TooltipTrigger><TooltipContent>{comp.locked ? 'Desbloquear' : 'Bloquear'}</TooltipContent></Tooltip>
+                            
+                            {/* Move Up */}
+                            <Tooltip><TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleMoveLayer(comp.id, 'up'); }}
+                                className="p-0.5 rounded hover:bg-muted/80 text-muted-foreground"
+                                disabled={idx === 0}
+                              >
+                                <ChevronUp className="w-3 h-3" />
+                              </button>
+                            </TooltipTrigger><TooltipContent>+1 Adelante</TooltipContent></Tooltip>
+                            
+                            {/* Move Down */}
+                            <Tooltip><TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleMoveLayer(comp.id, 'down'); }}
+                                className="p-0.5 rounded hover:bg-muted/80 text-muted-foreground"
+                                disabled={idx === components.length - 1}
+                              >
+                                <ChevronDown className="w-3 h-3" />
+                              </button>
+                            </TooltipTrigger><TooltipContent>+1 Atrás</TooltipContent></Tooltip>
+                            
+                            {/* Duplicate */}
+                            <Tooltip><TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDuplicateComponent(comp.id); }}
+                                className="p-0.5 rounded hover:bg-muted/80 text-muted-foreground"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </TooltipTrigger><TooltipContent>Duplicar</TooltipContent></Tooltip>
+                            
+                            {/* Delete */}
+                            <Tooltip><TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteComponent(comp.id); }}
+                                className="p-0.5 rounded hover:bg-destructive/20 text-destructive"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </TooltipTrigger><TooltipContent>Eliminar</TooltipContent></Tooltip>
+                          </div>
+                          
+                          {/* Status Icons (always visible) */}
+                          <div className="flex items-center gap-0.5 group-hover:hidden">
+                            {comp.locked && <Lock className="w-2.5 h-2.5 text-warning" />}
+                            {!comp.visible && <EyeOff className="w-2.5 h-2.5 text-muted-foreground" />}
+                          </div>
                         </div>
-                        <span className="text-[11px] text-gray-200 flex-1 truncate">{comp.name}</span>
-                        {comp.locked && <Lock className="w-3 h-3 text-orange-400" />}
-                        {!comp.visible && <EyeOff className="w-3 h-3 text-gray-500" />}
-                      </div>
-                    ))}
+                      );
+                    })}
+                    
                     {components.length === 0 && (
-                      <div className="text-center py-8 text-gray-500 text-xs">
-                        Sin componentes
+                      <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                        <Layers className="w-8 h-8 mb-2 opacity-30" />
+                        <span className="text-xs">Sin componentes</span>
+                        <span className="text-[10px] opacity-60">Arrastra componentes aquí</span>
                       </div>
                     )}
                   </div>
                 </ScrollArea>
+                
+                {/* Layers Footer */}
+                <div className="flex items-center justify-between px-2 py-1.5 border-t border-border bg-muted/20 text-[9px] text-muted-foreground">
+                  <span>Arrastra para reordenar</span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <Eye className="w-2.5 h-2.5" />
+                      {components.filter(c => c.visible).length}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" />
+                      {components.filter(c => c.locked).length}
+                    </span>
+                  </div>
+                </div>
               </TabsContent>
               
               {showCode && (
