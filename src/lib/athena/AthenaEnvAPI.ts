@@ -1,5 +1,6 @@
 // Complete AthenaEnv API Implementation for Browser
 // Maps PS2 APIs to Canvas 2D/3D operations
+// Enhanced with full project file system integration
 
 import { AthenaVirtualFS } from './AthenaVirtualFS';
 
@@ -9,6 +10,15 @@ export interface AthenaColor {
   b: number;
   a: number;
   toString(): string;
+}
+
+// Sound handle interface
+interface SoundHandle {
+  id: number;
+  path: string;
+  audio: HTMLAudioElement | null;
+  loaded: boolean;
+  volume: number;
 }
 
 export class AthenaEnvAPI {
@@ -45,6 +55,12 @@ export class AthenaEnvAPI {
     rx: 0,
     ry: 0
   };
+  
+  // Sound system
+  private globalVolume = 100;
+  private soundHandles: Map<number, SoundHandle> = new Map();
+  private nextSoundId = 1;
+  private audioContext: AudioContext | null = null;
 
   constructor(canvas2D: HTMLCanvasElement, canvas3D: HTMLCanvasElement, vfs: AthenaVirtualFS, onLog: (msg: string) => void) {
     this.canvas2D = canvas2D;
@@ -59,6 +75,13 @@ export class AthenaEnvAPI {
 
     // Setup input handlers
     this.setupInputHandlers();
+    
+    // Initialize audio context
+    try {
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch (e) {
+      this.onLog('[WARN] AudioContext not available');
+    }
   }
 
   // Reset API state and clear canvases
@@ -72,6 +95,16 @@ export class AthenaEnvAPI {
     this.keyState.clear();
     this.mouseState = { x: 0, y: 0, buttons: 0, wheel: 0 };
     this.padState = { btns: 0, old_btns: 0, lx: 0, ly: 0, rx: 0, ry: 0 };
+    
+    // Stop all sounds
+    this.soundHandles.forEach(handle => {
+      if (handle.audio) {
+        handle.audio.pause();
+        handle.audio.currentTime = 0;
+      }
+    });
+    this.soundHandles.clear();
+    this.nextSoundId = 1;
     
     // Clear 2D canvas to black
     this.ctx2D.fillStyle = '#000000';
@@ -308,17 +341,199 @@ export class AthenaEnvAPI {
       }
     };
 
-    // Font Module
+    // Sound Module - Complete implementation with VFS integration
+    const Sound = {
+      load: (path: string): number => {
+        const id = self.nextSoundId++;
+        
+        // Try to get asset from VFS
+        const asset = self.vfs.getAsset(path);
+        
+        if (asset && asset.content) {
+          // Create audio element
+          const audio = new Audio();
+          
+          // If content is a data URL, use it directly
+          if (typeof asset.content === 'string' && asset.content.startsWith('data:')) {
+            audio.src = asset.content;
+          } else if (typeof asset.content === 'string') {
+            // Try to create a blob URL for text content
+            const blob = new Blob([asset.content], { type: asset.mimeType });
+            audio.src = URL.createObjectURL(blob);
+          }
+          
+          const handle: SoundHandle = {
+            id,
+            path,
+            audio,
+            loaded: false,
+            volume: self.globalVolume / 100
+          };
+          
+          audio.oncanplaythrough = () => {
+            handle.loaded = true;
+            self.onLog(`[SOUND] Loaded: ${path}`);
+          };
+          
+          audio.onerror = () => {
+            self.onLog(`[SOUND] Simulated load for: ${path} (format not playable in browser)`);
+            handle.loaded = true; // Mark as loaded even if can't play (for simulation)
+          };
+          
+          audio.volume = handle.volume;
+          self.soundHandles.set(id, handle);
+        } else {
+          // File not found - create placeholder handle
+          self.onLog(`[SOUND] Loading: ${path} (file not in project, simulating)`);
+          const handle: SoundHandle = {
+            id,
+            path,
+            audio: null,
+            loaded: true,
+            volume: self.globalVolume / 100
+          };
+          self.soundHandles.set(id, handle);
+        }
+        
+        return id;
+      },
+      
+      play: (handle: number, channel?: number) => {
+        const sound = self.soundHandles.get(handle);
+        if (sound?.audio && sound.loaded) {
+          sound.audio.currentTime = 0;
+          sound.audio.play().catch(() => {
+            // Silently handle autoplay restrictions
+          });
+        }
+        // Log for simulation
+        if (sound) {
+          self.onLog(`[SOUND] Playing: ${sound.path}`);
+        }
+      },
+      
+      pause: (handle: number) => {
+        const sound = self.soundHandles.get(handle);
+        if (sound?.audio) {
+          sound.audio.pause();
+        }
+      },
+      
+      resume: (handle: number) => {
+        const sound = self.soundHandles.get(handle);
+        if (sound?.audio) {
+          sound.audio.play().catch(() => {});
+        }
+      },
+      
+      stop: (handle: number) => {
+        const sound = self.soundHandles.get(handle);
+        if (sound?.audio) {
+          sound.audio.pause();
+          sound.audio.currentTime = 0;
+        }
+      },
+      
+      free: (handle: number) => {
+        const sound = self.soundHandles.get(handle);
+        if (sound?.audio) {
+          sound.audio.pause();
+          if (sound.audio.src.startsWith('blob:')) {
+            URL.revokeObjectURL(sound.audio.src);
+          }
+        }
+        self.soundHandles.delete(handle);
+      },
+      
+      setVolume: (volume: number, channel?: number) => {
+        if (channel === undefined) {
+          self.globalVolume = Math.max(0, Math.min(100, volume));
+          // Update all sounds
+          self.soundHandles.forEach(sound => {
+            if (sound.audio) {
+              sound.audio.volume = self.globalVolume / 100;
+            }
+            sound.volume = self.globalVolume / 100;
+          });
+        }
+      },
+      
+      getVolume: (channel?: number): number => {
+        return self.globalVolume;
+      },
+      
+      isPlaying: (handle: number): boolean => {
+        const sound = self.soundHandles.get(handle);
+        return sound?.audio ? !sound.audio.paused : false;
+      },
+      
+      getDuration: (handle: number): number => {
+        const sound = self.soundHandles.get(handle);
+        return sound?.audio?.duration || 0;
+      },
+      
+      getPosition: (handle: number): number => {
+        const sound = self.soundHandles.get(handle);
+        return sound?.audio?.currentTime || 0;
+      },
+      
+      setPosition: (handle: number, position: number) => {
+        const sound = self.soundHandles.get(handle);
+        if (sound?.audio) {
+          sound.audio.currentTime = position;
+        }
+      },
+      
+      loop: (handle: number, loop: boolean = true) => {
+        const sound = self.soundHandles.get(handle);
+        if (sound?.audio) {
+          sound.audio.loop = loop;
+        }
+      }
+    };
+
+    // Font Module - Enhanced with VFS integration
     class Font {
       public color: AthenaColor = Color.new(255, 255, 255, 128);
       public scale: number = 1.0;
       private fontFamily: string = 'monospace';
+      private loaded: boolean = false;
 
       constructor(path: string = 'default') {
         if (path === 'default' || !path) {
           this.fontFamily = 'monospace';
-        } else if (path.endsWith('.ttf') || path.endsWith('.otf')) {
-          this.fontFamily = path.replace(/\.(ttf|otf)$/, '');
+          this.loaded = true;
+        } else {
+          // Try to load font from VFS
+          const asset = self.vfs.getAsset(path);
+          
+          if (asset && asset.content) {
+            // Extract font name from path
+            const fontName = path.replace(/\.(ttf|otf|woff|woff2)$/i, '').split('/').pop() || 'CustomFont';
+            
+            // If content is a data URL, we can use it
+            if (typeof asset.content === 'string' && asset.content.startsWith('data:')) {
+              const fontFace = new FontFace(fontName, `url(${asset.content})`);
+              fontFace.load().then(loadedFace => {
+                document.fonts.add(loadedFace);
+                this.fontFamily = fontName;
+                this.loaded = true;
+                self.onLog(`[FONT] Loaded: ${path}`);
+              }).catch(() => {
+                self.onLog(`[FONT] Failed to load: ${path}, using fallback`);
+                this.fontFamily = 'monospace';
+                this.loaded = true;
+              });
+            } else {
+              self.onLog(`[FONT] Simulating: ${path}`);
+              this.fontFamily = 'monospace';
+              this.loaded = true;
+            }
+          } else {
+            self.onLog(`[FONT] Not found: ${path}, using fallback`);
+            this.fontFamily = 'monospace';
+            this.loaded = true;
+          }
         }
       }
 
@@ -338,7 +553,7 @@ export class AthenaEnvAPI {
       }
     }
 
-    // Image Module
+    // Image Module - Enhanced with VFS integration
     class Image {
       public width: number = 0;
       public height: number = 0;
@@ -357,6 +572,7 @@ export class AthenaEnvAPI {
       }
 
       private async loadImage(path: string, asyncList?: any) {
+        // Check cache first
         const cached = self.imageCache.get(path);
         if (cached) {
           this.img = cached;
@@ -369,6 +585,7 @@ export class AthenaEnvAPI {
         }
 
         const img = new window.Image();
+        
         img.onload = () => {
           this.img = img;
           this.width = img.width;
@@ -377,16 +594,29 @@ export class AthenaEnvAPI {
           this.endy = this.height;
           this.isReady = true;
           self.imageCache.set(path, img);
-        };
-        img.onerror = () => {
-          self.onLog(`[ERROR] Failed to load image: ${path}`);
+          self.onLog(`[IMAGE] Loaded: ${path}`);
         };
         
-        // Try to load from VFS or as URL
-        const vfsContent = self.vfs.readFile(path);
-        if (vfsContent && typeof vfsContent === 'string') {
-          img.src = vfsContent; // Assume it's a data URL or path
+        img.onerror = () => {
+          self.onLog(`[IMAGE] Failed to load: ${path}`);
+          this.isReady = true; // Mark as ready to prevent blocking
+        };
+        
+        // Try to load from VFS
+        const asset = self.vfs.getAsset(path);
+        
+        if (asset && asset.content) {
+          // If content is a data URL, use it directly
+          if (typeof asset.content === 'string' && asset.content.startsWith('data:')) {
+            img.src = asset.content;
+          } else if (typeof asset.content === 'string') {
+            // Try to create a blob URL
+            const blob = new Blob([asset.content], { type: asset.mimeType });
+            img.src = URL.createObjectURL(blob);
+          }
         } else {
+          // Fallback to direct path (for external URLs)
+          self.onLog(`[IMAGE] Not in project: ${path}, trying direct load`);
           img.src = path;
         }
       }
@@ -633,6 +863,7 @@ export class AthenaEnvAPI {
       Color,
       Screen,
       Draw,
+      Sound,
       Font,
       Image,
       Pads,

@@ -1,10 +1,14 @@
 // Virtual File System for AthenaEnv scripts
 // Simulates PS2 file system operations in browser
+// Enhanced with project file system integration
+
+import type { FileNode } from '@/types/athena';
 
 export interface VirtualFile {
   name: string;
   type: 'file' | 'directory';
   content?: string | ArrayBuffer;
+  mimeType?: string;
   children?: Map<string, VirtualFile>;
   size: number;
   atime: number;
@@ -17,6 +21,7 @@ export class AthenaVirtualFS {
   private cwd: string = '/';
   private fileHandles: Map<number, { file: VirtualFile; position: number; flags: string }> = new Map();
   private nextFd: number = 3; // 0=stdin, 1=stdout, 2=stderr
+  private projectFiles: Map<string, { content: string; mimeType?: string }> = new Map();
 
   constructor() {
     this.root = {
@@ -35,6 +40,200 @@ export class AthenaVirtualFS {
     this.mkdir('/PS2DATA/DATA/SCRIPTS');
     this.mkdir('/PS2DATA/DATA/IMAGES');
     this.mkdir('/PS2DATA/DATA/SOUNDS');
+    this.mkdir('/PS2DATA/DATA/FONTS');
+  }
+
+  // Load project files from FileNode structure (from FileExplorer)
+  loadProjectFiles(nodes: FileNode[], basePath: string = '') {
+    const loadRecursive = (nodeList: FileNode[], currentPath: string) => {
+      for (const node of nodeList) {
+        const fullPath = currentPath ? `${currentPath}/${node.name}` : node.name;
+        const normalizedPath = fullPath.startsWith('/') ? fullPath : `/${fullPath}`;
+        
+        if (node.type === 'folder') {
+          // Create directory in VFS
+          this.mkdirp(normalizedPath);
+          
+          // Process children
+          if (node.children) {
+            loadRecursive(node.children, normalizedPath);
+          }
+        } else if (node.type === 'file' && node.content !== undefined) {
+          // Determine MIME type
+          const mimeType = this.getMimeType(node.name);
+          
+          // Store in project files map for quick lookup
+          this.projectFiles.set(normalizedPath, { 
+            content: node.content, 
+            mimeType 
+          });
+          
+          // Also store without leading slash for flexible matching
+          const withoutSlash = normalizedPath.startsWith('/') ? normalizedPath.slice(1) : normalizedPath;
+          this.projectFiles.set(withoutSlash, { 
+            content: node.content, 
+            mimeType 
+          });
+          
+          // Write to VFS
+          this.writeFile(normalizedPath, node.content);
+        }
+      }
+    };
+    
+    loadRecursive(nodes, basePath);
+  }
+
+  // Get MIME type from filename
+  private getMimeType(filename: string): string {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    const mimeTypes: Record<string, string> = {
+      // Images
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'bmp': 'image/bmp',
+      'webp': 'image/webp',
+      'svg': 'image/svg+xml',
+      'ico': 'image/x-icon',
+      'tga': 'image/x-tga',
+      'dds': 'image/vnd-ms.dds',
+      
+      // Audio
+      'adp': 'audio/adpcm',
+      'wav': 'audio/wav',
+      'mp3': 'audio/mpeg',
+      'ogg': 'audio/ogg',
+      'flac': 'audio/flac',
+      
+      // Fonts
+      'ttf': 'font/ttf',
+      'otf': 'font/otf',
+      'woff': 'font/woff',
+      'woff2': 'font/woff2',
+      
+      // Text/Code
+      'js': 'application/javascript',
+      'ts': 'text/typescript',
+      'json': 'application/json',
+      'xml': 'application/xml',
+      'html': 'text/html',
+      'css': 'text/css',
+      'txt': 'text/plain',
+      'md': 'text/markdown',
+      'c': 'text/x-c',
+      'cpp': 'text/x-c++src',
+      'h': 'text/x-c',
+      'hpp': 'text/x-c++hdr',
+      
+      // Binary
+      'elf': 'application/x-elf',
+      'irx': 'application/octet-stream',
+      'bin': 'application/octet-stream',
+    };
+    
+    return mimeTypes[ext] || 'application/octet-stream';
+  }
+
+  // Recursively create directories
+  mkdirp(path: string): boolean {
+    path = this.normalizePath(path);
+    const parts = path.split('/').filter(p => p);
+    let currentPath = '';
+    
+    for (const part of parts) {
+      currentPath += '/' + part;
+      if (!this.exists(currentPath)) {
+        const result = this.mkdir(currentPath);
+        if (result < 0) return false;
+      }
+    }
+    return true;
+  }
+
+  // Resolve a relative path (like "pong/unpause.adp") to find the file
+  resolvePath(relativePath: string): string | null {
+    // Normalize the path
+    let normalized = relativePath.replace(/\\/g, '/');
+    
+    // Remove leading ./ or /
+    if (normalized.startsWith('./')) {
+      normalized = normalized.slice(2);
+    }
+    
+    // Try multiple path variations
+    const variations = [
+      normalized,
+      `/${normalized}`,
+      `${this.cwd}/${normalized}`,
+      `/PS2DATA/${normalized}`,
+      `/PS2DATA/DATA/${normalized}`,
+    ];
+    
+    for (const path of variations) {
+      const normalizedPath = this.normalizePath(path);
+      if (this.exists(normalizedPath)) {
+        return normalizedPath;
+      }
+      // Also check project files map
+      if (this.projectFiles.has(normalizedPath) || this.projectFiles.has(normalized)) {
+        return normalizedPath;
+      }
+    }
+    
+    return null;
+  }
+
+  // Get file content by relative path (for Sound.load, Image, Font, etc.)
+  getAsset(relativePath: string): { content: string | ArrayBuffer | null; mimeType: string } | null {
+    // Normalize path
+    let normalized = relativePath.replace(/\\/g, '/');
+    if (normalized.startsWith('./')) {
+      normalized = normalized.slice(2);
+    }
+    
+    // Check project files first (exact match)
+    if (this.projectFiles.has(normalized)) {
+      const file = this.projectFiles.get(normalized)!;
+      return { content: file.content, mimeType: file.mimeType || 'application/octet-stream' };
+    }
+    
+    // Try with leading slash
+    const withSlash = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    if (this.projectFiles.has(withSlash)) {
+      const file = this.projectFiles.get(withSlash)!;
+      return { content: file.content, mimeType: file.mimeType || 'application/octet-stream' };
+    }
+    
+    // Try VFS
+    const resolvedPath = this.resolvePath(relativePath);
+    if (resolvedPath) {
+      const content = this.readFile(resolvedPath);
+      return { 
+        content, 
+        mimeType: this.getMimeType(relativePath)
+      };
+    }
+    
+    return null;
+  }
+
+  // Check if a path exists in the project (for autocomplete suggestions)
+  pathExists(relativePath: string): boolean {
+    return this.resolvePath(relativePath) !== null;
+  }
+
+  // Get all available paths (for autocomplete)
+  getAllPaths(): string[] {
+    return Array.from(this.projectFiles.keys());
+  }
+
+  // Get paths matching a pattern (for autocomplete)
+  getMatchingPaths(pattern: string): string[] {
+    const normalizedPattern = pattern.toLowerCase().replace(/\\/g, '/');
+    return Array.from(this.projectFiles.keys())
+      .filter(path => path.toLowerCase().includes(normalizedPattern));
   }
 
   // Normalize path
@@ -82,8 +281,13 @@ export class AthenaVirtualFS {
     const filename = parts.pop()!;
     const dirPath = '/' + parts.join('/');
 
-    let dir = this.getNode(dirPath);
-    if (!dir || dir.type !== 'directory') {
+    // Ensure directory exists
+    if (!this.exists(dirPath) && dirPath !== '/') {
+      this.mkdirp(dirPath);
+    }
+
+    let dir = this.getNode(dirPath) || this.root;
+    if (dir.type !== 'directory') {
       return false;
     }
 
@@ -96,6 +300,7 @@ export class AthenaVirtualFS {
       name: filename,
       type: 'file',
       content,
+      mimeType: this.getMimeType(filename),
       size: typeof content === 'string' ? content.length : content.byteLength,
       atime: now,
       mtime: now,
@@ -108,6 +313,18 @@ export class AthenaVirtualFS {
 
   // Read file
   readFile(path: string): string | ArrayBuffer | null {
+    // Check project files first
+    const normalized = path.replace(/\\/g, '/');
+    if (this.projectFiles.has(normalized)) {
+      return this.projectFiles.get(normalized)!.content;
+    }
+    
+    const withSlash = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    if (this.projectFiles.has(withSlash)) {
+      return this.projectFiles.get(withSlash)!.content;
+    }
+    
+    // Fallback to VFS
     const file = this.getNode(path);
     if (!file || file.type !== 'file') {
       return null;
@@ -117,6 +334,14 @@ export class AthenaVirtualFS {
 
   // Check if file exists
   exists(path: string): boolean {
+    // Check project files
+    const normalized = path.replace(/\\/g, '/');
+    if (this.projectFiles.has(normalized)) return true;
+    
+    const withSlash = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    if (this.projectFiles.has(withSlash)) return true;
+    
+    // Check VFS
     return this.getNode(path) !== null;
   }
 
@@ -127,8 +352,8 @@ export class AthenaVirtualFS {
     const dirname = parts.pop()!;
     const parentPath = '/' + parts.join('/');
 
-    let parent = this.getNode(parentPath);
-    if (!parent || parent.type !== 'directory') {
+    let parent = this.getNode(parentPath) || this.root;
+    if (parent.type !== 'directory') {
       return -1; // ENOENT
     }
 
@@ -137,7 +362,7 @@ export class AthenaVirtualFS {
     }
 
     if (parent.children.has(dirname)) {
-      return -1; // EEXIST
+      return 0; // Already exists, that's okay
     }
 
     const now = Date.now();
@@ -201,6 +426,11 @@ export class AthenaVirtualFS {
     }
 
     parent.children.delete(name);
+    
+    // Also remove from project files
+    this.projectFiles.delete(path);
+    this.projectFiles.delete(path.slice(1)); // Without leading slash
+    
     return 0;
   }
 
@@ -326,10 +556,13 @@ export class AthenaVirtualFS {
     return 0;
   }
 
-  // Load all project files
-  loadProjectFiles(files: Array<{ path: string; content: string }>) {
-    for (const file of files) {
-      this.writeFile(file.path, file.content);
-    }
+  // Clear all project files
+  clearProjectFiles() {
+    this.projectFiles.clear();
+  }
+
+  // Get project file count
+  getProjectFileCount(): number {
+    return this.projectFiles.size;
   }
 }
