@@ -82,7 +82,20 @@ export function AthenaRunner({ code, isRunning, onLog, files }: AthenaRunnerProp
     }
   }, [isRunning, onLog]);
 
-  // Pre-process code to handle PS2-specific syntax
+  // Find matching closing brace for a while loop
+  const findMatchingBrace = useCallback((code: string, openIndex: number): number => {
+    let depth = 0;
+    for (let i = openIndex; i < code.length; i++) {
+      if (code[i] === '{') depth++;
+      else if (code[i] === '}') {
+        depth--;
+        if (depth === 0) return i;
+      }
+    }
+    return -1;
+  }, []);
+
+  // Pre-process code to handle PS2-specific syntax and transform while(true) to game loop
   const preprocessCode = useCallback((rawCode: string): string => {
     let processed = rawCode;
     
@@ -100,8 +113,36 @@ export function AthenaRunner({ code, isRunning, onLog, files }: AthenaRunnerProp
       }
     }
     
+    // Transform while(true) { ... } into a requestAnimationFrame-based game loop
+    // This prevents blocking the browser thread
+    const whilePattern = /while\s*\(\s*true\s*\)\s*\{/;
+    const match = processed.match(whilePattern);
+    if (match && match.index !== undefined) {
+      const braceStart = processed.indexOf('{', match.index);
+      const braceEnd = findMatchingBrace(processed, braceStart);
+      
+      if (braceEnd !== -1) {
+        const setupCode = processed.substring(0, match.index);
+        const loopBody = processed.substring(braceStart + 1, braceEnd);
+        const afterLoop = processed.substring(braceEnd + 1);
+        
+        processed = `${setupCode}
+function __athenaGameLoop__() {
+  try {
+${loopBody}
+  } catch(__e) {
+    if (__e && __e.message === '__ATHENA_STOP__') return;
+    throw __e;
+  }
+  requestAnimationFrame(__athenaGameLoop__);
+}
+requestAnimationFrame(__athenaGameLoop__);
+${afterLoop}`;
+      }
+    }
+    
     return processed;
-  }, [onLog]);
+  }, [onLog, findMatchingBrace]);
 
   // Execute code
   useEffect(() => {
