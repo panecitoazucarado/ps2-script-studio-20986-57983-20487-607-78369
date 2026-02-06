@@ -3,6 +3,11 @@
 // Enhanced with full project file system integration
 
 import { AthenaVirtualFS } from './AthenaVirtualFS';
+import { createNativeModule } from './modules/NativeModule';
+import { Vector4, Matrix4 } from './modules/MathModules';
+import { createRenderModules } from './modules/RenderModules';
+import { SCREEN_CONSTANTS, FONT_CONSTANTS } from './modules/ScreenConstants';
+import { createTileMapModule } from './modules/TileMapModule';
 
 export interface AthenaColor {
   r: number;
@@ -243,6 +248,9 @@ export class AthenaEnvAPI {
       setA: (col: AthenaColor, a: number) => { col.a = a; }
     };
 
+    // Screen parameters state
+    const screenParams: Record<string, any> = {};
+
     // Screen Module
     const Screen = {
       clear: (color?: AthenaColor) => {
@@ -297,8 +305,25 @@ export class AthenaEnvAPI {
         }
         return self.fpsCounter.fps;
       },
-      getFreeVRAM: () => 4096 * 1024, // 4MB mock
-      waitVblankStart: () => { /* Mock */ }
+      getFreeVRAM: () => 4096 * 1024,
+      getMemoryStats: (statId: number = 1) => {
+        const stats = [4 * 1024 * 1024, 2 * 1024 * 1024, 512 * 1024, 1.5 * 1024 * 1024];
+        return stats[statId] || 0;
+      },
+      waitVblankStart: () => { /* Mock */ },
+      initBuffers: () => { /* Mock */ },
+      resetBuffers: () => { /* Mock */ },
+      getBuffer: (id: number) => null,
+      setBuffer: (id: number, image: any, mask?: number) => { /* Mock */ },
+      switchContext: () => 0,
+      flush: () => { /* Mock */ },
+      getParam: (param: string) => screenParams[param],
+      setParam: (param: string, value: any) => { screenParams[param] = value; },
+      alphaEquation: (a: number, b: number, c: number, d: number, fix: number) => {
+        return { a, b, c, d, fix };
+      },
+      // All Screen constants
+      ...SCREEN_CONSTANTS
     };
 
     // Draw Module
@@ -503,12 +528,27 @@ export class AthenaEnvAPI {
       }
     };
 
-    // Font Module - Enhanced with VFS integration
+    // Font Module - Enhanced with VFS integration and alignment
     class Font {
       public color: AthenaColor = Color.new(255, 255, 255, 128);
       public scale: number = 1.0;
+      public outline_color: AthenaColor = Color.new(0, 0, 0, 128);
+      public outline: number = 0;
+      public dropshadow_color: AthenaColor = Color.new(0, 0, 0, 128);
+      public dropshadow: number = 0;
+      public align: number = 0;
       private fontFamily: string = 'monospace';
       private loaded: boolean = false;
+
+      // Static alignment constants
+      static ALIGN_NONE = FONT_CONSTANTS.ALIGN_NONE;
+      static ALIGN_TOP = FONT_CONSTANTS.ALIGN_TOP;
+      static ALIGN_BOTTOM = FONT_CONSTANTS.ALIGN_BOTTOM;
+      static ALIGN_LEFT = FONT_CONSTANTS.ALIGN_LEFT;
+      static ALIGN_RIGHT = FONT_CONSTANTS.ALIGN_RIGHT;
+      static ALIGN_VCENTER = FONT_CONSTANTS.ALIGN_VCENTER;
+      static ALIGN_HCENTER = FONT_CONSTANTS.ALIGN_HCENTER;
+      static ALIGN_CENTER = FONT_CONSTANTS.ALIGN_CENTER;
 
       constructor(path: string = 'default') {
         if (path === 'default' || !path) {
@@ -549,9 +589,26 @@ export class AthenaEnvAPI {
       }
 
       print(x: number, y: number, text: string) {
-        self.ctx2D.font = `${16 * this.scale}px ${this.fontFamily}`;
+        const fontSize = 16 * this.scale;
+        self.ctx2D.font = `${fontSize}px ${this.fontFamily}`;
+        const drawY = y + fontSize;
+
+        // Dropshadow
+        if (this.dropshadow > 0) {
+          self.ctx2D.fillStyle = this.dropshadow_color.toString();
+          self.ctx2D.fillText(text, x + this.dropshadow, drawY + this.dropshadow);
+        }
+
+        // Outline (simulated with stroke)
+        if (this.outline > 0) {
+          self.ctx2D.strokeStyle = this.outline_color.toString();
+          self.ctx2D.lineWidth = this.outline;
+          self.ctx2D.strokeText(text, x, drawY);
+        }
+
+        // Main text
         self.ctx2D.fillStyle = this.color.toString();
-        self.ctx2D.fillText(text, x, y + 16 * this.scale);
+        self.ctx2D.fillText(text, x, drawY);
       }
 
       getTextSize(text: string): { width: number; height: number } {
@@ -837,7 +894,7 @@ export class AthenaEnvAPI {
       }
     };
 
-    // os Module
+    // os Module - with POSIX-like file operations and open flags
     const os = {
       setInterval: (fn: Function, ms: number) => setInterval(fn, ms),
       clearInterval: (id: number) => clearInterval(id),
@@ -852,11 +909,95 @@ export class AthenaEnvAPI {
       read: (fd: number, length: number) => self.vfs.read(fd, length),
       write: (fd: number, data: any) => self.vfs.write(fd, data),
       remove: (path: string) => self.vfs.remove(path),
+      rename: (oldName: string, newName: string) => { self.onLog(`[OS] rename: ${oldName} -> ${newName}`); return 0; },
+      realpath: (path: string) => [path, 0],
       mkdir: (path: string) => self.vfs.mkdir(path),
-      readdir: (path: string) => self.vfs.readdir(path),
+      readdir: (path: string) => {
+        const files = self.vfs.readdir(path);
+        return [files || [], files ? 0 : -1];
+      },
       stat: (path: string) => [self.vfs.stat(path), 0],
+      lstat: (path: string) => [self.vfs.stat(path), 0],
+      utimes: () => 0,
       getcwd: () => [self.vfs.getcwd(), 0],
-      chdir: (path: string) => self.vfs.chdir(path)
+      chdir: (path: string) => self.vfs.chdir(path),
+      setReadHandler: () => { /* Mock */ },
+      setWriteHandler: () => { /* Mock */ },
+      // Open flags
+      O_RDONLY: 'r',
+      O_WRONLY: 'w',
+      O_RDWR: 'rw',
+      O_APPEND: 'a',
+      O_CREAT: 'w',
+      O_EXCL: 'wx',
+      O_TRUNC: 'w',
+      // Stat constants
+      S_IFMT: 0o170000,
+      S_IFIFO: 0o010000,
+      S_IFCHR: 0o020000,
+      S_IFDIR: 0o040000,
+      S_IFBLK: 0o060000,
+      S_IFREG: 0o100000,
+      S_IFSOCK: 0o140000,
+      S_IFLNK: 0o120000,
+      S_ISGID: 0o002000,
+      S_ISUID: 0o004000,
+    };
+
+    // Create all new modules
+    const Native = createNativeModule(self.onLog);
+    const renderModules = createRenderModules(self.ctx2D, self.onLog);
+    const TileMap = createTileMapModule(self.ctx2D, self.onLog);
+
+    // Additional stub modules
+    const Archive = {
+      extract: (path: string, dest: string) => { self.onLog(`[ARCHIVE] Extract: ${path} -> ${dest}`); return true; },
+      list: (path: string) => { return []; },
+    };
+
+    const IOP = {
+      loadModule: (path: string) => { self.onLog(`[IOP] Module loaded: ${path}`); return 0; },
+      reset: () => { self.onLog('[IOP] Reset'); },
+    };
+
+    const Network = {
+      init: () => { self.onLog('[NETWORK] Initialized'); return true; },
+      get: (url: string) => fetch(url).then(r => r.text()).catch(() => ''),
+      post: (url: string, data: string) => fetch(url, { method: 'POST', body: data }).then(r => r.text()).catch(() => ''),
+      download: (url: string, dest: string) => { self.onLog(`[NETWORK] Download: ${url}`); return true; },
+      deinit: () => {},
+    };
+
+    const Socket = {
+      create: () => ({ send: () => {}, close: () => {}, onmessage: null }),
+    };
+
+    const Keyboard = {
+      get: () => ({
+        pressed: (key: number) => self.keyState.get(String.fromCharCode(key)) || false,
+        getChar: () => '',
+      }),
+    };
+
+    const Mouse = {
+      get: () => ({
+        x: self.mouseState.x,
+        y: self.mouseState.y,
+        buttons: self.mouseState.buttons,
+        wheel: self.mouseState.wheel,
+      }),
+    };
+
+    const Video = {
+      load: (path: string) => { self.onLog(`[VIDEO] Load: ${path}`); return 0; },
+      play: () => {},
+      pause: () => {},
+      stop: () => {},
+      free: () => {},
+    };
+
+    const Shadows = {
+      create: () => ({ update: () => {}, render: () => {} }),
     };
 
     // Console
@@ -866,6 +1007,12 @@ export class AthenaEnvAPI {
       warn: (...args: any[]) => self.onLog(`[WARN] ${args.join(' ')}`)
     };
 
+    // ImageList class
+    class ImageList {
+      private queue: any[] = [];
+      process() { /* mock async image loading */ }
+    }
+
     // Constants
     const RAM = 'RAM';
     const VRAM = 'VRAM';
@@ -873,30 +1020,82 @@ export class AthenaEnvAPI {
     const Z16S = 'Z16S';
     const Z24 = 'Z24';
     const Z32 = 'Z32';
+    const LINEAR = 'LINEAR';
+    const NEAREST = 'NEAREST';
+    const FontAlign = FONT_CONSTANTS;
 
     return {
+      // Core modules
       Color,
       Screen,
       Draw,
       Sound,
       Font,
       Image,
+      ImageList,
       Pads,
       Timer,
       System,
       std,
       os,
       console,
+      
+      // Math
+      Vector4,
+      Matrix4,
+      Math: {
+        ...Math,
+        fround: Math.fround || ((x: number) => x),
+        // Extended PS2 math functions
+        clamp: (value: number, min: number, max: number) => Math.min(Math.max(value, min), max),
+        lerp: (a: number, b: number, t: number) => a + (b - a) * t,
+        saturate: (x: number) => Math.min(Math.max(x, 0), 1),
+        step: (edge: number, x: number) => x >= edge ? 1 : 0,
+        smoothstep: (e0: number, e1: number, x: number) => {
+          const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1);
+          return t * t * (3 - 2 * t);
+        },
+        rsqrt: (x: number) => 1 / Math.sqrt(x),
+        fma: (a: number, b: number, c: number) => a * b + c,
+      },
+      
+      // Native compilation (mock)
+      Native,
+      
+      // 3D Rendering
+      Render: renderModules.Render,
+      RenderData: renderModules.RenderData,
+      RenderObject: renderModules.RenderObject,
+      AnimCollection: renderModules.AnimCollection,
+      Camera: renderModules.Camera,
+      Lights: renderModules.Lights,
+      Batch: renderModules.Batch,
+      SceneNode: renderModules.SceneNode,
+      AsyncLoader: renderModules.AsyncLoader,
+      
+      // TileMap
+      TileMap,
+      
+      // Additional modules
+      Archive,
+      IOP,
+      Network,
+      Socket,
+      Keyboard,
+      Mouse,
+      Video,
+      Shadows,
+      
+      // Constants
       RAM,
       VRAM,
       Z16,
       Z16S,
       Z24,
       Z32,
-      Math: {
-        ...Math,
-        fround: Math.fround || ((x: number) => x)
-      }
+      LINEAR,
+      NEAREST,
+      FontAlign,
     };
   }
 

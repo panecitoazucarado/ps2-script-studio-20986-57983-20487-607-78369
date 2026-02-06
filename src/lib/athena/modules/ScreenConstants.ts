@@ -1,0 +1,87 @@
+// Screen constants and parameters for AthenaEnv
+// These map PS2 GS register values to browser equivalents
+
+export const SCREEN_CONSTANTS = {
+  // Alpha blend sources
+  SRC_RGB: 0,
+  DST_RGB: 1,
+  ZERO_RGB: 2,
+  SRC_ALPHA: 0,
+  DST_ALPHA: 1,
+  ALPHA_FIX: 2,
+
+  // Alpha test methods
+  ALPHA_NEVER: 0,
+  ALPHA_ALWAYS: 1,
+  ALPHA_LESS: 2,
+  ALPHA_LEQUAL: 3,
+  ALPHA_EQUAL: 4,
+  ALPHA_GEQUAL: 5,
+  ALPHA_GREATER: 6,
+  ALPHA_NEQUAL: 7,
+
+  // Alpha test fail actions
+  ALPHA_FAIL_NO_UPDATE: 0,
+  ALPHA_FAIL_FB_ONLY: 1,
+  ALPHA_FAIL_ZB_ONLY: 2,
+  ALPHA_FAIL_RGB_ONLY: 3,
+
+  // Depth test methods
+  DEPTH_NEVER: 0,
+  DEPTH_ALWAYS: 1,
+  DEPTH_GEQUAL: 2,
+  DEPTH_GREATER: 3,
+
+  // Destination alpha
+  DST_ALPHA_ZERO: 0,
+  DST_ALPHA_ONE: 1,
+
+  // Screen params
+  ALPHA_BLEND_EQUATION: 'ALPHA_BLEND_EQUATION',
+  ALPHA_TEST_ENABLE: 'ALPHA_TEST_ENABLE',
+  ALPHA_TEST_METHOD: 'ALPHA_TEST_METHOD',
+  ALPHA_TEST_REF: 'ALPHA_TEST_REF',
+  ALPHA_TEST_FAIL: 'ALPHA_TEST_FAIL',
+  DST_ALPHA_TEST_ENABLE: 'DST_ALPHA_TEST_ENABLE',
+  DST_ALPHA_TEST_METHOD: 'DST_ALPHA_TEST_METHOD',
+  DEPTH_TEST_ENABLE: 'DEPTH_TEST_ENABLE',
+  DEPTH_TEST_METHOD: 'DEPTH_TEST_METHOD',
+  PIXEL_ALPHA_BLEND_ENABLE: 'PIXEL_ALPHA_BLEND_ENABLE',
+  COLOR_CLAMP_MODE: 'COLOR_CLAMP_MODE',
+  SCISSOR_BOUNDS: 'SCISSOR_BOUNDS',
+
+  // VRAM stats
+  VRAM_SIZE: 0,
+  VRAM_USED_TOTAL: 1,
+  VRAM_USED_STATIC: 2,
+  VRAM_USED_DYNAMIC: 3,
+
+  // Buffer IDs
+  DRAW_BUFFER: 0,
+  DISPLAY_BUFFER: 1,
+  DEPTH_BUFFER: 2,
+
+  // PSM-Z formats
+  Z16: 'Z16',
+  Z16S: 'Z16S',
+  Z24: 'Z24',
+  Z32: 'Z32',
+
+  // CT formats
+  CT32: 'CT32',
+  CT24: 'CT24',
+  CT16: 'CT16',
+  CT16S: 'CT16S',
+};
+
+// Font alignment constants
+export const FONT_CONSTANTS = {
+  ALIGN_NONE: 0,
+  ALIGN_TOP: 1,
+  ALIGN_BOTTOM: 2,
+  ALIGN_LEFT: 3,
+  ALIGN_RIGHT: 4,
+  ALIGN_VCENTER: 5,
+  ALIGN_HCENTER: 6,
+  ALIGN_CENTER: 7,
+};
