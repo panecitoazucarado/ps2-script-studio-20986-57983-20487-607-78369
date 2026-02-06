@@ -55,6 +55,7 @@ export class AthenaEnvAPI {
     rx: 0,
     ry: 0
   };
+  private keyboardBtns = 0; // raw keyboard state updated by events
   
   // Sound system
   private globalVolume = 100;
@@ -151,12 +152,11 @@ export class AthenaEnvAPI {
 
     // Gamepad API
     window.addEventListener('gamepadconnected', () => {
-      this.updatePadFromGamepad();
+      // Gamepad state is polled per-frame in updatePadFrame()
     });
   }
 
   private updatePadFromKeyboard() {
-    this.padState.old_btns = this.padState.btns;
     let btns = 0;
 
     // Map keyboard to PS2 buttons
@@ -175,18 +175,18 @@ export class AthenaEnvAPI {
     if (this.keyState.get('1')) btns |= 0x0100; // L2
     if (this.keyState.get('3')) btns |= 0x0200; // R2
 
-    this.padState.btns = btns;
+    // Only update raw keyboard state, NOT padState directly
+    // padState.old_btns/btns are managed by pad.update()
+    this.keyboardBtns = btns;
   }
 
-  private updatePadFromGamepad() {
+  private getGamepadBtns(): { btns: number; lx: number; ly: number; rx: number; ry: number } {
     const gamepads = navigator.getGamepads();
     const pad = gamepads[0];
+    let btns = 0;
+    let lx = 0, ly = 0, rx = 0, ry = 0;
     
     if (pad) {
-      this.padState.old_btns = this.padState.btns;
-      let btns = 0;
-
-      // Map gamepad buttons to PS2 buttons
       if (pad.buttons[12]?.pressed) btns |= 0x0010; // UP
       if (pad.buttons[13]?.pressed) btns |= 0x0040; // DOWN
       if (pad.buttons[14]?.pressed) btns |= 0x0080; // LEFT
@@ -202,14 +202,25 @@ export class AthenaEnvAPI {
       if (pad.buttons[6]?.pressed) btns |= 0x0100; // L2
       if (pad.buttons[7]?.pressed) btns |= 0x0200; // R2
 
-      this.padState.btns = btns;
-
-      // Analog sticks
-      this.padState.lx = Math.round((pad.axes[0] || 0) * 128);
-      this.padState.ly = Math.round((pad.axes[1] || 0) * 128);
-      this.padState.rx = Math.round((pad.axes[2] || 0) * 128);
-      this.padState.ry = Math.round((pad.axes[3] || 0) * 128);
+      lx = Math.round((pad.axes[0] || 0) * 128);
+      ly = Math.round((pad.axes[1] || 0) * 128);
+      rx = Math.round((pad.axes[2] || 0) * 128);
+      ry = Math.round((pad.axes[3] || 0) * 128);
     }
+    
+    return { btns, lx, ly, rx, ry };
+  }
+
+  // Called once per frame by pad.update() — snapshots old state, merges keyboard + gamepad
+  private updatePadFrame() {
+    this.padState.old_btns = this.padState.btns;
+    
+    const gp = this.getGamepadBtns();
+    this.padState.btns = this.keyboardBtns | gp.btns;
+    this.padState.lx = gp.lx;
+    this.padState.ly = gp.ly;
+    this.padState.rx = gp.rx;
+    this.padState.ry = gp.ry;
   }
 
   // Create complete API
@@ -672,10 +683,14 @@ export class AthenaEnvAPI {
       SQUARE: 0x8000,
       
       get: (port: number = 0) => {
-        self.updatePadFromGamepad();
         return {
-          ...self.padState,
-          update: () => { self.updatePadFromGamepad(); },
+          btns: self.padState.btns,
+          old_btns: self.padState.old_btns,
+          lx: self.padState.lx,
+          ly: self.padState.ly,
+          rx: self.padState.rx,
+          ry: self.padState.ry,
+          update: () => { self.updatePadFrame(); },
           pressed: (btn: number) => (self.padState.btns & btn) !== 0,
           justPressed: (btn: number) => {
             return (self.padState.btns & btn) !== 0 && (self.padState.old_btns & btn) === 0;
