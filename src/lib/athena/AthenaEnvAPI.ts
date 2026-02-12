@@ -8,6 +8,7 @@ import { Vector4, Matrix4 } from './modules/MathModules';
 import { createRenderModules } from './modules/RenderModules';
 import { SCREEN_CONSTANTS, FONT_CONSTANTS } from './modules/ScreenConstants';
 import { createTileMapModule } from './modules/TileMapModule';
+import { createXmlModule } from './modules/XmlParserModule';
 
 export interface AthenaColor {
   r: number;
@@ -122,6 +123,19 @@ export class AthenaEnvAPI {
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
+  }
+
+  // Normalize PS2 device paths like "mc0:/" or "mass0:" to VFS paths
+  normalizeDevicePath(path: string): string {
+    // Strip device prefixes: mc0:/, mass0:, hdd0:, host:, cdfs:, pfs0:/
+    let normalized = path.replace(/^(mc\d*|mass\d*|hdd\d*|host\d*|cdfs|pfs\d*|mmce\d*):?\/?/i, '/');
+    // Ensure starts with /
+    if (!normalized.startsWith('/')) normalized = '/' + normalized;
+    // Remove trailing slash for consistency (except root)
+    if (normalized.length > 1 && normalized.endsWith('/')) {
+      normalized = normalized.slice(0, -1);
+    }
+    return normalized;
   }
 
   private setupInputHandlers() {
@@ -819,52 +833,93 @@ export class AthenaEnvAPI {
       }
     };
 
-    // System Module  
+    // System Module - Enhanced with devices, mount/umount, getBDMInfo
+    const mountedPartitions: Map<string, string> = new Map();
+    
     const System = {
       listDir: (path: string) => {
-        const files = self.vfs.readdir(path);
+        // Normalize PS2-style device paths (e.g. "mc0:/" or "mass0:")
+        const normalizedPath = self.normalizeDevicePath(path);
+        const files = self.vfs.readdir(normalizedPath);
         if (!files) return [];
         return files.map(name => {
-          const stat = self.vfs.stat(path + '/' + name);
+          const fullPath = normalizedPath.endsWith('/') ? normalizedPath + name : normalizedPath + '/' + name;
+          const stat = self.vfs.stat(fullPath);
+          const isDir = stat ? (stat.mode & 0o040000) !== 0 : false;
           return {
             name,
             size: stat?.size || 0,
-            directory: (stat?.mode & 0o040000) !== 0
+            dir: isDir,        // OSDXMB uses 'dir'
+            directory: isDir,  // backward compat
           };
         });
       },
+      devices: () => {
+        // Return simulated PS2 devices based on VFS content
+        const devs: { name: string; description?: string }[] = [];
+        devs.push({ name: 'mc', description: 'Memory Card' });
+        devs.push({ name: 'mass', description: 'USB Mass Storage' });
+        devs.push({ name: 'hdd', description: 'HDD' });
+        devs.push({ name: 'cdfs', description: 'CD/DVD' });
+        devs.push({ name: 'host', description: 'Host FS' });
+        return devs;
+      },
+      mount: (mountPoint: string, device: string) => {
+        mountedPartitions.set(mountPoint, device);
+        self.onLog(`[SYSTEM] Mounted ${device} at ${mountPoint}`);
+        return 0;
+      },
+      umount: (mountPoint: string) => {
+        mountedPartitions.delete(mountPoint);
+        return 0;
+      },
+      getBDMInfo: (device: string) => {
+        // Return simulated BDM info for mass devices
+        if (device.startsWith('mass')) {
+          return { name: device, sectorSize: 512, sectorCount: 1000000 };
+        }
+        return null;
+      },
+      getMCInfo: (slot?: number) => ({ type: 2, freemem: 6000, format: 1 }),
       removeDirectory: (path: string) => self.vfs.remove(path),
-      copyFile: () => { /* Mock */ },
-      moveFile: () => { /* Mock */ },
-      rename: () => { /* Mock */ },
-      sleep: (ms: number) => new Promise(resolve => setTimeout(resolve, ms * 1000)),
+      removeFile: (path: string) => self.vfs.remove(path),
+      copyFile: (src: string, dst: string) => {
+        const content = self.vfs.readFile(src);
+        if (content) { self.vfs.writeFile(dst, content as string); return 0; }
+        return -1;
+      },
+      moveFile: (src: string, dst: string) => {
+        const content = self.vfs.readFile(src);
+        if (content) { self.vfs.writeFile(dst, content as string); self.vfs.remove(src); return 0; }
+        return -1;
+      },
+      rename: (oldPath: string, newPath: string) => {
+        const content = self.vfs.readFile(oldPath);
+        if (content) { self.vfs.writeFile(newPath, content as string); self.vfs.remove(oldPath); return 0; }
+        return -1;
+      },
+      sleep: (ms: number) => new Promise(resolve => setTimeout(resolve, ms)),
       exitToBrowser: () => { self.onLog('[SYSTEM] Exit to browser'); },
       setDarkMode: () => { /* Mock */ },
       getTemperature: () => ({ ee: 45.0, board: 40.0 }),
-      getMCInfo: () => ({ type: 0, freemem: 8192, format: 0 }),
       getCPUInfo: () => ({
-        implementation: 0x2e,
-        revision: 0x10,
-        FPUimplementation: 0,
-        FPUrevision: 0,
-        ICacheSize: 16384,
-        DCacheSize: 8192,
-        RAMSize: 32 * 1024 * 1024,
-        MachineSize: 0
+        implementation: 0x2e, revision: 0x10,
+        FPUimplementation: 0, FPUrevision: 0,
+        ICacheSize: 16384, DCacheSize: 8192,
+        RAMSize: 32 * 1024 * 1024, MachineSize: 0
       }),
       getGPUInfo: () => ({ id: 0x12, revision: 0x20 }),
       getMemoryStats: () => ({
-        core: 1024 * 1024,
-        nativeStack: 256 * 1024,
-        allocs: 4 * 1024 * 1024,
-        used: 5 * 1024 * 1024
-      })
+        core: 1024 * 1024, nativeStack: 256 * 1024,
+        allocs: 4 * 1024 * 1024, used: 5 * 1024 * 1024
+      }),
     };
 
-    // std Module
+    // std Module - Enhanced with open, parseExtJSON, sprintf, gc
     const std = {
       loadFile: (path: string) => {
-        const content = self.vfs.readFile(path);
+        const normalized = self.normalizeDevicePath(path);
+        const content = self.vfs.readFile(normalized) || self.vfs.readFile(path);
         return typeof content === 'string' ? content : null;
       },
       loadScript: (path: string) => {
@@ -875,26 +930,86 @@ export class AthenaEnvAPI {
           } catch (e) {
             self.onLog(`[ERROR] ${e}`);
           }
+        } else {
+          self.onLog(`[STD] Script not found: ${path}`);
         }
       },
-      evalScript: (code: string) => {
+      evalScript: (code: string, options?: any) => {
         try {
-          eval(code);
+          return eval(code);
         } catch (e) {
           self.onLog(`[ERROR] ${e}`);
         }
       },
-      exists: (path: string) => self.vfs.exists(path),
-      SEEK_SET: 0,
-      SEEK_CUR: 1,
-      SEEK_END: 2,
+      exists: (path: string) => {
+        const normalized = self.normalizeDevicePath(path);
+        return self.vfs.exists(normalized) || self.vfs.exists(path);
+      },
+      open: (filename: string, flags: string, errorObj?: any) => {
+        const normalized = self.normalizeDevicePath(filename);
+        const fd = self.vfs.open(normalized, flags);
+        if (fd < 0 && errorObj) errorObj.errno = 2; // ENOENT
+        return fd >= 0 ? { 
+          close: () => self.vfs.close(fd),
+          puts: (str: string) => self.vfs.write(fd, str),
+          read: (buf: any, pos: number, len: number) => self.vfs.read(fd, len),
+          write: (buf: any, pos: number, len: number) => self.vfs.write(fd, buf),
+          getline: () => '',
+          readAsString: () => std.loadFile(filename) || '',
+          flush: () => {},
+          seek: (offset: number, whence: number) => self.vfs.seek(fd, offset, whence),
+          tell: () => 0,
+          eof: () => true,
+          fileno: () => fd,
+          error: () => false,
+          clearerr: () => {},
+          getByte: () => -1,
+          putByte: (c: number) => {},
+          printf: (fmt: string, ...args: any[]) => {},
+        } : null;
+      },
+      fdopen: (fd: number, flags: string) => null,
+      tmpfile: () => null,
+      puts: (str: string) => self.onLog(`[STD] ${str}`),
+      printf: (fmt: string, ...args: any[]) => self.onLog(`[STD] ${fmt}`),
+      sprintf: (fmt: string, ...args: any[]) => {
+        // Simple sprintf - replace %s, %d, %f
+        let result = fmt;
+        let i = 0;
+        result = result.replace(/%[sdfc%]/g, (match) => {
+          if (match === '%%') return '%';
+          return String(args[i++] ?? '');
+        });
+        return result;
+      },
+      in: null,
+      out: { puts: (str: string) => self.onLog(str), printf: (fmt: string, ...args: any[]) => self.onLog(fmt) },
+      err: { puts: (str: string) => self.onLog(`[ERR] ${str}`) },
+      SEEK_SET: 0, SEEK_CUR: 1, SEEK_END: 2,
+      EINVAL: 22, EIO: 5, EACCES: 13, EEXIST: 17, ENOSPC: 28,
+      ENOSYS: 38, EBUSY: 16, ENOENT: 2, EPERM: 1, EPIPE: 32,
+      strerror: (errno: number) => `Error ${errno}`,
+      gc: () => { /* Force GC - mock */ },
+      parseExtJSON: (str: string) => {
+        try {
+          // Remove comments and trailing commas for extended JSON
+          const cleaned = str
+            .replace(/\/\/.*$/gm, '')
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/,\s*([\]}])/g, '$1');
+          return JSON.parse(cleaned);
+        } catch (e) {
+          self.onLog(`[STD] parseExtJSON error: ${e}`);
+          return null;
+        }
+      },
       reload: (script: string) => {
-        self.onLog('[SYSTEM] Reloading script...');
+        self.onLog(`[SYSTEM] Reloading: ${script}`);
         std.loadScript(script);
       }
     };
 
-    // os Module - with POSIX-like file operations and open flags
+    // os Module - Enhanced with device path normalization
     const os = {
       setInterval: (fn: Function, ms: number) => setInterval(fn, ms),
       clearInterval: (id: number) => clearInterval(id),
@@ -904,50 +1019,115 @@ export class AthenaEnvAPI {
       clearImmediate: (id: number) => clearTimeout(id),
       sleep: (ms: number) => new Promise(resolve => setTimeout(resolve, ms)),
       platform: 'ps2',
-      open: (path: string, flags: string) => self.vfs.open(path, flags),
+      open: (path: string, flags: any, mode?: number) => {
+        const normalized = self.normalizeDevicePath(path);
+        return self.vfs.open(normalized, typeof flags === 'string' ? flags : 'r');
+      },
       close: (fd: number) => self.vfs.close(fd),
-      read: (fd: number, length: number) => self.vfs.read(fd, length),
-      write: (fd: number, data: any) => self.vfs.write(fd, data),
-      remove: (path: string) => self.vfs.remove(path),
-      rename: (oldName: string, newName: string) => { self.onLog(`[OS] rename: ${oldName} -> ${newName}`); return 0; },
-      realpath: (path: string) => [path, 0],
-      mkdir: (path: string) => self.vfs.mkdir(path),
+      read: (fd: number, buffer: ArrayBuffer, offset: number, length: number) => {
+        const data = self.vfs.read(fd, length);
+        return data ? (data as ArrayBuffer).byteLength : -1;
+      },
+      write: (fd: number, buffer: any, offset: number, length: number) => {
+        return self.vfs.write(fd, buffer);
+      },
+      seek: (fd: number, offset: number, whence: number) => self.vfs.seek(fd, offset, whence),
+      remove: (path: string) => self.vfs.remove(self.normalizeDevicePath(path)),
+      rename: (oldName: string, newName: string) => {
+        const content = self.vfs.readFile(self.normalizeDevicePath(oldName));
+        if (content) {
+          self.vfs.writeFile(self.normalizeDevicePath(newName), content as string);
+          self.vfs.remove(self.normalizeDevicePath(oldName));
+          return 0;
+        }
+        return -1;
+      },
+      realpath: (path: string) => [self.normalizeDevicePath(path), 0],
+      mkdir: (path: string, mode?: number) => self.vfs.mkdir(self.normalizeDevicePath(path)),
       readdir: (path: string) => {
-        const files = self.vfs.readdir(path);
+        const normalized = self.normalizeDevicePath(path);
+        const files = self.vfs.readdir(normalized);
         return [files || [], files ? 0 : -1];
       },
-      stat: (path: string) => [self.vfs.stat(path), 0],
-      lstat: (path: string) => [self.vfs.stat(path), 0],
+      stat: (path: string) => [self.vfs.stat(self.normalizeDevicePath(path)), 0],
+      lstat: (path: string) => [self.vfs.stat(self.normalizeDevicePath(path)), 0],
       utimes: () => 0,
       getcwd: () => [self.vfs.getcwd(), 0],
-      chdir: (path: string) => self.vfs.chdir(path),
+      chdir: (path: string) => self.vfs.chdir(self.normalizeDevicePath(path)),
       setReadHandler: () => { /* Mock */ },
       setWriteHandler: () => { /* Mock */ },
       // Open flags
-      O_RDONLY: 'r',
-      O_WRONLY: 'w',
-      O_RDWR: 'rw',
-      O_APPEND: 'a',
-      O_CREAT: 'w',
-      O_EXCL: 'wx',
-      O_TRUNC: 'w',
+      O_RDONLY: 0, O_WRONLY: 1, O_RDWR: 2,
+      O_APPEND: 1024, O_CREAT: 64, O_EXCL: 128, O_TRUNC: 512,
       // Stat constants
-      S_IFMT: 0o170000,
-      S_IFIFO: 0o010000,
-      S_IFCHR: 0o020000,
-      S_IFDIR: 0o040000,
-      S_IFBLK: 0o060000,
-      S_IFREG: 0o100000,
-      S_IFSOCK: 0o140000,
-      S_IFLNK: 0o120000,
-      S_ISGID: 0o002000,
-      S_ISUID: 0o004000,
+      S_IFMT: 0o170000, S_IFIFO: 0o010000, S_IFCHR: 0o020000,
+      S_IFDIR: 0o040000, S_IFBLK: 0o060000, S_IFREG: 0o100000,
+      S_IFSOCK: 0o140000, S_IFLNK: 0o120000, S_ISGID: 0o002000, S_ISUID: 0o004000,
     };
 
     // Create all new modules
     const Native = createNativeModule(self.onLog);
     const renderModules = createRenderModules(self.ctx2D, self.onLog);
     const TileMap = createTileMapModule(self.ctx2D, self.onLog);
+    const XmlParser = createXmlModule(
+      (path) => self.vfs.readFile(self.normalizeDevicePath(path)),
+      (path) => self.vfs.exists(self.normalizeDevicePath(path)) || self.vfs.exists(path),
+      self.onLog
+    );
+
+    // CfgMan - Configuration Manager (OSDXMB pattern)
+    const cfgStore: Map<string, Record<string, string>> = new Map();
+    const CfgMan = {
+      PropertySet: (cfgFile: string, key: string, value: string) => {
+        if (!cfgStore.has(cfgFile)) cfgStore.set(cfgFile, {});
+        cfgStore.get(cfgFile)![key] = value;
+        self.onLog(`[CFG] ${cfgFile}: ${key} = ${value}`);
+      },
+      PropertyGet: (cfgFile: string, key: string, defaultValue: string = '') => {
+        return cfgStore.get(cfgFile)?.[key] ?? defaultValue;
+      },
+      Save: (cfgFile: string) => {
+        self.onLog(`[CFG] Saved: ${cfgFile}`);
+      },
+      Load: (cfgFile: string) => {
+        const content = std.loadFile(cfgFile);
+        if (content) {
+          const cfg: Record<string, string> = {};
+          content.split('\n').forEach(line => {
+            const eq = line.indexOf('=');
+            if (eq > 0) {
+              cfg[line.substring(0, eq).trim()] = line.substring(eq + 1).trim();
+            }
+          });
+          cfgStore.set(cfgFile, cfg);
+        }
+        return cfgStore.get(cfgFile) || {};
+      },
+    };
+
+    // ReadCFG helper (OSDXMB pattern)  
+    const ReadCFG = (path: string): Record<string, string> => {
+      const content = std.loadFile(path);
+      if (!content) return {};
+      const cfg: Record<string, string> = {};
+      content.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) return;
+        const eq = trimmed.indexOf('=');
+        if (eq > 0) {
+          cfg[trimmed.substring(0, eq).trim()] = trimmed.substring(eq + 1).trim();
+        }
+      });
+      return cfg;
+    };
+
+    // Mutex mock (OSDXMB uses MainMutex)
+    const createMutex = () => ({
+      locked: false,
+      lock() { this.locked = true; },
+      unlock() { this.locked = false; },
+    });
+    const MainMutex = createMutex();
 
     // Additional stub modules
     const Archive = {
@@ -1013,6 +1193,29 @@ export class AthenaEnvAPI {
       process() { /* mock async image loading */ }
     }
 
+    // globalThis proxy for scripts that use globalThis.X = ...
+    const scriptGlobals: Record<string, any> = {};
+    const globalThisProxy = new Proxy(scriptGlobals, {
+      get(target, prop: string) {
+        // Check script globals first, then known modules
+        if (prop in target) return target[prop];
+        const knownModules: Record<string, any> = {
+          Color, Screen, Draw, Sound, Font, Image, ImageList, Pads, Timer, System,
+          std, os, console, Vector4, Matrix4, Native, TileMap, XmlParser, CfgMan,
+          MainMutex, ReadCFG, Archive, IOP, Network, Socket, Keyboard, Mouse, Video, Shadows,
+        };
+        if (prop in knownModules) return knownModules[prop];
+        return undefined;
+      },
+      set(target, prop: string, value) {
+        target[prop] = value;
+        return true;
+      },
+      has(target, prop) {
+        return prop in target;
+      }
+    });
+
     // Constants
     const RAM = 'RAM';
     const VRAM = 'VRAM';
@@ -1023,6 +1226,51 @@ export class AthenaEnvAPI {
     const LINEAR = 'LINEAR';
     const NEAREST = 'NEAREST';
     const FontAlign = FONT_CONSTANTS;
+
+    // parseIconSysTitle helper (OSDXMB pattern)
+    const parseIconSysTitle = (root: string, dirname: string): string => {
+      const icoPath = `${root}${dirname}/icon.sys`;
+      const content = std.loadFile(icoPath);
+      if (content) {
+        const lines = content.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('title0=') || line.startsWith('Title=')) {
+            return line.split('=')[1]?.trim() || dirname;
+          }
+        }
+      }
+      return dirname;
+    };
+
+    // deleteItem helper (OSDXMB pattern)
+    const deleteItem = (collection: any[], index: number) => {
+      if (index >= 0 && index < collection.length) {
+        const item = collection[index];
+        if (item.FullPath) {
+          self.vfs.remove(self.normalizeDevicePath(item.FullPath));
+        }
+        collection.splice(index, 1);
+      }
+    };
+
+    // mountHDDPartition helper
+    const mountHDDPartition = (partition: string): string => {
+      const mp = `pfs0`;
+      System.mount(`${mp}:`, `hdd0:${partition}`);
+      return mp;
+    };
+
+    // PreprocessText helper
+    const PreprocessText = (text: string): string => {
+      return text?.replace(/\{([^}]+)\}/g, (_, expr) => {
+        try { return String(eval(expr)); } catch { return `{${expr}}`; }
+      }) || '';
+    };
+
+    // getTimerSec helper  
+    const getTimerSec = (timerId: number): number => {
+      return Timer.getTime(timerId) / 100;
+    };
 
     return {
       // Core modules
@@ -1046,7 +1294,6 @@ export class AthenaEnvAPI {
       Math: {
         ...Math,
         fround: Math.fround || ((x: number) => x),
-        // Extended PS2 math functions
         clamp: (value: number, min: number, max: number) => Math.min(Math.max(value, min), max),
         lerp: (a: number, b: number, t: number) => a + (b - a) * t,
         saturate: (x: number) => Math.min(Math.max(x, 0), 1),
@@ -1075,6 +1322,27 @@ export class AthenaEnvAPI {
       
       // TileMap
       TileMap,
+      
+      // XML Parser
+      XmlParser,
+      
+      // Configuration
+      CfgMan,
+      ReadCFG,
+      
+      // Threading
+      MainMutex,
+      Mutex: createMutex,
+      
+      // OSDXMB helpers
+      parseIconSysTitle,
+      deleteItem,
+      mountHDDPartition,
+      PreprocessText,
+      getTimerSec,
+      
+      // globalThis
+      globalThis: globalThisProxy,
       
       // Additional modules
       Archive,
