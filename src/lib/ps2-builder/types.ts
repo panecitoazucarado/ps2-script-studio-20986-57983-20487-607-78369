@@ -52,6 +52,7 @@ export type ComponentCategory =
   | 'lists'       // List and grid components
   | 'indicators'  // Progress, status indicators
   | 'media'       // Video, audio components
+  | 'scroll'      // Scrollable containers for web-like content
   | 'advanced';   // TileMap, Render, etc.
 
 // Category metadata
@@ -120,6 +121,13 @@ export const CATEGORIES: CategoryInfo[] = [
     description: 'Video y contenido multimedia',
     icon: 'Film',
     color: 'text-pink-400'
+  },
+  { 
+    id: 'scroll', 
+    name: 'Scroll', 
+    description: 'Contenedores scrolleables para web, diarios y wikis en PS2',
+    icon: 'Rows3',
+    color: 'text-emerald-400'
   },
   { 
     id: 'advanced', 
