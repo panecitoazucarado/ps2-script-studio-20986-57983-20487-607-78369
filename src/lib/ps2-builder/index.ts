@@ -11,6 +11,7 @@ import { indicatorTemplates } from './templates/indicator-templates';
 import { mediaTemplates } from './templates/media-templates';
 import { advancedTemplates } from './templates/advanced-templates';
 import { calculatorTemplates } from './templates/calculator-templates';
+import { scrollTemplates } from './templates/scroll-templates';
 
 // Combine all templates
 export const allTemplates: ComponentTemplate[] = [
@@ -23,7 +24,8 @@ export const allTemplates: ComponentTemplate[] = [
   ...indicatorTemplates,
   ...mediaTemplates,
   ...advancedTemplates,
-  ...calculatorTemplates
+  ...calculatorTemplates,
+  ...scrollTemplates
 ];
 
 // Get templates by category

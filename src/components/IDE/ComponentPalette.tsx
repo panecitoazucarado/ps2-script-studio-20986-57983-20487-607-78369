@@ -53,6 +53,7 @@ const iconMap: Record<string, React.ReactNode> = {
   'Heart': <Heart className="w-3.5 h-3.5" />,
   'Loader': <Loader className="w-3.5 h-3.5" />,
   'Badge': <BadgeIcon className="w-3.5 h-3.5" />,
+  'BadgeIcon': <BadgeIcon className="w-3.5 h-3.5" />,
   'Timer': <Timer className="w-3.5 h-3.5" />,
   'Play': <Play className="w-3.5 h-3.5" />,
   'AudioLines': <AudioLines className="w-3.5 h-3.5" />,
