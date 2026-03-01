@@ -24,6 +24,7 @@ import {
   AlignCenter, Rows3, FileText, Badge as BadgeIcon, GripVertical,
   ChevronsUp, ChevronsDown, MoreHorizontal, Blend, Palette
 } from 'lucide-react';
+import { ComponentPalette } from './ComponentPalette';
 
 import {
   PS2Component, PS2Color, ComponentTemplate, ComponentCategory, CategoryInfo,
@@ -929,71 +930,7 @@ os.setInterval(() => {
 
         <div className="flex-1 flex overflow-hidden">
           {/* Left Sidebar: Component Palette */}
-          <div className="w-60 border-r border-[#2a2a4a] bg-[#10102a] flex flex-col">
-            {/* Search */}
-            <div className="p-2 border-b border-[#2a2a4a]">
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar componentes..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-7 pl-7 pr-7 text-[11px] bg-[#1a1a3a] border-[#2a2a4a]"
-                />
-                {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2">
-                    <X className="w-3 h-3 text-muted-foreground hover:text-white" />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {/* Categories */}
-            {!searchQuery && (
-              <div className="flex flex-wrap gap-1 p-2 border-b border-[#2a2a4a]">
-                {CATEGORIES.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setActiveCategory(cat.id)}
-                    className={`flex items-center gap-1 px-2 py-1 rounded text-[9px] transition-colors ${
-                      activeCategory === cat.id 
-                        ? 'bg-purple-500/30 text-purple-300' 
-                        : 'bg-[#1a1a3a] text-gray-400 hover:bg-[#252550] hover:text-gray-200'
-                    }`}
-                  >
-                    <span className={cat.color}>{getCategoryIcon(cat.id)}</span>
-                    <span>{cat.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            
-            {/* Component List */}
-            <ScrollArea className="flex-1">
-              <div className="p-2 space-y-1">
-                {filteredTemplates.map(template => (
-                  <button
-                    key={template.type}
-                    onClick={() => handleAddComponent(template)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left hover:bg-[#1a1a3a] transition-colors group"
-                  >
-                    <div className="w-7 h-7 rounded bg-[#1a1a3a] flex items-center justify-center text-gray-400 group-hover:text-cyan-400 group-hover:bg-[#252550]">
-                      {getTemplateIcon(template.icon)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] text-gray-200 truncate">{template.name}</div>
-                      <div className="text-[9px] text-gray-500 truncate">{template.description}</div>
-                    </div>
-                  </button>
-                ))}
-                {filteredTemplates.length === 0 && (
-                  <div className="text-center py-8 text-gray-500 text-xs">
-                    No se encontraron componentes
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </div>
+          <ComponentPalette onAddComponent={handleAddComponent} />
 
           {/* Center: Canvas */}
           <div className="flex-1 flex flex-col overflow-hidden bg-[#0a0a18]">
