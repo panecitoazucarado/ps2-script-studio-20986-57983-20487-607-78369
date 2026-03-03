@@ -1,6 +1,9 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -116,6 +119,15 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
   const [activeCategory, setActiveCategory] = useState<ComponentCategory>('draw');
   const [searchQuery, setSearchQuery] = useState('');
   const [showLayers, setShowLayers] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  const handleRequestClose = useCallback(() => {
+    if (components.length > 0) {
+      setShowExitConfirm(true);
+    } else {
+      onOpenChange(false);
+    }
+  }, [components.length, onOpenChange]);
   
   // Layer drag & drop state
   const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
@@ -852,81 +864,79 @@ os.setInterval(() => {
     );
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] w-[1400px] h-[90vh] p-0 flex flex-col bg-[#0d0d1a] border-[#2a2a4a]">
-        {/* Header */}
-        <DialogHeader className="px-4 py-2 border-b border-[#2a2a4a] bg-[#12122a]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <DialogTitle className="text-sm font-semibold flex items-center gap-2 text-white">
-                <PenTool className="w-4 h-4 text-purple-400" />
-                PS2 Visual UI Builder
-              </DialogTitle>
-              <Badge variant="outline" className="text-[9px] border-cyan-500/50 text-cyan-400 px-1.5 py-0">
-                {PS2_WIDTH}×{PS2_HEIGHT}
-              </Badge>
-              <Badge variant="secondary" className="text-[9px] bg-[#1a1a3a] text-gray-300 px-1.5 py-0">
-                {components.length} componentes
-              </Badge>
-            </div>
-            
-            <div className="flex items-center gap-1.5">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => setShowGrid(!showGrid)} className={`h-7 w-7 p-0 ${showGrid ? 'bg-purple-500/20' : ''}`}>
-                      <Grid3x3 className="w-3.5 h-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Toggle Grid</TooltipContent>
-                </Tooltip>
-                
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => setGridSnap(!gridSnap)} className={`h-7 w-7 p-0 ${gridSnap ? 'bg-purple-500/20' : ''}`}>
-                      <Shapes className="w-3.5 h-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Snap to Grid: {gridSnap ? 'ON' : 'OFF'}</TooltipContent>
-                </Tooltip>
+  if (!open) return null;
 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => setShowLayers(!showLayers)} className={`h-7 w-7 p-0 ${showLayers ? 'bg-purple-500/20' : ''}`}>
-                      <Layers className="w-3.5 h-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Layers Panel</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              
-              <Separator orientation="vertical" className="h-5 bg-[#2a2a4a]" />
-              
-              <Button
-                variant={showCode ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setShowCode(!showCode)}
-                className="h-7 px-2 text-[11px]"
-              >
-                <Code className="w-3.5 h-3.5 mr-1" />
-                Código
+  return (
+    <>
+    {/* Fullscreen overlay */}
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#0a0a16' }}>
+      {/* ── Header bar ── */}
+      <div className="h-10 flex items-center justify-between px-3 border-b border-white/[0.06] shrink-0" style={{ background: 'rgba(14,14,30,0.98)' }}>
+        {/* Left: title + badges */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <PenTool className="w-4 h-4 text-purple-400 shrink-0" />
+          <span className="text-[12px] font-semibold text-white whitespace-nowrap">PS2 Visual UI Builder</span>
+          <span className="text-[9px] text-cyan-400 border border-cyan-500/30 rounded px-1.5 py-[1px] whitespace-nowrap">{PS2_WIDTH}×{PS2_HEIGHT}</span>
+          <span className="text-[9px] text-gray-400 whitespace-nowrap">{components.length} componentes</span>
+        </div>
+
+        {/* Center: tools */}
+        <div className="flex items-center gap-1">
+          <TooltipProvider>
+            <Tooltip><TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={() => setShowGrid(!showGrid)} className={`h-7 w-7 p-0 ${showGrid ? 'bg-purple-500/20 text-purple-300' : 'text-gray-500'}`}>
+                <Grid3x3 className="w-3.5 h-3.5" />
               </Button>
-              
-              <Button
-                size="sm"
-                onClick={() => {
-                  onGenerateCode(generateFullCode());
-                  onOpenChange(false);
-                }}
-                className="h-7 px-3 text-[11px] bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
-              >
-                <Download className="w-3.5 h-3.5 mr-1" />
-                Aplicar
+            </TooltipTrigger><TooltipContent side="bottom">Grilla</TooltipContent></Tooltip>
+
+            <Tooltip><TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={() => setGridSnap(!gridSnap)} className={`h-7 w-7 p-0 ${gridSnap ? 'bg-purple-500/20 text-purple-300' : 'text-gray-500'}`}>
+                <Shapes className="w-3.5 h-3.5" />
               </Button>
-            </div>
-          </div>
-        </DialogHeader>
+            </TooltipTrigger><TooltipContent side="bottom">Snap: {gridSnap ? 'ON' : 'OFF'}</TooltipContent></Tooltip>
+
+            <Tooltip><TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={() => setShowLayers(!showLayers)} className={`h-7 w-7 p-0 ${showLayers ? 'bg-purple-500/20 text-purple-300' : 'text-gray-500'}`}>
+                <Layers className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger><TooltipContent side="bottom">Capas</TooltipContent></Tooltip>
+          </TooltipProvider>
+
+          <div className="w-px h-5 bg-white/[0.08] mx-1" />
+
+          <Button
+            variant={showCode ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setShowCode(!showCode)}
+            className="h-7 px-2 text-[11px]"
+          >
+            <Code className="w-3.5 h-3.5 mr-1" />
+            Código
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => {
+              onGenerateCode(generateFullCode());
+              onOpenChange(false);
+            }}
+            className="h-7 px-3 text-[11px] bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
+          >
+            <Download className="w-3.5 h-3.5 mr-1" />
+            Aplicar
+          </Button>
+        </div>
+
+        {/* Right: close button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleRequestClose}
+          className="h-7 w-7 p-0 text-gray-500 hover:text-red-400 hover:bg-red-500/10"
+        >
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
 
         <div className="flex-1 flex overflow-hidden">
           {/* Left Sidebar: Component Palette */}
@@ -1406,8 +1416,30 @@ os.setInterval(() => {
             </Tabs>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
+
+    {/* Exit confirmation dialog */}
+    <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+      <AlertDialogContent className="bg-[#12122a] border-white/[0.08]">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-white">¿Salir del Visual Builder?</AlertDialogTitle>
+          <AlertDialogDescription className="text-gray-400">
+            Se perderá todo el avance no aplicado. ¿Estás seguro de que deseas cerrar?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="border-white/[0.1] text-gray-300 hover:bg-white/[0.05]">Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-red-600 hover:bg-red-500 text-white"
+            onClick={() => { setShowExitConfirm(false); onOpenChange(false); }}
+          >
+            Salir sin guardar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
