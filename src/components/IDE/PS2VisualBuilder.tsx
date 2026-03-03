@@ -1417,7 +1417,6 @@ os.setInterval(() => {
           </div>
         </div>
       </div>
-    </div>
 
     {/* Exit confirmation dialog */}
     <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
