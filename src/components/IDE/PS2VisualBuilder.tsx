@@ -28,6 +28,7 @@ import {
   ChevronsUp, ChevronsDown, MoreHorizontal, Blend, Palette
 } from 'lucide-react';
 import { ComponentPalette } from './ComponentPalette';
+import { PS2ImageUploadDialog, PS2ImageConfig } from './PS2ImageUploadDialog';
 
 import {
   PS2Component, PS2Color, ComponentTemplate, ComponentCategory, CategoryInfo,
@@ -120,6 +121,8 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
   const [searchQuery, setSearchQuery] = useState('');
   const [showLayers, setShowLayers] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
+  const [pendingImageTemplate, setPendingImageTemplate] = useState<ComponentTemplate | null>(null);
 
   const handleRequestClose = useCallback(() => {
     if (components.length > 0) {
@@ -153,6 +156,13 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
 
   // Add component from template
   const handleAddComponent = useCallback((template: ComponentTemplate) => {
+    // Intercept image-category templates to open the upload dialog
+    if (template.category === 'image') {
+      setPendingImageTemplate(template);
+      setShowImageUpload(true);
+      return;
+    }
+
     const newComponent: PS2Component = {
       id: generateId(),
       type: template.type,
@@ -170,6 +180,46 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     setComponents(prev => [...prev, newComponent]);
     setSelectedId(newComponent.id);
   }, [components.length, snapToGrid]);
+
+  // Handle image upload result
+  const handleImageReady = useCallback((config: PS2ImageConfig) => {
+    const template = pendingImageTemplate || allTemplates.find(t => t.type === 'image');
+    if (!template) return;
+
+    const newComponent: PS2Component = {
+      id: generateId(),
+      type: template.type,
+      x: snapToGrid(PS2_WIDTH / 2 - config.width / 2),
+      y: snapToGrid(PS2_HEIGHT / 2 - config.height / 2),
+      width: config.width,
+      height: config.height,
+      props: {
+        ...JSON.parse(JSON.stringify(template.defaultProps)),
+        src: `${config.folderPath}/${config.fileName}`,
+        filter: config.filter,
+        memoryTarget: config.memoryTarget,
+        imageDataUrl: config.imageDataUrl,
+      },
+      zIndex: components.length,
+      locked: false,
+      visible: true,
+      name: `${config.fileName.replace('.png', '')}_${components.length + 1}`
+    };
+
+    // Save image to VFS if available
+    const fs = (window as any).__athenaFS;
+    if (fs && typeof fs.createFile === 'function') {
+      try {
+        fs.createFile(`${config.folderPath}/${config.fileName}`, config.imageDataUrl);
+      } catch (e) {
+        console.warn('Could not save image to VFS:', e);
+      }
+    }
+
+    setComponents(prev => [...prev, newComponent]);
+    setSelectedId(newComponent.id);
+    setPendingImageTemplate(null);
+  }, [pendingImageTemplate, components.length, snapToGrid]);
 
   // Component mouse down handler - for dragging
   const handleComponentMouseDown = useCallback((e: React.MouseEvent, comp: PS2Component) => {
@@ -1438,6 +1488,13 @@ os.setInterval(() => {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {/* Image Upload Dialog */}
+    <PS2ImageUploadDialog
+      open={showImageUpload}
+      onOpenChange={setShowImageUpload}
+      onImageReady={handleImageReady}
+    />
     </>
   );
 }
