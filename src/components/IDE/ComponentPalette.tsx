@@ -211,45 +211,28 @@ export function ComponentPalette({ onAddComponent }: ComponentPaletteProps) {
 
       {/* Template list */}
       <ScrollArea className="flex-1 min-h-0">
-        <div className="p-1.5 space-y-px">
-          {filteredTemplates.map(template => {
-            const isInfoVisible = infoOpen === template.type;
-            return (
-              <div key={template.type} className="rounded-md overflow-hidden">
-                {/* Item row */}
-                <div
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer group transition-colors hover:bg-white/[0.04] active:bg-white/[0.07]"
-                  onClick={() => onAddComponent(template)}
-                >
-                  <div className="w-6 h-6 rounded bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-gray-400 group-hover:text-cyan-400 group-hover:border-cyan-400/20 group-hover:bg-cyan-400/[0.06] transition-colors shrink-0">
-                    {getIcon(template.icon)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] text-gray-200 truncate leading-tight">{template.name}</div>
-                    <div className="text-[9px] text-gray-600 truncate leading-tight">{template.description}</div>
-                  </div>
-                  <button
-                    onClick={(e) => toggleInfo(template.type, e)}
-                    className={`w-5 h-5 rounded flex items-center justify-center shrink-0 transition-colors ${
-                      isInfoVisible
-                        ? 'bg-purple-500/20 text-purple-300'
-                        : 'text-gray-600 opacity-0 group-hover:opacity-100 hover:text-purple-300 hover:bg-white/[0.06]'
-                    }`}
-                    title="Información de uso"
-                  >
-                    <Info className="w-3 h-3" />
-                  </button>
-                </div>
-
-                {/* Info panel (inline, no overlap) */}
-                {isInfoVisible && (
-                  <div className="mx-2 mb-1.5 px-2.5 py-2 rounded bg-purple-500/[0.06] border border-purple-500/[0.12] text-[10px] text-purple-200/80 leading-relaxed">
-                    {getUsageInfo(template)}
-                  </div>
-                )}
+        <div className="p-1.5 space-y-0.5">
+          {filteredTemplates.map(template => (
+            <div
+              key={template.type}
+              className="flex items-center gap-2 px-2 py-[7px] rounded-md cursor-pointer group transition-colors hover:bg-white/[0.05] active:bg-white/[0.08]"
+              onClick={() => onAddComponent(template)}
+            >
+              <div className="w-7 h-7 rounded-[5px] bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-gray-500 group-hover:text-cyan-400 group-hover:border-cyan-500/20 group-hover:bg-cyan-400/[0.07] transition-colors shrink-0">
+                {getIcon(template.icon)}
               </div>
-            );
-          })}
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="text-[11px] text-gray-200 font-medium truncate leading-tight">{template.name}</div>
+              </div>
+              <button
+                onClick={(e) => toggleInfo(template.type, e)}
+                className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all text-gray-600 hover:text-purple-300 hover:bg-purple-500/15 focus:outline-none"
+                title="Información de uso"
+              >
+                <Info className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
 
           {filteredTemplates.length === 0 && (
             <div className="text-center py-10 text-gray-600 text-[11px]">
@@ -258,6 +241,34 @@ export function ComponentPalette({ onAddComponent }: ComponentPaletteProps) {
           )}
         </div>
       </ScrollArea>
+
+      {/* Info overlay panel — fixed at bottom, never overflows */}
+      {infoOpen && (() => {
+        const t = filteredTemplates.find(t => t.type === infoOpen);
+        if (!t) return null;
+        return (
+          <div className="border-t border-white/[0.06] px-2.5 py-2.5 shrink-0" style={{ background: 'rgba(20,16,40,0.95)' }}>
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-5 h-5 rounded bg-purple-500/15 flex items-center justify-center text-purple-300 shrink-0">
+                  {getIcon(t.icon)}
+                </div>
+                <span className="text-[11px] font-semibold text-purple-200 truncate">{t.name}</span>
+              </div>
+              <button
+                onClick={() => setInfoOpen(null)}
+                className="w-4 h-4 rounded flex items-center justify-center text-gray-500 hover:text-white shrink-0"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-400 leading-relaxed mb-1">{t.description}</p>
+            <div className="rounded bg-purple-500/[0.06] border border-purple-500/[0.1] px-2 py-1.5">
+              <p className="text-[10px] text-purple-200/80 leading-relaxed break-words">{getUsageInfo(t)}</p>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
