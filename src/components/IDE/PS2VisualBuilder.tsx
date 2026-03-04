@@ -25,7 +25,7 @@ import {
   Clock, Gamepad2, Box, FolderOpen, Play, AudioLines, Star, 
   TextCursor, Hash, Sparkles, RotateCw, Wallpaper, ImagePlay, 
   AlignCenter, Rows3, FileText, Badge as BadgeIcon, GripVertical,
-  ChevronsUp, ChevronsDown, MoreHorizontal, Blend, Palette
+  ChevronsUp, ChevronsDown, MoreHorizontal, Blend, Palette, HardDrive
 } from 'lucide-react';
 import { ComponentPalette } from './ComponentPalette';
 import { PS2ImageUploadDialog, PS2ImageConfig } from './PS2ImageUploadDialog';
@@ -199,6 +199,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
         filter: config.filter,
         memoryTarget: config.memoryTarget,
         imageDataUrl: config.imageDataUrl,
+        imageSizeBytes: Math.round((config.imageDataUrl.length * 3) / 4), // approximate decoded size
       },
       zIndex: components.length,
       locked: false,
@@ -297,6 +298,12 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
         newY = snapToGrid(mouseY);
         newHeight = Math.max(20, selectedComponent.height + diff);
       }
+
+      // Clamp to canvas bounds
+      newX = Math.max(0, Math.min(PS2_WIDTH - 20, newX));
+      newY = Math.max(0, Math.min(PS2_HEIGHT - 20, newY));
+      newWidth = Math.min(newWidth, PS2_WIDTH - newX);
+      newHeight = Math.min(newHeight, PS2_HEIGHT - newY);
       
       setComponents(prev => prev.map(c => 
         c.id === selectedId ? { ...c, x: newX, y: newY, width: newWidth, height: newHeight } : c
@@ -635,12 +642,20 @@ os.setInterval(() => {
           );
         case 'textbox':
           return (
-            <div className="w-full h-full flex items-center px-2 text-xs border" style={{ 
+            <div className="w-full h-full flex flex-col justify-center overflow-hidden border" style={{ 
               backgroundColor: colorToRgba(p.bgColor),
               borderColor: colorToRgba(p.borderColor),
-              color: p.value ? colorToRgba(p.textColor) : 'rgba(100,100,130,1)'
+              padding: `${Math.max(4, Math.floor(comp.height * 0.15))}px ${Math.max(6, Math.floor(comp.width * 0.05))}px`,
             }}>
-              {p.value || p.placeholder}
+              <div className="w-full overflow-hidden" style={{
+                color: p.value ? colorToRgba(p.textColor) : 'rgba(100,100,130,1)',
+                fontSize: Math.max(8, Math.min(14, Math.floor(comp.height * 0.35))) * zoom,
+                lineHeight: 1.4,
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word',
+              }}>
+                {p.value || p.placeholder}
+              </div>
             </div>
           );
         case 'checkbox':
@@ -696,9 +711,22 @@ os.setInterval(() => {
         case 'sprite':
         case 'icon':
         case 'background':
-          return (
-            <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center border border-dashed border-gray-500">
-              <ImageIcon className="w-6 h-6 text-gray-400" />
+        case 'rotated-image':
+          return p.imageDataUrl ? (
+            <img
+              src={p.imageDataUrl}
+              alt={comp.name}
+              className="w-full h-full object-cover"
+              style={{
+                imageRendering: p.filter === 'NEAREST' ? 'pixelated' : 'auto',
+                transform: comp.type === 'rotated-image' ? `rotate(${p.angle || 0}deg)` : undefined,
+              }}
+              draggable={false}
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex flex-col items-center justify-center border border-dashed border-gray-500 gap-1">
+              <ImageIcon className="w-5 h-5 text-gray-400" />
+              <span className="text-[8px] text-gray-500 truncate max-w-full px-1">{p.src || 'Sin imagen'}</span>
             </div>
           );
         case 'list':
@@ -1106,6 +1134,62 @@ os.setInterval(() => {
                 }} />
               </div>
             </div>
+
+            {/* PS2 Memory Usage Bar */}
+            {(() => {
+              const PS2_VRAM_TOTAL = 4 * 1024 * 1024; // 4MB
+              const PS2_RAM_TOTAL = 32 * 1024 * 1024; // 32MB
+              const imageComps = components.filter(c => ['image', 'logo', 'sprite', 'icon', 'background', 'rotated-image'].includes(c.type));
+              let vramUsed = 0;
+              let ramUsed = 0;
+              imageComps.forEach(c => {
+                const sizeBytes = c.props.imageSizeBytes || (c.width * c.height * 4); // RGBA
+                if (c.props.memoryTarget === 'VRAM') vramUsed += sizeBytes;
+                else if (c.props.memoryTarget === 'RAM') ramUsed += sizeBytes;
+                else ramUsed += sizeBytes; // Auto defaults to RAM estimate
+              });
+              const vramPct = Math.min(100, (vramUsed / PS2_VRAM_TOTAL) * 100);
+              const ramPct = Math.min(100, (ramUsed / PS2_RAM_TOTAL) * 100);
+              const formatKB = (b: number) => b < 1024 ? `${b}B` : b < 1048576 ? `${(b/1024).toFixed(1)}KB` : `${(b/1048576).toFixed(2)}MB`;
+
+              if (imageComps.length === 0) return null;
+
+              return (
+                <div className="flex items-center gap-3 px-3 py-1 border-t border-[#2a2a4a] bg-[#0c0c1e] shrink-0">
+                  {/* VRAM */}
+                  <div className="flex items-center gap-1.5 flex-1">
+                    <Cpu className="w-3 h-3 text-purple-400 shrink-0" />
+                    <span className="text-[9px] text-purple-300 font-semibold w-8">VRAM</span>
+                    <div className="flex-1 h-2 rounded-full bg-[#1a1a3a] overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${vramPct}%`,
+                          backgroundColor: vramPct > 85 ? '#ef4444' : vramPct > 60 ? '#f59e0b' : '#8b5cf6',
+                        }}
+                      />
+                    </div>
+                    <span className="text-[8px] text-gray-400 font-mono w-16 text-right">{formatKB(vramUsed)} / 4MB</span>
+                  </div>
+                  {/* RAM */}
+                  <div className="flex items-center gap-1.5 flex-1">
+                    <HardDrive className="w-3 h-3 text-cyan-400 shrink-0" />
+                    <span className="text-[9px] text-cyan-300 font-semibold w-8">RAM</span>
+                    <div className="flex-1 h-2 rounded-full bg-[#1a1a3a] overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${ramPct}%`,
+                          backgroundColor: ramPct > 85 ? '#ef4444' : ramPct > 60 ? '#f59e0b' : '#06b6d4',
+                        }}
+                      />
+                    </div>
+                    <span className="text-[8px] text-gray-400 font-mono w-16 text-right">{formatKB(ramUsed)} / 32MB</span>
+                  </div>
+                  <span className="text-[8px] text-gray-600">{imageComps.length} imgs</span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Right Sidebar: Properties / Layers / Code */}

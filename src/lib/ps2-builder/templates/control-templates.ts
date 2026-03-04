@@ -72,7 +72,7 @@ btn_${comp.id.slice(0, 6)}.draw();`
       placeholderColor: defaultColor(100, 100, 130, 128),
       maxLength: 32
     },
-    codeGenerator: (comp: PS2Component) => `// TextBox Component
+    codeGenerator: (comp: PS2Component) => `// TextBox Component with Word Wrap
 const textbox_${comp.id.slice(0, 6)} = {
   x: ${comp.x}, y: ${comp.y},
   width: ${comp.width}, height: ${comp.height},
@@ -80,10 +80,33 @@ const textbox_${comp.id.slice(0, 6)} = {
   placeholder: "${comp.props.placeholder}",
   focused: false,
   maxLength: ${comp.props.maxLength},
+  padding: ${Math.max(6, Math.floor(comp.width * 0.05))},
+  
+  // Word wrap function
+  wrapText: function(text) {
+    const maxW = this.width - (this.padding * 2);
+    const words = text.split(" ");
+    let lines = [];
+    let line = "";
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + words[i] + " ";
+      const testWidth = font.getTextSize(testLine).width;
+      if (testWidth > maxW && line !== "") {
+        lines.push(line.trim());
+        line = words[i] + " ";
+      } else {
+        line = testLine;
+      }
+    }
+    if (line !== "") lines.push(line.trim());
+    return lines;
+  },
   
   draw: function() {
+    // Background
     Draw.rect(this.x, this.y, this.width, this.height, ${colorToAthena(comp.props.bgColor)});
     
+    // Border
     const borderCol = this.focused 
       ? ${colorToAthena(comp.props.focusBorderColor)}
       : ${colorToAthena(comp.props.borderColor)};
@@ -92,16 +115,33 @@ const textbox_${comp.id.slice(0, 6)} = {
     Draw.line(this.x + this.width, this.y + this.height, this.x, this.y + this.height, borderCol);
     Draw.line(this.x, this.y + this.height, this.x, this.y, borderCol);
     
+    // Text with word wrap
     font.scale = 0.9;
+    const displayText = this.value || this.placeholder;
     font.color = this.value 
       ? ${colorToAthena(comp.props.textColor)}
       : ${colorToAthena(comp.props.placeholderColor)};
-    font.print(this.x + 8, this.y + 8, this.value || this.placeholder);
+    
+    const lines = this.wrapText(displayText);
+    const lineMetrics = font.getTextSize("Mg");
+    const lineH = lineMetrics.height + 4;
+    const totalTextH = lines.length * lineH;
+    const startY = this.y + ((this.height - totalTextH) / 2);
+    
+    for (let i = 0; i < lines.length; i++) {
+      const ly = startY + (i * lineH);
+      // Clamp text within box bounds
+      if (ly >= this.y && ly + lineH <= this.y + this.height) {
+        font.print(this.x + this.padding, ly, lines[i]);
+      }
+    }
     
     // Cursor
-    if (this.focused) {
-      const cursorX = this.x + 8 + font.getTextSize(this.value).width;
-      Draw.rect(cursorX, this.y + 6, 2, this.height - 12, Color.new(255, 255, 255, 200));
+    if (this.focused && this.value) {
+      const lastLine = lines[lines.length - 1] || "";
+      const cursorX = this.x + this.padding + font.getTextSize(lastLine).width;
+      const cursorY = startY + ((lines.length - 1) * lineH);
+      Draw.rect(cursorX, cursorY, 2, lineH, Color.new(255, 255, 255, 200));
     }
   }
 };

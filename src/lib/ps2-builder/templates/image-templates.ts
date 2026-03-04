@@ -19,13 +19,16 @@ export const imageTemplates: ComponentTemplate[] = [
       filter: 'NEAREST',
       tint: defaultColor(255, 255, 255, 128)
     },
-    codeGenerator: (comp: PS2Component) => `// Image Component
-const img_${comp.id.slice(0, 6)} = new Image("${comp.props.src}");
+    codeGenerator: (comp: PS2Component) => {
+      const memArg = comp.props.memoryTarget === 'VRAM' ? ', VRAM' : comp.props.memoryTarget === 'RAM' ? ', RAM' : '';
+      return `// Image Component
+const img_${comp.id.slice(0, 6)} = new Image("${comp.props.src}"${memArg});
 img_${comp.id.slice(0, 6)}.width = ${comp.width};
 img_${comp.id.slice(0, 6)}.height = ${comp.height};
 img_${comp.id.slice(0, 6)}.filter = Image.${comp.props.filter};
 img_${comp.id.slice(0, 6)}.color = ${colorToAthena(comp.props.tint)};
-img_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`
+img_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`;
+    }
   },
 
   // Logo/Brand Image
@@ -45,11 +48,12 @@ img_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`
       centered: true
     },
     codeGenerator: (comp: PS2Component) => {
+      const memArg = comp.props.memoryTarget === 'VRAM' ? ', VRAM' : comp.props.memoryTarget === 'RAM' ? ', RAM' : '';
       const xPos = comp.props.centered 
         ? `Math.floor((Screen.getMode().width - ${comp.width}) / 2)`
         : String(comp.x);
       return `// Logo Component
-const logo_${comp.id.slice(0, 6)} = new Image("${comp.props.src}");
+const logo_${comp.id.slice(0, 6)} = new Image("${comp.props.src}"${memArg});
 logo_${comp.id.slice(0, 6)}.width = ${comp.width};
 logo_${comp.id.slice(0, 6)}.height = ${comp.height};
 logo_${comp.id.slice(0, 6)}.filter = Image.${comp.props.filter};
@@ -80,8 +84,10 @@ logo_${comp.id.slice(0, 6)}.draw(${xPos}, ${comp.y});`;
       filter: 'NEAREST',
       tint: defaultColor(255, 255, 255, 128)
     },
-    codeGenerator: (comp: PS2Component) => `// Sprite from Atlas
-const sprite_${comp.id.slice(0, 6)} = new Image("${comp.props.src}");
+    codeGenerator: (comp: PS2Component) => {
+      const memArg = comp.props.memoryTarget === 'VRAM' ? ', VRAM' : comp.props.memoryTarget === 'RAM' ? ', RAM' : '';
+      return `// Sprite from Atlas
+const sprite_${comp.id.slice(0, 6)} = new Image("${comp.props.src}"${memArg});
 sprite_${comp.id.slice(0, 6)}.startx = ${comp.props.startX};
 sprite_${comp.id.slice(0, 6)}.starty = ${comp.props.startY};
 sprite_${comp.id.slice(0, 6)}.endx = ${comp.props.endX};
@@ -90,7 +96,8 @@ sprite_${comp.id.slice(0, 6)}.width = ${comp.width};
 sprite_${comp.id.slice(0, 6)}.height = ${comp.height};
 sprite_${comp.id.slice(0, 6)}.filter = Image.${comp.props.filter};
 sprite_${comp.id.slice(0, 6)}.color = ${colorToAthena(comp.props.tint)};
-sprite_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`
+sprite_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`;
+    }
   },
 
   // Rotated Image
@@ -110,14 +117,17 @@ sprite_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`
       filter: 'LINEAR',
       tint: defaultColor(255, 255, 255, 128)
     },
-    codeGenerator: (comp: PS2Component) => `// Rotated Image
-const rotImg_${comp.id.slice(0, 6)} = new Image("${comp.props.src}");
+    codeGenerator: (comp: PS2Component) => {
+      const memArg = comp.props.memoryTarget === 'VRAM' ? ', VRAM' : comp.props.memoryTarget === 'RAM' ? ', RAM' : '';
+      return `// Rotated Image
+const rotImg_${comp.id.slice(0, 6)} = new Image("${comp.props.src}"${memArg});
 rotImg_${comp.id.slice(0, 6)}.width = ${comp.width};
 rotImg_${comp.id.slice(0, 6)}.height = ${comp.height};
 rotImg_${comp.id.slice(0, 6)}.angle = ${comp.props.angle};
 rotImg_${comp.id.slice(0, 6)}.filter = Image.${comp.props.filter};
 rotImg_${comp.id.slice(0, 6)}.color = ${colorToAthena(comp.props.tint)};
-rotImg_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`
+rotImg_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`;
+    }
   },
 
   // Icon
@@ -135,13 +145,16 @@ rotImg_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`
       filter: 'NEAREST',
       tint: defaultColor(255, 255, 255, 128)
     },
-    codeGenerator: (comp: PS2Component) => `// Icon
-const icon_${comp.id.slice(0, 6)} = new Image("${comp.props.src}");
+    codeGenerator: (comp: PS2Component) => {
+      const memArg = comp.props.memoryTarget === 'VRAM' ? ', VRAM' : comp.props.memoryTarget === 'RAM' ? ', RAM' : '';
+      return `// Icon
+const icon_${comp.id.slice(0, 6)} = new Image("${comp.props.src}"${memArg});
 icon_${comp.id.slice(0, 6)}.width = ${comp.width};
 icon_${comp.id.slice(0, 6)}.height = ${comp.height};
 icon_${comp.id.slice(0, 6)}.filter = Image.${comp.props.filter};
 icon_${comp.id.slice(0, 6)}.color = ${colorToAthena(comp.props.tint)};
-icon_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`
+icon_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`;
+    }
   },
 
   // Background Image
@@ -160,12 +173,15 @@ icon_${comp.id.slice(0, 6)}.draw(${comp.x}, ${comp.y});`
       filter: 'LINEAR',
       tint: defaultColor(255, 255, 255, 128)
     },
-    codeGenerator: (comp: PS2Component) => `// Background Image (fullscreen)
-const bg_${comp.id.slice(0, 6)} = new Image("${comp.props.src}");
+    codeGenerator: (comp: PS2Component) => {
+      const memArg = comp.props.memoryTarget === 'VRAM' ? ', VRAM' : comp.props.memoryTarget === 'RAM' ? ', RAM' : '';
+      return `// Background Image (fullscreen)
+const bg_${comp.id.slice(0, 6)} = new Image("${comp.props.src}"${memArg});
 bg_${comp.id.slice(0, 6)}.width = Screen.getMode().width;
 bg_${comp.id.slice(0, 6)}.height = Screen.getMode().height;
 bg_${comp.id.slice(0, 6)}.filter = Image.${comp.props.filter};
 bg_${comp.id.slice(0, 6)}.color = ${colorToAthena(comp.props.tint)};
-bg_${comp.id.slice(0, 6)}.draw(0, 0);`
+bg_${comp.id.slice(0, 6)}.draw(0, 0);`;
+    }
   }
 ];
