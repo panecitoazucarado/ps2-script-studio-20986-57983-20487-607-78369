@@ -43,8 +43,9 @@ const IMAGE_TYPES = [
 ];
 
 const VRAM_OPTIONS = [
-  { id: 'VRAM', label: 'VRAM', desc: 'Carga en memoria de video (rápido, limitado)', recommended: true },
-  { id: 'RAM', label: 'RAM', desc: 'Carga en memoria principal (más espacio)', recommended: false },
+  { id: 'VRAM', label: 'VRAM', desc: 'Carga en memoria de video (rápido, limitado a 4MB)', recommended: true },
+  { id: 'RAM', label: 'RAM', desc: 'Carga en memoria principal (más espacio, 32MB)', recommended: false },
+  { id: 'NONE', label: 'Auto', desc: 'Sin especificar destino — AthenaEnv decide automáticamente', recommended: false },
 ];
 
 const FILTER_OPTIONS = [
@@ -599,7 +600,7 @@ export function PS2ImageUploadDialog({
                 <p className="text-[9px] text-gray-500">
                   Código generado:{' '}
                   <code className="text-cyan-400 bg-white/[0.03] px-1 py-0.5 rounded">
-                    const img = new Image("{selectedFolder || folderName || 'assets'}/{fileName || 'image'}.png"{memoryTarget === 'VRAM' ? ', VRAM' : ''});
+                    const img = new Image("{selectedFolder || folderName || 'assets'}/{fileName || 'image'}.png"{memoryTarget === 'VRAM' ? ', VRAM' : memoryTarget === 'RAM' ? ', RAM' : ''});
                   </code>
                 </p>
               </div>
