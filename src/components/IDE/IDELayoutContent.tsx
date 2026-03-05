@@ -898,7 +898,7 @@ export function IDELayoutContent() {
         </div>
 
         <IDEStatusBar 
-          selectedFile={selectedFile.name}
+          selectedFile={selectedFile?.name || 'Bienvenido'}
           isRunning={isRunning}
           lineCount={code.split('\n').length}
         />
