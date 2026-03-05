@@ -1187,7 +1187,7 @@ export function CodeEditor({
               )}
               
               {/* Close Button */}
-              {openTabs.length > 1 && (
+              {true && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
