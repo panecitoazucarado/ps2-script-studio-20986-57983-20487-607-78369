@@ -255,7 +255,7 @@ export function AthenaWelcomeTab({ onCreateFile, onCloneRepo, onImportProject, o
           </div>
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">
-              Bienvenido a <span className="text-[hsl(var(--ps2-blue))]">AthenaEnv</span>
+              Bienvenido a <span className="text-[hsl(var(--ps2-blue))]">Athena Env Studio</span>
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               Enhanced JavaScript Runtime Environment for PlayStation 2™
@@ -281,9 +281,9 @@ export function AthenaWelcomeTab({ onCreateFile, onCloneRepo, onImportProject, o
 
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-8 mb-4">Ayuda</h2>
             <div className="space-y-1.5">
-              <WelcomeLink icon={BookOpen} label="Documentación AthenaEnv" href="https://github.com/DanielSant0s/AthenaEnv" />
-              <WelcomeLink icon={Code2} label="Ejemplos Oficiales" href="https://github.com/AthenaEnv-Samples" />
-              <WelcomeLink icon={Globe} label="Comunidad & Soporte" href="https://github.com/DanielSant0s/AthenaEnv/issues" />
+              <WelcomeLink icon={BookOpen} label="Sitio Web Oficial" href="https://athena-env.vercel.app/" />
+              <WelcomeLink icon={Code2} label="Ejemplos Oficiales" href="https://github.com/DanielSant0s/AthenaEnv" />
+              <WelcomeLink icon={Globe} label="Discord Oficial" href="https://discord.gg/h7D59mqmWU" />
             </div>
           </div>
 
