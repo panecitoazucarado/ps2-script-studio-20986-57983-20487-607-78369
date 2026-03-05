@@ -4,6 +4,7 @@ import { FileExplorer } from './FileExplorer';
 import { CodeEditor } from './CodeEditor';
 import { ImageViewer } from './ImageViewer';
 import { PS2Preview } from './PS2Preview';
+import { AthenaWelcomeTab } from './AthenaWelcomeTab';
 import { IDEHeader } from './IDEHeader';
 import { IDEStatusBar } from './IDEStatusBar';
 import { FloatingWindow } from './FloatingWindow';
@@ -30,16 +31,16 @@ import JSZip from 'jszip';
 export function IDELayoutContent() {
   const { windows, undockWindow, dockingEnabled, toggleWindowVisibility } = useWindowDocking();
   
-  const defaultFile: FileNode = {
-    name: 'main.js',
+  const welcomeTab: FileNode = {
+    name: '🎮 Bienvenido',
     type: 'file',
-    path: '/main.js',
-    content: '// Welcome to ATHENA ENV SDK for PlayStation 2\n// Enhanced JavaScript environment for PS2 homebrew development\n\n// {"name": "My PS2 App", "author": "Developer", "version": "1.0.0", "icon": "icon.png", "file": "main.js"}\n\nconst font = new Font("default");\nlet frameCount = 0;\n\nos.setInterval(() => {\n  Screen.clear(Color.new(0, 32, 64, 255));\n  \n  // Draw title\n  font.print(50, 50, "ATHENA ENV SDK Demo");\n  font.print(50, 80, "Frame: " + frameCount);\n  \n  // Draw some graphics\n  Draw.rect(200, 150, 240, 100, Color.new(128, 0, 255, 255));\n  Draw.circle(320, 200, 30, Color.new(0, 255, 128, 255));\n  \n  font.print(50, 350, "Press buttons on your controller!");\n  \n  frameCount++;\n  Screen.flip();\n}, 16);'
+    path: '/__welcome__',
+    content: ''
   };
   
-  const [openTabsState, setOpenTabsState] = useState<FileNode[]>([defaultFile]);
+  const [openTabsState, setOpenTabsState] = useState<FileNode[]>([welcomeTab]);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
-  const [code, setCode] = useState(defaultFile.content || '');
+  const [code, setCode] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [showFileExplorer, setShowFileExplorer] = useState(true);
   const [showPreview, setShowPreview] = useState(true);
@@ -109,9 +110,16 @@ export function IDELayoutContent() {
   }, [openTabs]);
 
   const handleTabClose = useCallback((index: number) => {
-    if (openTabs.length === 1) return;
-    
     const newTabs = openTabs.filter((_, idx) => idx !== index);
+    
+    if (newTabs.length === 0) {
+      // Re-show welcome tab
+      setOpenTabsState([welcomeTab]);
+      setActiveTabIndex(0);
+      setCode('');
+      return;
+    }
+    
     setOpenTabs(newTabs);
     
     let newActiveIndex = activeTabIndex;
@@ -123,7 +131,7 @@ export function IDELayoutContent() {
     
     setActiveTabIndex(newActiveIndex);
     setCode(newTabs[newActiveIndex].content || '');
-  }, [openTabs, activeTabIndex, setOpenTabs]);
+  }, [openTabs, activeTabIndex, setOpenTabs, welcomeTab]);
 
   const handleTabReorder = useCallback((fromIndex: number, toIndex: number) => {
     setOpenTabs((prev: FileNode[]) => {
@@ -752,7 +760,29 @@ export function IDELayoutContent() {
               defaultSize={50} 
               minSize={30}
             >
-              {selectedFile && isImageFile(selectedFile.name) ? (
+              {selectedFile?.path === '/__welcome__' ? (
+                <AthenaWelcomeTab
+                  onCreateFile={(name, content) => {
+                    const newFile: FileNode = { name, type: 'file', path: `/${name}`, content };
+                    // Add to project files
+                    setProjectFiles(prev => [...prev, newFile]);
+                    setFileSystemVersion(prev => prev + 1);
+                    // Open in new tab
+                    setOpenTabs((prev: FileNode[]) => [...prev, newFile]);
+                    setActiveTabIndex(openTabs.length);
+                    setCode(content);
+                  }}
+                  onCloneRepo={handleOpenCloneDialog}
+                  onImportProject={() => {
+                    // Trigger file explorer import
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.webkitdirectory = true;
+                    input.click();
+                  }}
+                  onOpenVisualBuilder={() => setShowVisualBuilder(true)}
+                />
+              ) : selectedFile && isImageFile(selectedFile.name) ? (
                 <ImageViewer
                   imageData={selectedFile.content || ''}
                   filename={selectedFile.name}
