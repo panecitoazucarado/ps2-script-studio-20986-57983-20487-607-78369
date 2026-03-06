@@ -44,6 +44,7 @@ interface IDEHeaderProps {
   showPreview: boolean;
   showAIChat: boolean;
   showTerminal?: boolean;
+  disablePreviewAndAI?: boolean;
   onToggleFileExplorer: () => void;
   onTogglePreview: () => void;
   onToggleAIChat: () => void;
@@ -58,6 +59,7 @@ export function IDEHeader({
   showPreview,
   showAIChat,
   showTerminal,
+  disablePreviewAndAI,
   onToggleFileExplorer, 
   onTogglePreview,
   onToggleAIChat,
@@ -95,9 +97,10 @@ export function IDEHeader({
             <Button 
               variant={showPreview ? "secondary" : "ghost"}
               size="sm" 
-              className="h-7 px-2 gap-1.5 text-xs"
-              onClick={onTogglePreview}
-              title="Vista previa PS2"
+              className={`h-7 px-2 gap-1.5 text-xs ${disablePreviewAndAI ? 'opacity-40 cursor-not-allowed' : ''}`}
+              onClick={disablePreviewAndAI ? undefined : onTogglePreview}
+              disabled={disablePreviewAndAI}
+              title={disablePreviewAndAI ? "No disponible en vista de bienvenida" : "Vista previa PS2"}
             >
               <MonitorPlay className="w-3.5 h-3.5" />
               <span className="hidden lg:inline">Preview</span>
@@ -106,9 +109,10 @@ export function IDEHeader({
             <Button 
               variant={showAIChat ? "secondary" : "ghost"}
               size="sm" 
-              className="h-7 px-2 gap-1.5 text-xs bg-gradient-to-r from-ps2-purple/10 to-ps2-cyan/10 hover:from-ps2-purple/20 hover:to-ps2-cyan/20"
-              onClick={onToggleAIChatWindow}
-              title="Asistente IA"
+              className={`h-7 px-2 gap-1.5 text-xs ${disablePreviewAndAI ? 'opacity-40 cursor-not-allowed' : 'bg-gradient-to-r from-ps2-purple/10 to-ps2-cyan/10 hover:from-ps2-purple/20 hover:to-ps2-cyan/20'}`}
+              onClick={disablePreviewAndAI ? undefined : onToggleAIChatWindow}
+              disabled={disablePreviewAndAI}
+              title={disablePreviewAndAI ? "No disponible en vista de bienvenida" : "Asistente IA"}
             >
               <Bot className="w-3.5 h-3.5 text-ps2-purple" />
               <span className="hidden lg:inline text-ps2-purple">IA</span>
