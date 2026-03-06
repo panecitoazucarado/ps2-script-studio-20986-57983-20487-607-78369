@@ -59,10 +59,11 @@ export function CodeEditor({
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const currentFile = openTabs[activeTabIndex];
+  const currentFile = openTabs[activeTabIndex] || { name: 'untitled', path: '/', type: 'file' as const, content: '' };
 
   // Track modifications
   useEffect(() => {
+    if (!openTabs[activeTabIndex]) return;
     const initialContent = openTabs[activeTabIndex].content || '';
     if (code !== initialContent) {
       setModifiedTabs(prev => new Set(prev).add(activeTabIndex));
@@ -809,11 +810,9 @@ export function CodeEditor({
   }, [openTabs, onTabClose, closeContextMenu]);
 
   const handleCloseCurrentTab = useCallback(() => {
-    if (openTabs.length > 1) {
-      const closedTab = openTabs[activeTabIndex];
-      setClosedTabsHistory(prev => [...prev, closedTab].slice(-10));
-      onTabClose(activeTabIndex);
-    }
+    const closedTab = openTabs[activeTabIndex];
+    setClosedTabsHistory(prev => [...prev, closedTab].slice(-10));
+    onTabClose(activeTabIndex);
   }, [openTabs, activeTabIndex, onTabClose]);
 
   const handleReopenLastClosed = useCallback(() => {

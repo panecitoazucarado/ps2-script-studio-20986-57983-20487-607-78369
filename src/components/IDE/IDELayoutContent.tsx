@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   X, GripVertical, GitBranch, Terminal, Loader2, 
-  HelpCircle, Copy, CheckCircle2, XCircle, ExternalLink, Download, FileArchive 
+  HelpCircle, Copy, CheckCircle2, XCircle, ExternalLink, Download, FileArchive, Gamepad2 
 } from 'lucide-react';
 import { useWindowDocking } from '@/contexts/WindowDockingContext';
 import {
@@ -65,7 +65,9 @@ export function IDELayoutContent() {
   const previewHeaderRef = useRef<HTMLDivElement>(null);
 
   const openTabs = openTabsState;
-  const selectedFile = openTabs[activeTabIndex];
+  const selectedFile = openTabs[activeTabIndex] || null;
+  const isWelcomeActive = selectedFile?.path === '/__welcome__';
+  const hasNoTabs = openTabs.length === 0;
 
   const isImageFile = (filename: string): boolean => {
     const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.ico'];
@@ -112,15 +114,13 @@ export function IDELayoutContent() {
   const handleTabClose = useCallback((index: number) => {
     const newTabs = openTabs.filter((_, idx) => idx !== index);
     
+    setOpenTabs(newTabs);
+    
     if (newTabs.length === 0) {
-      // Re-show welcome tab
-      setOpenTabsState([welcomeTab]);
       setActiveTabIndex(0);
       setCode('');
       return;
     }
-    
-    setOpenTabs(newTabs);
     
     let newActiveIndex = activeTabIndex;
     if (activeTabIndex === index) {
@@ -131,7 +131,7 @@ export function IDELayoutContent() {
     
     setActiveTabIndex(newActiveIndex);
     setCode(newTabs[newActiveIndex].content || '');
-  }, [openTabs, activeTabIndex, setOpenTabs, welcomeTab]);
+  }, [openTabs, activeTabIndex, setOpenTabs]);
 
   const handleTabReorder = useCallback((fromIndex: number, toIndex: number) => {
     setOpenTabs((prev: FileNode[]) => {
@@ -648,6 +648,7 @@ export function IDELayoutContent() {
           showPreview={showPreview && windows.preview.docked}
           showAIChat={windows.aiChat.visible}
           showTerminal={showTerminal}
+          disablePreviewAndAI={isWelcomeActive || hasNoTabs}
           onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
           onToggleAIChat={() => toggleWindowVisibility('aiChat')}
           onTogglePreview={() => setShowPreview(!showPreview)}
@@ -760,7 +761,23 @@ export function IDELayoutContent() {
               defaultSize={50} 
               minSize={30}
             >
-              {selectedFile?.path === '/__welcome__' ? (
+              {hasNoTabs ? (
+                <div className="h-full flex flex-col items-center justify-center bg-[hsl(var(--ide-editor))] text-muted-foreground">
+                  <Gamepad2 className="w-12 h-12 mb-4 opacity-30" />
+                  <p className="text-sm opacity-50">Abre un archivo para comenzar a editar</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-4 text-xs text-[hsl(var(--ps2-blue))] hover:text-[hsl(var(--ps2-blue))]"
+                    onClick={() => {
+                      setOpenTabsState([welcomeTab]);
+                      setActiveTabIndex(0);
+                    }}
+                  >
+                    Mostrar Bienvenida
+                  </Button>
+                </div>
+              ) : selectedFile?.path === '/__welcome__' ? (
                 <AthenaWelcomeTab
                   onCreateFile={(name, content) => {
                     const newFile: FileNode = { name, type: 'file', path: `/${name}`, content };
@@ -802,7 +819,7 @@ export function IDELayoutContent() {
               )}
             </ResizablePanel>
             
-            {showPreview && windows.preview.docked && windows.preview.visible && (
+            {!isWelcomeActive && !hasNoTabs && showPreview && windows.preview.docked && windows.preview.visible && (
               <>
                 <ResizableHandle withHandle className="w-1.5 bg-border/50 hover:bg-ps2-purple/50 transition-all duration-200 data-[resize-handle-state=hover]:w-2 data-[resize-handle-state=drag]:w-2 data-[resize-handle-state=drag]:bg-ps2-purple group relative">
                   <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:w-1.5 bg-ps2-purple/20 group-hover:bg-ps2-purple/40 transition-all" />
@@ -850,7 +867,7 @@ export function IDELayoutContent() {
               </>
             )}
 
-            {windows.aiChat && windows.aiChat.docked && windows.aiChat.visible && (
+            {!isWelcomeActive && !hasNoTabs && windows.aiChat && windows.aiChat.docked && windows.aiChat.visible && (
               <>
                 <ResizableHandle withHandle className="w-1.5 bg-border/50 hover:bg-ps2-purple/50 transition-all duration-200 data-[resize-handle-state=hover]:w-2 data-[resize-handle-state=drag]:w-2 data-[resize-handle-state=drag]:bg-ps2-purple group relative">
                   <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:w-1.5 bg-ps2-purple/20 group-hover:bg-ps2-purple/40 transition-all" />
@@ -929,7 +946,7 @@ export function IDELayoutContent() {
         </FloatingWindow>
       )}
 
-      {!windows.preview.docked && windows.preview.visible && (
+      {!isWelcomeActive && !hasNoTabs && !windows.preview.docked && windows.preview.visible && (
         <FloatingWindow
           id="preview"
           title="Vista Previa PS2"
@@ -944,7 +961,7 @@ export function IDELayoutContent() {
         </FloatingWindow>
       )}
 
-      {windows.aiChat && !windows.aiChat.docked && windows.aiChat.visible && (
+      {!isWelcomeActive && !hasNoTabs && windows.aiChat && !windows.aiChat.docked && windows.aiChat.visible && (
         <FloatingWindow
           id="aiChat"
           title="IA Developer - Asistente de Desarrollo"
