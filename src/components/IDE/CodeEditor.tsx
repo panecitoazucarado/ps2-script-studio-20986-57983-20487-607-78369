@@ -30,6 +30,8 @@ interface CodeEditorProps {
   onTabClose: (index: number) => void;
   onFileRename: (index: number, newName: string) => void;
   onTabReorder: (fromIndex: number, toIndex: number) => void;
+  welcomeTabContent?: React.ReactNode;
+  imageViewerContent?: React.ReactNode;
 }
 
 export function CodeEditor({ 
@@ -41,7 +43,9 @@ export function CodeEditor({
   onTabChange, 
   onTabClose,
   onFileRename,
-  onTabReorder
+  onTabReorder,
+  welcomeTabContent,
+  imageViewerContent
 }: CodeEditorProps) {
   const [lineCount, setLineCount] = useState(1);
   const [editingTabIndex, setEditingTabIndex] = useState<number | null>(null);
@@ -1264,222 +1268,144 @@ export function CodeEditor({
           )}
         </div>
 
-        {/* Professional Actions Row */}
-        <div className="flex items-center justify-between px-3 py-1.5 bg-[hsl(var(--ide-editor))]/50 border-t border-border/30">
-          {/* Left: File Info */}
-          <div className="flex items-center gap-3">
-            {/* File Icon & Name */}
-            <div className="flex items-center gap-2">
-              {getFileIcon(currentFile.name)}
-              <span className="font-medium text-xs text-foreground">{currentFile.name}</span>
+        {/* Show special content or actions bar based on active tab */}
+        {welcomeTabContent ? null : imageViewerContent ? null : (
+          <div className="flex items-center justify-between px-3 py-1.5 bg-[hsl(var(--ide-editor))]/50 border-t border-border/30">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                {getFileIcon(currentFile.name)}
+                <span className="font-medium text-xs text-foreground">{currentFile.name}</span>
+              </div>
+              <div className="h-4 w-px bg-border/50" />
+              {(() => {
+                const fileInfo = getFileTypeInfo(currentFile.name);
+                return (
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant="outline" 
+                      className={`text-[10px] px-2 py-0.5 h-5 font-medium border-border/50 ${fileInfo.color}`}
+                    >
+                      {fileInfo.displayName}
+                    </Badge>
+                    <Badge 
+                      variant="secondary" 
+                      className="text-[10px] px-1.5 py-0.5 h-5 bg-muted/50 text-muted-foreground"
+                    >
+                      {fileInfo.category}
+                    </Badge>
+                  </div>
+                );
+              })()}
+              <div className="h-4 w-px bg-border/50" />
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <span>Ln {lineCount}</span>
+                <span>•</span>
+                <span>UTF-8</span>
+                {modifiedTabs.has(activeTabIndex) && (
+                  <>
+                    <span>•</span>
+                    <span className="text-[hsl(var(--ps2-orange))]">Modified</span>
+                  </>
+                )}
+              </div>
             </div>
-            
-            {/* Separator */}
-            <div className="h-4 w-px bg-border/50" />
-            
-            {/* File Type Badge */}
-            {(() => {
-              const fileInfo = getFileTypeInfo(currentFile.name);
-              return (
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    variant="outline" 
-                    className={`text-[10px] px-2 py-0.5 h-5 font-medium border-border/50 ${fileInfo.color}`}
-                  >
-                    {fileInfo.displayName}
-                  </Badge>
-                  <Badge 
-                    variant="secondary" 
-                    className="text-[10px] px-1.5 py-0.5 h-5 bg-muted/50 text-muted-foreground"
-                  >
-                    {fileInfo.category}
-                  </Badge>
-                </div>
-              );
-            })()}
-            
-            {/* Separator */}
-            <div className="h-4 w-px bg-border/50" />
-            
-            {/* Line Count & Encoding */}
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-              <span>Ln {lineCount}</span>
-              <span>•</span>
-              <span>UTF-8</span>
-              {modifiedTabs.has(activeTabIndex) && (
-                <>
-                  <span>•</span>
-                  <span className="text-[hsl(var(--ps2-orange))]">Modified</span>
-                </>
-              )}
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] hover:bg-muted gap-1" onClick={handleSave} title="Save file (Ctrl+S)">
+                <Save className="w-3 h-3" /> Save
+              </Button>
+              <div className="h-4 w-px bg-border/50" />
+              <Button onClick={onRun} size="sm" className="h-6 px-2 text-[10px] bg-[hsl(var(--ps2-green))] hover:bg-[hsl(var(--ps2-green))]/80 text-primary-foreground gap-1" title="Run script (F5)">
+                <Play className="w-3 h-3" /> Run
+              </Button>
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] hover:bg-muted gap-1" onClick={handleExport} title="Export current file">
+                <Download className="w-3 h-3" /> Export
+              </Button>
             </div>
           </div>
-          
-          {/* Right: Actions */}
-          <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-6 px-2 text-[10px] hover:bg-muted gap-1"
-              onClick={handleSave}
-              title="Save file (Ctrl+S)"
-            >
-              <Save className="w-3 h-3" />
-              Save
-            </Button>
-            
-            <div className="h-4 w-px bg-border/50" />
-            
-            <Button 
-              onClick={onRun} 
-              size="sm" 
-              className="h-6 px-2 text-[10px] bg-[hsl(var(--ps2-green))] hover:bg-[hsl(var(--ps2-green))]/80 text-primary-foreground gap-1"
-              title="Run script (F5)"
-            >
-              <Play className="w-3 h-3" />
-              Run
-            </Button>
-
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-6 px-2 text-[10px] hover:bg-muted gap-1"
-              onClick={handleExport}
-              title="Export current file"
-            >
-              <Download className="w-3 h-3" />
-              Export
-            </Button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Context Menu */}
       {contextMenuTab !== null && (
         <div
           className="fixed bg-popover border border-border rounded-md shadow-lg py-1 z-50 min-w-[180px] animate-in fade-in-0 zoom-in-95"
-          style={{ 
-            left: `${contextMenuPosition.x}px`, 
-            top: `${contextMenuPosition.y}px` 
-          }}
+          style={{ left: `${contextMenuPosition.x}px`, top: `${contextMenuPosition.y}px` }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors flex items-center gap-2"
-            onClick={() => {
-              onTabClose(contextMenuTab);
-              closeContextMenu();
-            }}
-          >
-            <X className="w-3.5 h-3.5" />
-            Close
+          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors flex items-center gap-2" onClick={() => { onTabClose(contextMenuTab); closeContextMenu(); }}>
+            <X className="w-3.5 h-3.5" /> Close
           </button>
-          <button
-            className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors"
-            onClick={handleCloseOthers}
-            disabled={openTabs.length === 1}
-          >
-            Close Others
-          </button>
-          <button
-            className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors"
-            onClick={handleCloseToRight}
-            disabled={contextMenuTab === openTabs.length - 1}
-          >
-            Close to the Right
-          </button>
-          <button
-            className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors text-destructive"
-            onClick={handleCloseAll}
-            disabled={openTabs.length === 1}
-          >
-            Close All
-          </button>
+          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors" onClick={handleCloseOthers} disabled={openTabs.length === 1}>Close Others</button>
+          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors" onClick={handleCloseToRight} disabled={contextMenuTab === openTabs.length - 1}>Close to the Right</button>
+          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors text-destructive" onClick={handleCloseAll} disabled={openTabs.length === 1}>Close All</button>
           <div className="h-px bg-border my-1" />
-          <button
-            className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors"
-            onClick={() => {
-              handleDoubleClick(contextMenuTab);
-              closeContextMenu();
-            }}
-          >
-            Rename
-          </button>
+          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors" onClick={() => { handleDoubleClick(contextMenuTab); closeContextMenu(); }}>Rename</button>
           {closedTabsHistory.length > 0 && (
             <>
               <div className="h-px bg-border my-1" />
-              <button
-                className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors flex items-center gap-2"
-                onClick={() => {
-                  handleReopenLastClosed();
-                  closeContextMenu();
-                }}
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reopen Last Closed
+              <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors flex items-center gap-2" onClick={() => { handleReopenLastClosed(); closeContextMenu(); }}>
+                <RotateCcw className="w-3.5 h-3.5" /> Reopen Last Closed
               </button>
             </>
           )}
         </div>
       )}
 
-      {/* Monaco Editor */}
-      <div className="flex-1 overflow-hidden">
-        <Editor
-          height="100%"
-          defaultLanguage="javascript"
-          language={getLanguage(currentFile.name)}
-          value={code}
-          onChange={handleEditorChange}
-          onMount={handleEditorDidMount}
-          theme="vs-dark"
-          options={{
-            fontSize: 14,
-            fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
-            fontLigatures: true,
-            minimap: { enabled: true },
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            tabSize: 2,
-            insertSpaces: true,
-            formatOnPaste: true,
-            formatOnType: true,
-            suggestOnTriggerCharacters: true,
-            quickSuggestions: {
-              other: true,
-              comments: true,
-              strings: true,
-            },
-            parameterHints: {
-              enabled: true,
-            },
-            autoClosingBrackets: 'always',
-            autoClosingQuotes: 'always',
-            autoIndent: 'full',
-            bracketPairColorization: {
-              enabled: true,
-            },
-          }}
-        />
-      </div>
-
-      {/* Editor Status Bar */}
-      <div className="ide-statusbar flex items-center justify-between text-xs">
-        <div className="flex items-center gap-4">
-          <span className="text-muted-foreground">{getLanguage(currentFile.name).toUpperCase()}</span>
-          <span className="text-muted-foreground">UTF-8</span>
-          <span className="text-muted-foreground">{lineCount} lines</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-muted-foreground text-[10px]">
-            {openTabs.length} tab{openTabs.length > 1 ? 's' : ''} • {modifiedTabs.size} modified
-          </span>
-          <span className="text-muted-foreground">
-            Ln {getCursorPosition().line}, Col {getCursorPosition().column}
-          </span>
-          <span className="text-muted-foreground">Spaces: 2</span>
-        </div>
-      </div>
+      {/* Content area */}
+      {welcomeTabContent ? (
+        <div className="flex-1 overflow-hidden">{welcomeTabContent}</div>
+      ) : imageViewerContent ? (
+        <div className="flex-1 overflow-hidden">{imageViewerContent}</div>
+      ) : (
+        <>
+          <div className="flex-1 overflow-hidden">
+            <Editor
+              height="100%"
+              defaultLanguage="javascript"
+              language={getLanguage(currentFile.name)}
+              value={code}
+              onChange={handleEditorChange}
+              onMount={handleEditorDidMount}
+              theme="vs-dark"
+              options={{
+                fontSize: 14,
+                fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+                fontLigatures: true,
+                minimap: { enabled: true },
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                tabSize: 2,
+                insertSpaces: true,
+                formatOnPaste: true,
+                formatOnType: true,
+                suggestOnTriggerCharacters: true,
+                quickSuggestions: { other: true, comments: true, strings: true },
+                parameterHints: { enabled: true },
+                autoClosingBrackets: 'always',
+                autoClosingQuotes: 'always',
+                autoIndent: 'full',
+                bracketPairColorization: { enabled: true },
+              }}
+            />
+          </div>
+          <div className="ide-statusbar flex items-center justify-between text-xs">
+            <div className="flex items-center gap-4">
+              <span className="text-muted-foreground">{getLanguage(currentFile.name).toUpperCase()}</span>
+              <span className="text-muted-foreground">UTF-8</span>
+              <span className="text-muted-foreground">{lineCount} lines</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-muted-foreground text-[10px]">
+                {openTabs.length} tab{openTabs.length > 1 ? 's' : ''} • {modifiedTabs.size} modified
+              </span>
+              <span className="text-muted-foreground">
+                Ln {getCursorPosition().line}, Col {getCursorPosition().column}
+              </span>
+              <span className="text-muted-foreground">Spaces: 2</span>
+            </div>
+          </div>
+        </>
+      )}
     </Card>
   );
 }

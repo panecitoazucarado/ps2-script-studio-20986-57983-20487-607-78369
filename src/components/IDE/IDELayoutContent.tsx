@@ -777,33 +777,6 @@ export function IDELayoutContent() {
                     Mostrar Bienvenida
                   </Button>
                 </div>
-              ) : selectedFile?.path === '/__welcome__' ? (
-                <AthenaWelcomeTab
-                  onCreateFile={(name, content) => {
-                    const newFile: FileNode = { name, type: 'file', path: `/${name}`, content };
-                    // Add to project files
-                    setProjectFiles(prev => [...prev, newFile]);
-                    setFileSystemVersion(prev => prev + 1);
-                    // Open in new tab
-                    setOpenTabs((prev: FileNode[]) => [...prev, newFile]);
-                    setActiveTabIndex(openTabs.length);
-                    setCode(content);
-                  }}
-                  onCloneRepo={handleOpenCloneDialog}
-                  onImportProject={() => {
-                    // Trigger file explorer import
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.webkitdirectory = true;
-                    input.click();
-                  }}
-                  onOpenVisualBuilder={() => setShowVisualBuilder(true)}
-                />
-              ) : selectedFile && isImageFile(selectedFile.name) ? (
-                <ImageViewer
-                  imageData={selectedFile.content || ''}
-                  filename={selectedFile.name}
-                />
               ) : (
                 <CodeEditor
                   code={code}
@@ -815,6 +788,36 @@ export function IDELayoutContent() {
                   onTabClose={handleTabClose}
                   onFileRename={handleFileRename}
                   onTabReorder={handleTabReorder}
+                  welcomeTabContent={
+                    selectedFile?.path === '/__welcome__' ? (
+                      <AthenaWelcomeTab
+                        onCreateFile={(name, content) => {
+                          const newFile: FileNode = { name, type: 'file', path: `/${name}`, content };
+                          setProjectFiles(prev => [...prev, newFile]);
+                          setFileSystemVersion(prev => prev + 1);
+                          setOpenTabs((prev: FileNode[]) => [...prev, newFile]);
+                          setActiveTabIndex(openTabs.length);
+                          setCode(content);
+                        }}
+                        onCloneRepo={handleOpenCloneDialog}
+                        onImportProject={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.webkitdirectory = true;
+                          input.click();
+                        }}
+                        onOpenVisualBuilder={() => setShowVisualBuilder(true)}
+                      />
+                    ) : undefined
+                  }
+                  imageViewerContent={
+                    selectedFile && isImageFile(selectedFile.name) ? (
+                      <ImageViewer
+                        imageData={selectedFile.content || ''}
+                        filename={selectedFile.name}
+                      />
+                    ) : undefined
+                  }
                 />
               )}
             </ResizablePanel>
