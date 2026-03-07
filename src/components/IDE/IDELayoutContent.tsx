@@ -32,7 +32,7 @@ export function IDELayoutContent() {
   const { windows, undockWindow, dockingEnabled, toggleWindowVisibility } = useWindowDocking();
   
   const welcomeTab: FileNode = {
-    name: '🎮 Bienvenido',
+    name: 'Bienvenida',
     type: 'file',
     path: '/__welcome__',
     content: ''
