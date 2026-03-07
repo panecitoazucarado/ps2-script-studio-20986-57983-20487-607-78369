@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ProTabBar } from './ProTabBar';
 
 interface CodeEditorProps {
   code: string;
@@ -1115,158 +1116,17 @@ export function CodeEditor({
 
   return (
     <Card className="h-full flex flex-col bg-ide-editor border-border relative">
-      {/* Professional Header - VS Code Style */}
-      <div className="flex flex-col border-b border-border bg-[hsl(var(--ide-tab))]">
-        {/* Tabs Row with Navigation */}
-        <div className="flex items-center gap-0">
-          {/* Scroll Left Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 w-8 px-0 shrink-0 rounded-none hover:bg-muted/50"
-            onClick={() => scrollTabs('left')}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-
-          {/* Tabs Container */}
-          <div 
-            ref={tabsContainerRef}
-            className="flex items-center gap-0 overflow-x-auto scrollbar-thin scroll-smooth flex-1"
-          >
-            {openTabs.map((tab, index) => (
-            <div
-              key={tab.path}
-              draggable
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, index)}
-              onDragEnd={handleDragEnd}
-              className={`
-                group relative flex items-center gap-2 px-4 py-2 min-w-[140px] max-w-[220px]
-                border-t-2 border-r border-border/50
-                transition-all duration-200 select-none
-                ${draggedTabIndex === index ? 'opacity-50 cursor-grabbing' : 'cursor-grab active:cursor-grabbing'}
-                ${dragOverIndex === index ? 'border-l-2 border-l-[hsl(var(--ps2-blue))]' : ''}
-                ${index === activeTabIndex 
-                  ? 'bg-[hsl(var(--ide-editor))] border-t-[hsl(var(--ps2-blue))] text-foreground shadow-sm' 
-                  : 'bg-[hsl(var(--ide-tab))] border-t-transparent text-muted-foreground hover:bg-[hsl(var(--ide-editor))]/70 hover:text-foreground'
-                }
-              `}
-              onClick={() => onTabChange(index)}
-              onContextMenu={(e) => handleContextMenu(e, index)}
-              title={tab.path}
-            >
-              {/* File Icon */}
-              {getFileIcon(tab.name)}
-              
-              {/* File Name */}
-              {editingTabIndex === index ? (
-                <Input
-                  ref={inputRef}
-                  value={editingName}
-                  onChange={(e) => setEditingName(e.target.value)}
-                  onBlur={handleNameChange}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleNameChange();
-                    if (e.key === 'Escape') setEditingTabIndex(null);
-                  }}
-                  className="h-5 px-1 py-0 text-xs border-[hsl(var(--ps2-blue))] bg-background"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <span 
-                  className="text-xs font-medium truncate flex-1"
-                  onDoubleClick={() => handleDoubleClick(index)}
-                >
-                  {tab.name}
-                </span>
-              )}
-              
-              {/* Modified Indicator */}
-              {modifiedTabs.has(index) && (
-                <div className="w-2 h-2 rounded-full bg-[hsl(var(--ps2-blue))] shrink-0" title="Unsaved changes" />
-              )}
-              
-              {/* Close Button */}
-              {true && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTabClose(index);
-                  }}
-                  className={`
-                    ${modifiedTabs.has(index) ? 'opacity-0' : 'opacity-0'}
-                    group-hover:opacity-100
-                    hover:bg-muted/80 rounded p-0.5 
-                    transition-all duration-150
-                    ml-auto shrink-0
-                  `}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-              
-              {/* Active Tab Indicator */}
-              {index === activeTabIndex && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[hsl(var(--ps2-blue))]" />
-              )}
-            </div>
-          ))}
-          </div>
-
-          {/* Scroll Right Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 w-8 px-0 shrink-0 rounded-none hover:bg-muted/50"
-            onClick={() => scrollTabs('right')}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-
-          {/* Tabs Dropdown List */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-9 w-8 px-0 shrink-0 rounded-none hover:bg-muted/50 border-l border-border/50"
-              >
-                <List className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 max-h-96 overflow-y-auto bg-popover z-50">
-              {openTabs.map((tab, index) => (
-                <DropdownMenuItem
-                  key={tab.path}
-                  onClick={() => onTabChange(index)}
-                  className={`flex items-center gap-2 ${index === activeTabIndex ? 'bg-accent' : ''}`}
-                >
-                  {getFileIcon(tab.name)}
-                  <span className="flex-1 truncate">{tab.name}</span>
-                  {modifiedTabs.has(index) && (
-                    <div className="w-2 h-2 rounded-full bg-[hsl(var(--ps2-blue))]" />
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Reopen Last Closed Tab */}
-          {closedTabsHistory.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-9 w-8 px-0 shrink-0 rounded-none hover:bg-muted/50 border-l border-border/50"
-              onClick={handleReopenLastClosed}
-              title={`Reopen ${closedTabsHistory[closedTabsHistory.length - 1]?.name}`}
-            >
-              <RotateCcw className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
+      {/* Professional Tab Bar */}
+      <div className="flex flex-col border-b border-border bg-[hsl(var(--tab-bg))]">
+        <ProTabBar
+          openTabs={openTabs}
+          activeTabIndex={activeTabIndex}
+          onTabChange={onTabChange}
+          onTabClose={onTabClose}
+          onFileRename={onFileRename}
+          onTabReorder={onTabReorder}
+          modifiedTabs={modifiedTabs}
+        />
 
         {/* Show special content or actions bar based on active tab */}
         {welcomeTabContent ? null : imageViewerContent ? null : (
@@ -1325,31 +1185,8 @@ export function CodeEditor({
         )}
       </div>
 
-      {/* Context Menu */}
-      {contextMenuTab !== null && (
-        <div
-          className="fixed bg-popover border border-border rounded-md shadow-lg py-1 z-50 min-w-[180px] animate-in fade-in-0 zoom-in-95"
-          style={{ left: `${contextMenuPosition.x}px`, top: `${contextMenuPosition.y}px` }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors flex items-center gap-2" onClick={() => { onTabClose(contextMenuTab); closeContextMenu(); }}>
-            <X className="w-3.5 h-3.5" /> Close
-          </button>
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors" onClick={handleCloseOthers} disabled={openTabs.length === 1}>Close Others</button>
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors" onClick={handleCloseToRight} disabled={contextMenuTab === openTabs.length - 1}>Close to the Right</button>
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors text-destructive" onClick={handleCloseAll} disabled={openTabs.length === 1}>Close All</button>
-          <div className="h-px bg-border my-1" />
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors" onClick={() => { handleDoubleClick(contextMenuTab); closeContextMenu(); }}>Rename</button>
-          {closedTabsHistory.length > 0 && (
-            <>
-              <div className="h-px bg-border my-1" />
-              <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors flex items-center gap-2" onClick={() => { handleReopenLastClosed(); closeContextMenu(); }}>
-                <RotateCcw className="w-3.5 h-3.5" /> Reopen Last Closed
-              </button>
-            </>
-          )}
-        </div>
-      )}
+
+
 
       {/* Content area */}
       {welcomeTabContent ? (
