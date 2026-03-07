@@ -1185,31 +1185,8 @@ export function CodeEditor({
         )}
       </div>
 
-      {/* Context Menu */}
-      {contextMenuTab !== null && (
-        <div
-          className="fixed bg-popover border border-border rounded-md shadow-lg py-1 z-50 min-w-[180px] animate-in fade-in-0 zoom-in-95"
-          style={{ left: `${contextMenuPosition.x}px`, top: `${contextMenuPosition.y}px` }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors flex items-center gap-2" onClick={() => { onTabClose(contextMenuTab); closeContextMenu(); }}>
-            <X className="w-3.5 h-3.5" /> Close
-          </button>
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors" onClick={handleCloseOthers} disabled={openTabs.length === 1}>Close Others</button>
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors" onClick={handleCloseToRight} disabled={contextMenuTab === openTabs.length - 1}>Close to the Right</button>
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors text-destructive" onClick={handleCloseAll} disabled={openTabs.length === 1}>Close All</button>
-          <div className="h-px bg-border my-1" />
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors" onClick={() => { handleDoubleClick(contextMenuTab); closeContextMenu(); }}>Rename</button>
-          {closedTabsHistory.length > 0 && (
-            <>
-              <div className="h-px bg-border my-1" />
-              <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors flex items-center gap-2" onClick={() => { handleReopenLastClosed(); closeContextMenu(); }}>
-                <RotateCcw className="w-3.5 h-3.5" /> Reopen Last Closed
-              </button>
-            </>
-          )}
-        </div>
-      )}
+
+
 
       {/* Content area */}
       {welcomeTabContent ? (
