@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ProTabBar } from './ProTabBar';
 
 interface CodeEditorProps {
   code: string;
