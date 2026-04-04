@@ -286,6 +286,11 @@ export function AthenaWelcomeTab({ onCreateFile, onCloneRepo, onImportProject, o
               <WelcomeLink icon={Code2} label="Ejemplos Oficiales" href="https://github.com/DanielSant0s/AthenaEnv" />
               <WelcomeLink icon={Globe} label="Discord Oficial" href="https://discord.gg/h7D59mqmWU" />
             </div>
+
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-8 mb-4">Información</h2>
+            <div className="space-y-1.5">
+              <WelcomeAction icon={Shield} label="Acerca de Athena Env Studio" onClick={onOpenAbout} />
+            </div>
           </div>
 
           {/* Right: Quick Start Templates */}
