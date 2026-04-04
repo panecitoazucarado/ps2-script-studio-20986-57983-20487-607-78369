@@ -5,6 +5,7 @@ import { CodeEditor } from './CodeEditor';
 import { ImageViewer } from './ImageViewer';
 import { PS2Preview } from './PS2Preview';
 import { AthenaWelcomeTab } from './AthenaWelcomeTab';
+import { AthenaAboutTab } from './AthenaAboutTab';
 import { IDEHeader } from './IDEHeader';
 import { IDEStatusBar } from './IDEStatusBar';
 import { FloatingWindow } from './FloatingWindow';
