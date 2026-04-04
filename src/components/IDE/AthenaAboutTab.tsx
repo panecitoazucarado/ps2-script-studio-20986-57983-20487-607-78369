@@ -1,10 +1,12 @@
-import { Heart, Github, Globe, ExternalLink, Code2, Gamepad2, Sparkles } from 'lucide-react';
+import { Heart, Github, Globe, ExternalLink, Code2, Gamepad2, Sparkles, Shield, Cpu, FileCode } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import flagBolivia from '@/assets/flag-bolivia.png';
+import flagBrazil from '@/assets/flag-brazil.png';
 
 export function AthenaAboutTab() {
   return (
     <div className="h-full overflow-y-auto bg-[hsl(var(--ide-editor))]">
-      <div className="max-w-[700px] mx-auto px-8 py-12">
+      <div className="max-w-[750px] mx-auto px-8 py-12">
 
         {/* Hero */}
         <div className="text-center mb-12">
@@ -14,10 +16,11 @@ export function AthenaAboutTab() {
           <h1 className="text-3xl font-bold text-foreground tracking-tight mb-2">
             Athena Env <span className="text-[hsl(var(--ps2-blue))]">Studio</span>
           </h1>
-          <p className="text-sm text-muted-foreground">
-            IDE web para desarrollo de juegos y aplicaciones en PlayStation 2™
+          <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+            Entorno de desarrollo integrado en la web para la creación de juegos y aplicaciones
+            homebrew en PlayStation 2™, impulsado por el framework AthenaEnv.
           </p>
-          <div className="flex items-center justify-center gap-2 mt-3">
+          <div className="flex items-center justify-center gap-2 mt-4">
             <Badge variant="outline" className="border-[hsl(var(--ps2-blue))]/30 text-[hsl(var(--ps2-blue))] text-[10px]">
               Web IDE
             </Badge>
@@ -33,94 +36,188 @@ export function AthenaAboutTab() {
         {/* Separator */}
         <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mb-10" />
 
-        {/* About */}
         <div className="space-y-8">
 
-          {/* Project description */}
+          {/* About the project */}
           <div className="bg-card/50 border border-border/50 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-4">
               <Gamepad2 className="w-5 h-5 text-[hsl(var(--ps2-blue))]" />
               <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Acerca del Proyecto</h2>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">Athena Env Studio</strong> es un entorno de desarrollo integrado (IDE) basado en la web 
-              que permite crear juegos y aplicaciones para la consola <strong className="text-foreground">PlayStation 2™</strong> directamente 
-              desde el navegador. El proyecto nace con la visión de hacer accesible el desarrollo homebrew de PS2 
-              a cualquier persona, sin necesidad de configuraciones complejas ni herramientas locales.
+              <strong className="text-foreground">Athena Env Studio</strong> es una plataforma web de desarrollo profesional
+              diseñada para facilitar la creación de juegos y aplicaciones para la consola <strong className="text-foreground">PlayStation 2™</strong>.
+              El proyecto fue concebido con la visión de democratizar el desarrollo homebrew de PS2,
+              eliminando las barreras de configuración y ofreciendo todas las herramientas necesarias
+              directamente desde el navegador.
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed mt-3">
-              Incluye un editor de código profesional, previsualizador en tiempo real, terminal integrada, 
-              Visual Builder con drag-and-drop, chat con IA para asistencia al desarrollador, y soporte 
-              completo para todos los módulos del runtime de AthenaEnv.
+              La plataforma incluye un editor de código profesional, previsualizador en tiempo real,
+              terminal integrada, Visual Builder con drag-and-drop, asistente de IA para desarrolladores,
+              y soporte completo para todos los módulos del runtime de AthenaEnv — siempre respetando
+              la documentación oficial del framework.
             </p>
           </div>
 
-          {/* Creators */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* How it works */}
+          <div className="bg-card/50 border border-border/50 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Cpu className="w-5 h-5 text-[hsl(var(--ps2-cyan))]" />
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">¿Cómo funciona?</h2>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              En el corazón del ecosistema se encuentra <strong className="text-foreground">athena.elf</strong>,
+              un ejecutable compilado que corre directamente en el hardware real de PlayStation 2.
+              Este archivo integra su propio core con un motor <strong className="text-foreground">QuickJS embebido</strong>,
+              capaz de interpretar archivos <code className="text-[hsl(var(--ps2-cyan))] bg-muted/50 px-1 rounded text-xs">script.js</code> y
+              cargar recursos adicionales como <code className="text-[hsl(var(--ps2-cyan))] bg-muted/50 px-1 rounded text-xs">.xml</code>,{' '}
+              <code className="text-[hsl(var(--ps2-cyan))] bg-muted/50 px-1 rounded text-xs">.json</code> y más.
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed mt-3">
+              Un ejemplo notable es <strong className="text-foreground">OSDXMB</strong> de{' '}
+              <strong className="text-foreground">@Hirotex</strong>, quien desarrolló un lector de XML
+              implementado enteramente en JavaScript, demostrando la versatilidad del runtime para
+              construir aplicaciones complejas que procesan múltiples formatos de datos en el hardware real de PS2.
+            </p>
+          </div>
 
-            {/* Jose Manuel */}
-            <div className="bg-card/50 border border-border/50 rounded-xl p-5 hover:border-[hsl(var(--ps2-blue))]/30 transition-colors">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[hsl(var(--ps2-blue))] to-[hsl(var(--ps2-purple))] flex items-center justify-center text-white font-bold text-sm">
-                  JM
+          {/* Creators heading */}
+          <div className="flex items-center gap-3 mb-2">
+            <Heart className="w-4 h-4 text-red-400" />
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Los Creadores</h2>
+          </div>
+
+          {/* Creator cards */}
+          <div className="grid grid-cols-1 gap-5">
+
+            {/* José Manuel */}
+            <div className="bg-card/50 border border-border/50 rounded-xl p-6 hover:border-[hsl(var(--ps2-blue))]/30 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="relative shrink-0">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[hsl(var(--ps2-blue))] to-[hsl(var(--ps2-purple))] flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-[hsl(var(--ps2-blue))]/20">
+                    JM
+                  </div>
+                  <img
+                    src={flagBolivia}
+                    alt="Bolivia"
+                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full object-cover border-2 border-card"
+                    loading="lazy"
+                    width={24}
+                    height={24}
+                  />
                 </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">José Manuel Álvarez</h3>
-                  <p className="text-[11px] text-muted-foreground">@josema</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-semibold text-foreground">José Manuel Álvarez Ayala</h3>
+                    <span className="text-[11px] text-muted-foreground">🇧🇴 Bolivia</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">@panecitoazucarado</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge className="bg-[hsl(var(--ps2-blue))]/10 text-[hsl(var(--ps2-blue))] border-[hsl(var(--ps2-blue))]/20 text-[10px]">
+                      <Code2 className="w-3 h-3 mr-1" />
+                      Creador de Athena Env Studio
+                    </Badge>
+                    <Badge className="bg-[hsl(var(--ps2-purple))]/10 text-[hsl(var(--ps2-purple))] border-[hsl(var(--ps2-purple))]/20 text-[10px]">
+                      <FileCode className="w-3 h-3 mr-1" />
+                      Full-Stack Developer
+                    </Badge>
+                  </div>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Creador de <strong className="text-foreground">Athena Env Studio</strong>. Desarrolló la versión web del IDE 
-                basándose en el framework AthenaEnv, con el objetivo de llevar el desarrollo de PS2 al navegador 
-                de forma profesional y accesible para todos.
+              <p className="text-xs text-muted-foreground leading-relaxed mt-4">
+                Diseñador y desarrollador integral de <strong className="text-foreground">Athena Env Studio</strong>.
+                Concibió, diseñó y programó por completo esta plataforma web donde los usuarios interactúan
+                con un IDE profesional para crear juegos y aplicaciones de PlayStation 2 directamente desde el navegador.
+                Desarrolló todas las herramientas disponibles en el sitio — el editor de código, el Visual Builder,
+                la terminal, el sistema de pestañas, el previsualizador, el asistente de IA y cada funcionalidad
+                que compone el ecosistema — siempre basándose en la documentación oficial del framework AthenaEnv.
               </p>
-              <div className="mt-3 pt-3 border-t border-border/30">
-                <Badge className="bg-[hsl(var(--ps2-blue))]/10 text-[hsl(var(--ps2-blue))] border-[hsl(var(--ps2-blue))]/20 text-[10px]">
-                  <Code2 className="w-3 h-3 mr-1" />
-                  Web IDE Developer
-                </Badge>
+              <div className="mt-4 pt-3 border-t border-border/30">
+                <a
+                  href="https://github.com/panecitoazucarado"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Github className="w-3.5 h-3.5" />
+                  <span>github.com/panecitoazucarado</span>
+                  <ExternalLink className="w-3 h-3 opacity-50" />
+                </a>
               </div>
             </div>
 
             {/* Daniel Santos */}
-            <div className="bg-card/50 border border-border/50 rounded-xl p-5 hover:border-[hsl(var(--ps2-green))]/30 transition-colors">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[hsl(var(--ps2-green))] to-[hsl(var(--ps2-blue))] flex items-center justify-center text-white font-bold text-sm">
-                  DS
+            <div className="bg-card/50 border border-border/50 rounded-xl p-6 hover:border-[hsl(var(--ps2-green))]/30 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="relative shrink-0">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[hsl(var(--ps2-green))] to-[hsl(var(--ps2-cyan))] flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-[hsl(var(--ps2-green))]/20">
+                    DS
+                  </div>
+                  <img
+                    src={flagBrazil}
+                    alt="Brasil"
+                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full object-cover border-2 border-card"
+                    loading="lazy"
+                    width={24}
+                    height={24}
+                  />
                 </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">Daniel Santos</h3>
-                  <p className="text-[11px] text-muted-foreground">@DanielSant0s</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-semibold text-foreground">Daniel Santos</h3>
+                    <span className="text-[11px] text-muted-foreground">🇧🇷 Brasil</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">@DanielSant0s</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge className="bg-[hsl(var(--ps2-green))]/10 text-[hsl(var(--ps2-green))] border-[hsl(var(--ps2-green))]/20 text-[10px]">
+                      <Gamepad2 className="w-3 h-3 mr-1" />
+                      Creador de AthenaEnv
+                    </Badge>
+                    <Badge className="bg-[hsl(var(--ps2-orange))]/10 text-[hsl(var(--ps2-orange))] border-[hsl(var(--ps2-orange))]/20 text-[10px]">
+                      <Shield className="w-3 h-3 mr-1" />
+                      Ciberseguridad & Low-Level
+                    </Badge>
+                  </div>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Creador del framework <strong className="text-foreground">AthenaEnv</strong>, el runtime de JavaScript 
-                potenciado por QuickJS que permite ejecutar código directamente en el hardware real de PlayStation 2. 
-                Su trabajo es la base sobre la cual se construye este Studio.
+              <p className="text-xs text-muted-foreground leading-relaxed mt-4">
+                Creador del framework <strong className="text-foreground">AthenaEnv</strong>, el potente runtime
+                de JavaScript basado en QuickJS que permite ejecutar código directamente en el hardware real de PlayStation 2.
+                Experto en ciberseguridad y desarrollo de bajo nivel, domina C a la perfección e incluso programa
+                en las unidades de procesamiento vectorial (VU0/VU1) de la PS2 — conocidas como programación V0 —,
+                un nivel de expertise que pocos en el mundo poseen. Conocido en la comunidad como
+                <strong className="text-foreground"> "the f**king Daniel Sant0s"</strong>, su trabajo es la base
+                fundamental sobre la cual se construye todo este ecosistema.
               </p>
-              <div className="mt-3 pt-3 border-t border-border/30 flex items-center gap-2">
-                <Badge className="bg-[hsl(var(--ps2-green))]/10 text-[hsl(var(--ps2-green))] border-[hsl(var(--ps2-green))]/20 text-[10px]">
-                  <Gamepad2 className="w-3 h-3 mr-1" />
-                  AthenaEnv Creator
-                </Badge>
+              <div className="mt-4 pt-3 border-t border-border/30">
+                <a
+                  href="https://github.com/DanielSant0s"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Github className="w-3.5 h-3.5" />
+                  <span>github.com/DanielSant0s</span>
+                  <ExternalLink className="w-3 h-3 opacity-50" />
+                </a>
               </div>
             </div>
           </div>
 
           {/* Links */}
           <div className="bg-card/50 border border-border/50 rounded-xl p-5">
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Enlaces</h2>
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Enlaces Oficiales</h2>
             <div className="space-y-2">
               <AboutLink icon={Globe} label="Sitio Oficial de AthenaEnv" href="https://athena-env.vercel.app/" />
               <AboutLink icon={Github} label="AthenaEnv en GitHub" href="https://github.com/DanielSant0s/AthenaEnv" />
-              <AboutLink icon={Globe} label="Discord de la Comunidad" href="https://discord.gg/h7D59mqmWU" />
+              <AboutLink icon={Globe} label="Comunidad en Discord" href="https://discord.gg/h7D59mqmWU" />
             </div>
           </div>
 
           {/* Footer */}
           <div className="text-center pt-4 pb-8">
-            <p className="text-[10px] text-muted-foreground/50 flex items-center justify-center gap-1">
-              Hecho con <Heart className="w-3 h-3 text-red-400/60" /> para la comunidad de PS2 homebrew
+            <p className="text-[10px] text-muted-foreground/50 flex items-center justify-center gap-1.5">
+              Hecho con <Heart className="w-3 h-3 text-red-400/60" /> desde Bolivia 🇧🇴 y Brasil 🇧🇷 para la comunidad de PS2 homebrew
             </p>
           </div>
         </div>
