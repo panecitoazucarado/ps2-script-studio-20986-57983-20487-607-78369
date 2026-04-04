@@ -14,6 +14,7 @@ interface AthenaWelcomeTabProps {
   onCloneRepo: () => void;
   onImportProject: () => void;
   onOpenVisualBuilder: () => void;
+  onOpenAbout: () => void;
 }
 
 const QUICK_START_TEMPLATES = [
