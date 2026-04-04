@@ -808,7 +808,19 @@ export function IDELayoutContent() {
                           input.click();
                         }}
                         onOpenVisualBuilder={() => setShowVisualBuilder(true)}
+                        onOpenAbout={() => {
+                          const aboutTab: FileNode = { name: 'Acerca de', type: 'file', path: '/__about__', content: '' };
+                          const existingIndex = openTabs.findIndex(t => t.path === '/__about__');
+                          if (existingIndex !== -1) {
+                            setActiveTabIndex(existingIndex);
+                          } else {
+                            setOpenTabs((prev: FileNode[]) => [...prev, aboutTab]);
+                            setActiveTabIndex(openTabs.length);
+                          }
+                        }}
                       />
+                    ) : selectedFile?.path === '/__about__' ? (
+                      <AthenaAboutTab />
                     ) : undefined
                   }
                   imageViewerContent={
