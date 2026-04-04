@@ -67,7 +67,7 @@ export function IDELayoutContent() {
 
   const openTabs = openTabsState;
   const selectedFile = openTabs[activeTabIndex] || null;
-  const isWelcomeActive = selectedFile?.path === '/__welcome__';
+  const isWelcomeActive = selectedFile?.path === '/__welcome__' || selectedFile?.path === '/__about__';
   const hasNoTabs = openTabs.length === 0;
 
   const isImageFile = (filename: string): boolean => {
