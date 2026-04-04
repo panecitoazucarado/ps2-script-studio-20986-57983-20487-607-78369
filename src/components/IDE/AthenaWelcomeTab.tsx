@@ -14,6 +14,7 @@ interface AthenaWelcomeTabProps {
   onCloneRepo: () => void;
   onImportProject: () => void;
   onOpenVisualBuilder: () => void;
+  onOpenAbout: () => void;
 }
 
 const QUICK_START_TEMPLATES = [
@@ -241,7 +242,7 @@ const MODULES_INFO = [
   { name: 'Archive', icon: Archive, desc: 'ZIP, GZ, TAR extraction support', color: 'bg-violet-500/20 text-violet-400' },
 ];
 
-export function AthenaWelcomeTab({ onCreateFile, onCloneRepo, onImportProject, onOpenVisualBuilder }: AthenaWelcomeTabProps) {
+export function AthenaWelcomeTab({ onCreateFile, onCloneRepo, onImportProject, onOpenVisualBuilder, onOpenAbout }: AthenaWelcomeTabProps) {
   const [hoveredTemplate, setHoveredTemplate] = useState<number | null>(null);
 
   return (
@@ -284,6 +285,11 @@ export function AthenaWelcomeTab({ onCreateFile, onCloneRepo, onImportProject, o
               <WelcomeLink icon={BookOpen} label="Sitio Web Oficial" href="https://athena-env.vercel.app/" />
               <WelcomeLink icon={Code2} label="Ejemplos Oficiales" href="https://github.com/DanielSant0s/AthenaEnv" />
               <WelcomeLink icon={Globe} label="Discord Oficial" href="https://discord.gg/h7D59mqmWU" />
+            </div>
+
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-8 mb-4">Información</h2>
+            <div className="space-y-1.5">
+              <WelcomeAction icon={Shield} label="Acerca de Athena Env Studio" onClick={onOpenAbout} />
             </div>
           </div>
 

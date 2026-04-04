@@ -5,6 +5,7 @@ import { CodeEditor } from './CodeEditor';
 import { ImageViewer } from './ImageViewer';
 import { PS2Preview } from './PS2Preview';
 import { AthenaWelcomeTab } from './AthenaWelcomeTab';
+import { AthenaAboutTab } from './AthenaAboutTab';
 import { IDEHeader } from './IDEHeader';
 import { IDEStatusBar } from './IDEStatusBar';
 import { FloatingWindow } from './FloatingWindow';
@@ -66,7 +67,7 @@ export function IDELayoutContent() {
 
   const openTabs = openTabsState;
   const selectedFile = openTabs[activeTabIndex] || null;
-  const isWelcomeActive = selectedFile?.path === '/__welcome__';
+  const isWelcomeActive = selectedFile?.path === '/__welcome__' || selectedFile?.path === '/__about__';
   const hasNoTabs = openTabs.length === 0;
 
   const isImageFile = (filename: string): boolean => {
@@ -807,7 +808,19 @@ export function IDELayoutContent() {
                           input.click();
                         }}
                         onOpenVisualBuilder={() => setShowVisualBuilder(true)}
+                        onOpenAbout={() => {
+                          const aboutTab: FileNode = { name: 'Acerca de', type: 'file', path: '/__about__', content: '' };
+                          const existingIndex = openTabs.findIndex(t => t.path === '/__about__');
+                          if (existingIndex !== -1) {
+                            setActiveTabIndex(existingIndex);
+                          } else {
+                            setOpenTabs((prev: FileNode[]) => [...prev, aboutTab]);
+                            setActiveTabIndex(openTabs.length);
+                          }
+                        }}
                       />
+                    ) : selectedFile?.path === '/__about__' ? (
+                      <AthenaAboutTab />
                     ) : undefined
                   }
                   imageViewerContent={
