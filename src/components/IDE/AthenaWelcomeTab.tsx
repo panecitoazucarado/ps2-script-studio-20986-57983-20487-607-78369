@@ -242,7 +242,7 @@ const MODULES_INFO = [
   { name: 'Archive', icon: Archive, desc: 'ZIP, GZ, TAR extraction support', color: 'bg-violet-500/20 text-violet-400' },
 ];
 
-export function AthenaWelcomeTab({ onCreateFile, onCloneRepo, onImportProject, onOpenVisualBuilder }: AthenaWelcomeTabProps) {
+export function AthenaWelcomeTab({ onCreateFile, onCloneRepo, onImportProject, onOpenVisualBuilder, onOpenAbout }: AthenaWelcomeTabProps) {
   const [hoveredTemplate, setHoveredTemplate] = useState<number | null>(null);
 
   return (
