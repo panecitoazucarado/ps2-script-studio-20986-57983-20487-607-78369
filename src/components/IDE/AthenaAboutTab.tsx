@@ -1,4 +1,4 @@
-import { Heart, Github, Globe, ExternalLink, Code2, Gamepad2, Sparkles, Shield, Cpu, FileCode } from 'lucide-react';
+import { Heart, Github, Globe, ExternalLink, Code2, Gamepad2, Sparkles, Shield, Cpu, FileCode, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import flagBolivia from '@/assets/flag-bolivia.png';
 import flagBrazil from '@/assets/flag-brazil.png';
@@ -90,116 +90,146 @@ export function AthenaAboutTab() {
           {/* Creator cards */}
           <div className="grid grid-cols-1 gap-5">
 
-            {/* José Manuel */}
-            <div className="bg-card/50 border border-border/50 rounded-xl p-6 hover:border-[hsl(var(--ps2-blue))]/30 transition-colors">
-              <div className="flex items-start gap-4">
-                <div className="relative shrink-0">
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[hsl(var(--ps2-blue))] to-[hsl(var(--ps2-purple))] flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-[hsl(var(--ps2-blue))]/20">
-                    JM
-                  </div>
-                  <img
-                    src={flagBolivia}
-                    alt="Bolivia"
-                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full object-cover border-2 border-card"
-                    loading="lazy"
-                    width={24}
-                    height={24}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-base font-semibold text-foreground">José Manuel Álvarez Ayala</h3>
-                    <span className="text-[11px] text-muted-foreground">🇧🇴 Bolivia</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">@panecitoazucarado</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge className="bg-[hsl(var(--ps2-blue))]/10 text-[hsl(var(--ps2-blue))] border-[hsl(var(--ps2-blue))]/20 text-[10px]">
-                      <Code2 className="w-3 h-3 mr-1" />
-                      Creador de Athena Env Studio
-                    </Badge>
-                    <Badge className="bg-[hsl(var(--ps2-purple))]/10 text-[hsl(var(--ps2-purple))] border-[hsl(var(--ps2-purple))]/20 text-[10px]">
-                      <FileCode className="w-3 h-3 mr-1" />
-                      Full-Stack Developer
-                    </Badge>
-                  </div>
-                </div>
+            {/* José Manuel — enhanced card */}
+            <div className="relative overflow-hidden bg-card/60 border border-border/50 rounded-2xl hover:border-[hsl(var(--ps2-blue))]/40 transition-all duration-300 group">
+              {/* Flag banner */}
+              <div className="relative h-28 overflow-hidden">
+                <img
+                  src={flagBolivia}
+                  alt="Bandera de Bolivia"
+                  className="w-full h-full object-cover opacity-60 group-hover:opacity-75 transition-opacity duration-300"
+                  loading="lazy"
+                  width={1024}
+                  height={576}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-card/95" />
+                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[hsl(var(--ide-editor))] to-transparent" />
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-4">
-                Diseñador y desarrollador integral de <strong className="text-foreground">Athena Env Studio</strong>.
-                Concibió, diseñó y programó por completo esta plataforma web donde los usuarios interactúan
-                con un IDE profesional para crear juegos y aplicaciones de PlayStation 2 directamente desde el navegador.
-                Desarrolló todas las herramientas disponibles en el sitio — el editor de código, el Visual Builder,
-                la terminal, el sistema de pestañas, el previsualizador, el asistente de IA y cada funcionalidad
-                que compone el ecosistema — siempre basándose en la documentación oficial del framework AthenaEnv.
-              </p>
-              <div className="mt-4 pt-3 border-t border-border/30">
-                <a
-                  href="https://github.com/panecitoazucarado"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Github className="w-3.5 h-3.5" />
-                  <span>github.com/panecitoazucarado</span>
-                  <ExternalLink className="w-3 h-3 opacity-50" />
-                </a>
+
+              <div className="relative px-6 pb-6 -mt-10">
+                <div className="flex items-end gap-4 mb-5">
+                  <div className="relative shrink-0">
+                    <div className="w-[72px] h-[72px] rounded-2xl bg-gradient-to-br from-[hsl(var(--ps2-blue))] to-[hsl(var(--ps2-purple))] flex items-center justify-center text-white font-bold text-xl shadow-xl shadow-[hsl(var(--ps2-blue))]/30 ring-4 ring-[hsl(var(--ide-editor))]">
+                      JM
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[hsl(var(--ps2-green))] flex items-center justify-center ring-2 ring-[hsl(var(--ide-editor))]">
+                      <Star className="w-3 h-3 text-white fill-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0 pb-1">
+                    <h3 className="text-lg font-bold text-foreground leading-tight">José Manuel Álvarez Ayala</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                      <span>@panecitoazucarado</span>
+                      <span className="text-muted-foreground/40">·</span>
+                      <span>🇧🇴 Bolivia</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap mb-4">
+                  <Badge className="bg-[hsl(var(--ps2-blue))]/10 text-[hsl(var(--ps2-blue))] border-[hsl(var(--ps2-blue))]/20 text-[10px]">
+                    <Code2 className="w-3 h-3 mr-1" />
+                    Creador de Athena Env Studio
+                  </Badge>
+                  <Badge className="bg-[hsl(var(--ps2-purple))]/10 text-[hsl(var(--ps2-purple))] border-[hsl(var(--ps2-purple))]/20 text-[10px]">
+                    <FileCode className="w-3 h-3 mr-1" />
+                    Full-Stack Developer
+                  </Badge>
+                </div>
+
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Diseñador y desarrollador integral de <strong className="text-foreground">Athena Env Studio</strong>.
+                  Concibió, diseñó y programó por completo esta plataforma web donde los usuarios interactúan
+                  con un IDE profesional para crear juegos y aplicaciones de PlayStation 2 directamente desde el navegador.
+                  Desarrolló todas las herramientas disponibles en el sitio — el editor de código, el Visual Builder,
+                  la terminal, el sistema de pestañas, el previsualizador, el asistente de IA y cada funcionalidad
+                  que compone el ecosistema — siempre basándose en la documentación oficial del framework AthenaEnv.
+                </p>
+
+                <div className="mt-5 pt-4 border-t border-border/30">
+                  <a
+                    href="https://github.com/panecitoazucarado"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group/link"
+                  >
+                    <Github className="w-4 h-4" />
+                    <span>github.com/panecitoazucarado</span>
+                    <ExternalLink className="w-3 h-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                  </a>
+                </div>
               </div>
             </div>
 
-            {/* Daniel Santos */}
-            <div className="bg-card/50 border border-border/50 rounded-xl p-6 hover:border-[hsl(var(--ps2-green))]/30 transition-colors">
-              <div className="flex items-start gap-4">
-                <div className="relative shrink-0">
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[hsl(var(--ps2-green))] to-[hsl(var(--ps2-cyan))] flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-[hsl(var(--ps2-green))]/20">
-                    DS
-                  </div>
-                  <img
-                    src={flagBrazil}
-                    alt="Brasil"
-                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full object-cover border-2 border-card"
-                    loading="lazy"
-                    width={24}
-                    height={24}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-base font-semibold text-foreground">Daniel Santos</h3>
-                    <span className="text-[11px] text-muted-foreground">🇧🇷 Brasil</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">@DanielSant0s</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge className="bg-[hsl(var(--ps2-green))]/10 text-[hsl(var(--ps2-green))] border-[hsl(var(--ps2-green))]/20 text-[10px]">
-                      <Gamepad2 className="w-3 h-3 mr-1" />
-                      Creador de AthenaEnv
-                    </Badge>
-                    <Badge className="bg-[hsl(var(--ps2-orange))]/10 text-[hsl(var(--ps2-orange))] border-[hsl(var(--ps2-orange))]/20 text-[10px]">
-                      <Shield className="w-3 h-3 mr-1" />
-                      Ciberseguridad & Low-Level
-                    </Badge>
-                  </div>
-                </div>
+            {/* Daniel Santos — enhanced card */}
+            <div className="relative overflow-hidden bg-card/60 border border-border/50 rounded-2xl hover:border-[hsl(var(--ps2-green))]/40 transition-all duration-300 group">
+              {/* Flag banner */}
+              <div className="relative h-28 overflow-hidden">
+                <img
+                  src={flagBrazil}
+                  alt="Bandera de Brasil"
+                  className="w-full h-full object-cover opacity-60 group-hover:opacity-75 transition-opacity duration-300"
+                  loading="lazy"
+                  width={1024}
+                  height={576}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-card/95" />
+                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[hsl(var(--ide-editor))] to-transparent" />
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-4">
-                Creador del framework <strong className="text-foreground">AthenaEnv</strong>, el potente runtime
-                de JavaScript basado en QuickJS que permite ejecutar código directamente en el hardware real de PlayStation 2.
-                Experto en ciberseguridad y desarrollo de bajo nivel, domina C a la perfección e incluso programa
-                en las unidades de procesamiento vectorial (VU0/VU1) de la PS2 — conocidas como programación V0 —,
-                un nivel de expertise que pocos en el mundo poseen. Conocido en la comunidad como
-                <strong className="text-foreground"> "the f**king Daniel Sant0s"</strong>, su trabajo es la base
-                fundamental sobre la cual se construye todo este ecosistema.
-              </p>
-              <div className="mt-4 pt-3 border-t border-border/30">
-                <a
-                  href="https://github.com/DanielSant0s"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Github className="w-3.5 h-3.5" />
-                  <span>github.com/DanielSant0s</span>
-                  <ExternalLink className="w-3 h-3 opacity-50" />
-                </a>
+
+              <div className="relative px-6 pb-6 -mt-10">
+                <div className="flex items-end gap-4 mb-5">
+                  <div className="relative shrink-0">
+                    <div className="w-[72px] h-[72px] rounded-2xl bg-gradient-to-br from-[hsl(var(--ps2-green))] to-[hsl(var(--ps2-cyan))] flex items-center justify-center text-white font-bold text-xl shadow-xl shadow-[hsl(var(--ps2-green))]/30 ring-4 ring-[hsl(var(--ide-editor))]">
+                      DS
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[hsl(var(--ps2-orange))] flex items-center justify-center ring-2 ring-[hsl(var(--ide-editor))]">
+                      <Shield className="w-3 h-3 text-white fill-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0 pb-1">
+                    <h3 className="text-lg font-bold text-foreground leading-tight">Daniel Santos</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                      <span>@DanielSant0s</span>
+                      <span className="text-muted-foreground/40">·</span>
+                      <span>🇧🇷 Brasil</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap mb-4">
+                  <Badge className="bg-[hsl(var(--ps2-green))]/10 text-[hsl(var(--ps2-green))] border-[hsl(var(--ps2-green))]/20 text-[10px]">
+                    <Gamepad2 className="w-3 h-3 mr-1" />
+                    Creador de AthenaEnv
+                  </Badge>
+                  <Badge className="bg-[hsl(var(--ps2-orange))]/10 text-[hsl(var(--ps2-orange))] border-[hsl(var(--ps2-orange))]/20 text-[10px]">
+                    <Shield className="w-3 h-3 mr-1" />
+                    Ciberseguridad & Low-Level
+                  </Badge>
+                </div>
+
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Creador del framework <strong className="text-foreground">AthenaEnv</strong>, el potente runtime
+                  de JavaScript basado en QuickJS que permite ejecutar código directamente en el hardware real de PlayStation 2.
+                  Experto en ciberseguridad y desarrollo de bajo nivel, domina C a la perfección e incluso programa
+                  en las unidades de procesamiento vectorial (VU0/VU1) de la PS2 — conocidas como programación V0 —,
+                  un nivel de expertise que pocos en el mundo poseen. Conocido en la comunidad como
+                  <strong className="text-foreground"> "the f**king Daniel Sant0s"</strong>, su trabajo es la base
+                  fundamental sobre la cual se construye todo este ecosistema.
+                </p>
+
+                <div className="mt-5 pt-4 border-t border-border/30">
+                  <a
+                    href="https://github.com/DanielSant0s"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group/link"
+                  >
+                    <Github className="w-4 h-4" />
+                    <span>github.com/DanielSant0s</span>
+                    <ExternalLink className="w-3 h-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                  </a>
+                </div>
               </div>
             </div>
           </div>
