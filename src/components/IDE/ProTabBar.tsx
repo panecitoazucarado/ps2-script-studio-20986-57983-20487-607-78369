@@ -12,7 +12,7 @@ import {
 import {
   X, ChevronLeft, ChevronRight, RotateCcw, List,
   FileCode, FileJson, FileText, Image as ImageIcon, Code2,
-  Copy, Pin, PinOff, SplitSquareHorizontal, MoreHorizontal
+  Copy, Pin, PinOff, MoreHorizontal, ArrowLeftToLine, ArrowRightToLine
 } from 'lucide-react';
 import { FileNode } from '@/types/athena';
 import athenaOwl from '@/assets/athena-owl.png';
@@ -44,10 +44,12 @@ export function ProTabBar({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [closedTabsHistory, setClosedTabsHistory] = useState<FileNode[]>([]);
   const [pinnedTabs, setPinnedTabs] = useState<Set<string>>(new Set());
+  const [copiedFeedback, setCopiedFeedback] = useState<string | null>(null);
   const tabsContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isWelcomeTab = (tab: FileNode) => tab.path === '/__welcome__';
+  const isSystemTab = (tab: FileNode) => tab.path.startsWith('/__') && tab.path.endsWith('__');
 
   // Context menu handlers
   const handleContextMenu = useCallback((e: React.MouseEvent, index: number) => {
@@ -63,8 +65,8 @@ export function ProTabBar({
 
   const handleCloseTab = useCallback((index: number) => {
     const tab = openTabs[index];
-    if (pinnedTabs.has(tab.path)) return; // Can't close pinned tabs via X
-    if (!isWelcomeTab(tab)) {
+    if (pinnedTabs.has(tab.path)) return;
+    if (!isSystemTab(tab)) {
       setClosedTabsHistory(prev => [...prev, tab].slice(-10));
     }
     onTabClose(index);
@@ -73,16 +75,16 @@ export function ProTabBar({
 
   const handleCloseOthers = useCallback(() => {
     if (contextMenuTab === null) return;
-    const targetTab = openTabs[contextMenuTab];
     const tabsToClose: number[] = [];
     openTabs.forEach((tab, idx) => {
       if (idx !== contextMenuTab && !isWelcomeTab(tab) && !pinnedTabs.has(tab.path)) {
         tabsToClose.push(idx);
       }
     });
-    // Close from end to avoid index shifting
     tabsToClose.sort((a, b) => b - a).forEach(idx => {
-      setClosedTabsHistory(prev => [...prev, openTabs[idx]].slice(-10));
+      if (!isSystemTab(openTabs[idx])) {
+        setClosedTabsHistory(prev => [...prev, openTabs[idx]].slice(-10));
+      }
       onTabClose(idx);
     });
     closeContextMenu();
@@ -97,14 +99,32 @@ export function ProTabBar({
       }
     }
     tabsToClose.forEach(idx => {
-      setClosedTabsHistory(prev => [...prev, openTabs[idx]].slice(-10));
+      if (!isSystemTab(openTabs[idx])) {
+        setClosedTabsHistory(prev => [...prev, openTabs[idx]].slice(-10));
+      }
+      onTabClose(idx);
+    });
+    closeContextMenu();
+  }, [contextMenuTab, openTabs, onTabClose, closeContextMenu, pinnedTabs]);
+
+  const handleCloseToLeft = useCallback(() => {
+    if (contextMenuTab === null) return;
+    const tabsToClose: number[] = [];
+    for (let i = contextMenuTab - 1; i >= 0; i--) {
+      if (!isWelcomeTab(openTabs[i]) && !pinnedTabs.has(openTabs[i].path)) {
+        tabsToClose.push(i);
+      }
+    }
+    tabsToClose.sort((a, b) => b - a).forEach(idx => {
+      if (!isSystemTab(openTabs[idx])) {
+        setClosedTabsHistory(prev => [...prev, openTabs[idx]].slice(-10));
+      }
       onTabClose(idx);
     });
     closeContextMenu();
   }, [contextMenuTab, openTabs, onTabClose, closeContextMenu, pinnedTabs]);
 
   const handleCloseAll = useCallback(() => {
-    // Close all except Welcome tab and pinned tabs
     const tabsToClose: number[] = [];
     openTabs.forEach((tab, idx) => {
       if (!isWelcomeTab(tab) && !pinnedTabs.has(tab.path)) {
@@ -112,7 +132,9 @@ export function ProTabBar({
       }
     });
     tabsToClose.sort((a, b) => b - a).forEach(idx => {
-      setClosedTabsHistory(prev => [...prev, openTabs[idx]].slice(-10));
+      if (!isSystemTab(openTabs[idx])) {
+        setClosedTabsHistory(prev => [...prev, openTabs[idx]].slice(-10));
+      }
       onTabClose(idx);
     });
     closeContextMenu();
@@ -126,7 +148,9 @@ export function ProTabBar({
       }
     });
     tabsToClose.sort((a, b) => b - a).forEach(idx => {
-      setClosedTabsHistory(prev => [...prev, openTabs[idx]].slice(-10));
+      if (!isSystemTab(openTabs[idx])) {
+        setClosedTabsHistory(prev => [...prev, openTabs[idx]].slice(-10));
+      }
       onTabClose(idx);
     });
     closeContextMenu();
@@ -134,10 +158,7 @@ export function ProTabBar({
 
   const handleReopenLastClosed = useCallback(() => {
     if (closedTabsHistory.length === 0) return;
-    const lastClosed = closedTabsHistory[closedTabsHistory.length - 1];
     setClosedTabsHistory(prev => prev.slice(0, -1));
-    // We can't directly reopen from here, but the parent handles file opening
-    // For now, just show a note - the parent component can handle this
   }, [closedTabsHistory]);
 
   const handleTogglePin = useCallback(() => {
@@ -157,6 +178,8 @@ export function ProTabBar({
     if (contextMenuTab === null) return;
     const tab = openTabs[contextMenuTab];
     navigator.clipboard.writeText(tab.path);
+    setCopiedFeedback('path');
+    setTimeout(() => setCopiedFeedback(null), 1500);
     closeContextMenu();
   }, [contextMenuTab, openTabs, closeContextMenu]);
 
@@ -165,6 +188,8 @@ export function ProTabBar({
     const tab = openTabs[contextMenuTab];
     const relativePath = tab.path.startsWith('/') ? tab.path.slice(1) : tab.path;
     navigator.clipboard.writeText(relativePath);
+    setCopiedFeedback('relative');
+    setTimeout(() => setCopiedFeedback(null), 1500);
     closeContextMenu();
   }, [contextMenuTab, openTabs, closeContextMenu]);
 
@@ -228,8 +253,13 @@ export function ProTabBar({
   useEffect(() => {
     if (contextMenuTab === null) return;
     const handleClick = () => closeContextMenu();
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeContextMenu(); };
     document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleEsc);
+    };
   }, [contextMenuTab, closeContextMenu]);
 
   // Focus input when editing
@@ -267,6 +297,9 @@ export function ProTabBar({
     if (isWelcomeTab(tab)) {
       return <img src={athenaOwl} alt="Athena" className="w-4 h-4 shrink-0 rounded-sm" />;
     }
+    if (isSystemTab(tab)) {
+      return <FileText className="w-3.5 h-3.5 shrink-0 text-[hsl(var(--ps2-cyan))]" />;
+    }
 
     const ext = tab.name.split('.').pop()?.toLowerCase();
     const iconClass = 'w-3.5 h-3.5 shrink-0';
@@ -290,6 +323,8 @@ export function ProTabBar({
         return <ImageIcon className={`${iconClass} text-purple-400`} />;
       case 'md': case 'txt':
         return <FileText className={`${iconClass} text-blue-400`} />;
+      case 'xml':
+        return <FileCode className={`${iconClass} text-orange-400`} />;
       case 'ini': case 'cfg': case 'conf': case 'toml':
         return <FileText className={`${iconClass} text-muted-foreground`} />;
       default:
@@ -299,17 +334,21 @@ export function ProTabBar({
 
   const getTabDisplayName = (tab: FileNode) => {
     if (isWelcomeTab(tab)) return 'Bienvenida';
+    if (tab.path === '/__about__') return 'Acerca de';
     return tab.name;
   };
 
   const contextTab = contextMenuTab !== null ? openTabs[contextMenuTab] : null;
-  const canCloseContextTab = contextTab ? !isWelcomeTab(contextTab) : false;
+  const canCloseContextTab = contextTab ? !isWelcomeTab(contextTab) && !pinnedTabs.has(contextTab.path) : false;
+  const hasTabsToLeft = contextMenuTab !== null && contextMenuTab > 0;
+  const hasTabsToRight = contextMenuTab !== null && contextMenuTab < openTabs.length - 1;
+  const isContextTabFile = contextTab ? !isSystemTab(contextTab) : false;
+  const isContextTabPinned = contextTab ? pinnedTabs.has(contextTab.path) : false;
 
   return (
     <>
       {/* Tab Bar - Glass UI */}
       <div className="flex items-center h-[38px] bg-[hsl(var(--tab-bg))] backdrop-blur-xl border-b border-border/40 relative overflow-hidden">
-        {/* Subtle glass gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none" />
 
         {/* Scroll Left */}
@@ -361,15 +400,12 @@ export function ProTabBar({
                 onContextMenu={(e) => handleContextMenu(e, index)}
                 title={isWelcome ? 'Bienvenida - Athena Env' : tab.path}
               >
-                {/* File Icon */}
                 {getFileIcon(tab)}
 
-                {/* Pin indicator */}
                 {isPinned && (
                   <Pin className="w-2.5 h-2.5 shrink-0 text-[hsl(var(--ps2-purple))] rotate-45" />
                 )}
 
-                {/* File Name */}
                 {editingTabIndex === index ? (
                   <Input
                     ref={inputRef}
@@ -392,36 +428,16 @@ export function ProTabBar({
                   </span>
                 )}
 
-                {/* Modified dot */}
                 {isModified && !isPinned && (
                   <div className="w-2 h-2 rounded-full bg-[hsl(var(--ps2-blue))] shrink-0 animate-pulse" title="Sin guardar" />
                 )}
 
-                {/* Close button - hidden for pinned, shows on hover */}
-                {!isPinned && !isWelcome && (
+                {!isPinned && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleCloseTab(index);
-                    }}
-                    className={`
-                      ${isModified ? 'opacity-0' : 'opacity-0'}
-                      group-hover:opacity-70 hover:!opacity-100
-                      hover:bg-white/[0.08] rounded-sm p-0.5
-                      transition-all duration-150
-                      shrink-0
-                    `}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-
-                {/* Welcome close button */}
-                {isWelcome && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTabClose(index);
+                      if (isWelcome) { onTabClose(index); }
+                      else { handleCloseTab(index); }
                     }}
                     className="opacity-0 group-hover:opacity-70 hover:!opacity-100 hover:bg-white/[0.08] rounded-sm p-0.5 transition-all duration-150 shrink-0"
                   >
@@ -429,7 +445,6 @@ export function ProTabBar({
                   </button>
                 )}
 
-                {/* Active tab bottom highlight */}
                 {isActive && (
                   <div className="absolute bottom-0 left-2 right-2 h-[2px] bg-[hsl(var(--ps2-blue))] rounded-full" />
                 )}
@@ -448,7 +463,6 @@ export function ProTabBar({
           <ChevronRight className="w-3.5 h-3.5" />
         </Button>
 
-        {/* Separator */}
         <div className="h-5 w-px bg-border/30 shrink-0" />
 
         {/* Tabs List Dropdown */}
@@ -536,24 +550,29 @@ export function ProTabBar({
         </DropdownMenu>
       </div>
 
-      {/* Context Menu */}
+      {/* Context Menu - Professional */}
       {contextMenuTab !== null && contextTab && (
         <div
-          className="fixed glass-panel rounded-lg shadow-2xl py-1.5 z-[200] min-w-[220px] animate-in fade-in-0 zoom-in-95 duration-150"
+          className="fixed glass-panel rounded-xl shadow-2xl shadow-black/40 py-1.5 z-[200] min-w-[240px] animate-in fade-in-0 zoom-in-95 duration-150 border border-white/[0.12] backdrop-blur-2xl"
           style={{
-            left: `${Math.min(contextMenuPosition.x, window.innerWidth - 240)}px`,
-            top: `${Math.min(contextMenuPosition.y, window.innerHeight - 300)}px`
+            left: `${Math.min(contextMenuPosition.x, window.innerWidth - 260)}px`,
+            top: `${Math.min(contextMenuPosition.y, window.innerHeight - 400)}px`
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close actions */}
+          {/* Section: Close */}
+          <div className="px-2 pt-1 pb-0.5">
+            <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 px-2">
+              Cerrar
+            </span>
+          </div>
           <ContextMenuItem
             onClick={() => { handleCloseTab(contextMenuTab); }}
             disabled={!canCloseContextTab}
             icon={<X className="w-3.5 h-3.5" />}
             shortcut="⌘W"
           >
-            Cerrar
+            Cerrar esta pestaña
           </ContextMenuItem>
           <ContextMenuItem
             onClick={handleCloseOthers}
@@ -561,61 +580,81 @@ export function ProTabBar({
           >
             Cerrar otros
           </ContextMenuItem>
-          <ContextMenuItem
-            onClick={handleCloseToRight}
-            disabled={contextMenuTab === openTabs.length - 1}
-          >
-            Cerrar a la derecha
-          </ContextMenuItem>
-          <ContextMenuItem
-            onClick={handleCloseSaved}
-          >
+          {hasTabsToLeft && (
+            <ContextMenuItem
+              onClick={handleCloseToLeft}
+              icon={<ArrowLeftToLine className="w-3.5 h-3.5" />}
+            >
+              Cerrar a la izquierda
+            </ContextMenuItem>
+          )}
+          {hasTabsToRight && (
+            <ContextMenuItem
+              onClick={handleCloseToRight}
+              icon={<ArrowRightToLine className="w-3.5 h-3.5" />}
+            >
+              Cerrar a la derecha
+            </ContextMenuItem>
+          )}
+          <ContextMenuItem onClick={handleCloseSaved}>
             Cerrar guardados
           </ContextMenuItem>
-          <ContextMenuItem
-            onClick={handleCloseAll}
-            className="text-destructive"
-          >
+          <ContextMenuItem onClick={handleCloseAll} className="text-destructive">
             Cerrar todo
           </ContextMenuItem>
 
           <div className="h-px bg-border/30 my-1.5 mx-2" />
 
-          {/* Path actions */}
-          <ContextMenuItem
-            onClick={handleCopyPath}
-            icon={<Copy className="w-3.5 h-3.5" />}
-            shortcut="⌥⌘C"
-          >
-            Copiar ruta
-          </ContextMenuItem>
-          <ContextMenuItem
-            onClick={handleCopyRelativePath}
-            icon={<Copy className="w-3.5 h-3.5" />}
-          >
-            Copiar ruta relativa
-          </ContextMenuItem>
-
-          <div className="h-px bg-border/30 my-1.5 mx-2" />
-
-          {/* Pin / Rename */}
-          {!isWelcomeTab(contextTab) && (
-            <ContextMenuItem
-              onClick={handleTogglePin}
-              icon={pinnedTabs.has(contextTab.path)
-                ? <PinOff className="w-3.5 h-3.5" />
-                : <Pin className="w-3.5 h-3.5" />
-              }
-            >
-              {pinnedTabs.has(contextTab.path) ? 'Desanclar' : 'Anclar pestaña'}
-            </ContextMenuItem>
+          {/* Section: Path */}
+          {isContextTabFile && (
+            <>
+              <div className="px-2 pt-1 pb-0.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 px-2">
+                  Ruta
+                </span>
+              </div>
+              <ContextMenuItem
+                onClick={handleCopyPath}
+                icon={<Copy className="w-3.5 h-3.5" />}
+                shortcut="⌥⌘C"
+              >
+                Copiar ruta
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={handleCopyRelativePath}
+                icon={<Copy className="w-3.5 h-3.5" />}
+              >
+                Copiar ruta relativa
+              </ContextMenuItem>
+              <div className="h-px bg-border/30 my-1.5 mx-2" />
+            </>
           )}
-          {canCloseContextTab && (
-            <ContextMenuItem
-              onClick={() => { handleDoubleClick(contextMenuTab); closeContextMenu(); }}
-            >
-              Renombrar
-            </ContextMenuItem>
+
+          {/* Section: Actions */}
+          {!isWelcomeTab(contextTab) && (
+            <>
+              <div className="px-2 pt-1 pb-0.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 px-2">
+                  Acciones
+                </span>
+              </div>
+              <ContextMenuItem
+                onClick={handleTogglePin}
+                icon={isContextTabPinned
+                  ? <PinOff className="w-3.5 h-3.5" />
+                  : <Pin className="w-3.5 h-3.5" />
+                }
+              >
+                {isContextTabPinned ? 'Desanclar pestaña' : 'Anclar pestaña'}
+              </ContextMenuItem>
+              {isContextTabFile && (
+                <ContextMenuItem
+                  onClick={() => { handleDoubleClick(contextMenuTab); closeContextMenu(); }}
+                >
+                  Renombrar
+                </ContextMenuItem>
+              )}
+            </>
           )}
 
           {closedTabsHistory.length > 0 && (
@@ -656,18 +695,18 @@ function ContextMenuItem({
     <button
       className={`
         w-full px-3 py-1.5 text-xs text-left flex items-center gap-2.5
-        transition-colors duration-100
+        transition-colors duration-100 rounded-md mx-0
         ${disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/[0.06] cursor-pointer'}
         ${className}
       `}
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
     >
-      {icon && <span className="w-4 flex justify-center">{icon}</span>}
+      {icon && <span className="w-4 flex justify-center text-muted-foreground">{icon}</span>}
       {!icon && <span className="w-4" />}
       <span className="flex-1">{children}</span>
       {shortcut && (
-        <span className="text-[10px] text-muted-foreground ml-4">{shortcut}</span>
+        <span className="text-[10px] text-muted-foreground/60 ml-4 font-mono">{shortcut}</span>
       )}
     </button>
   );
