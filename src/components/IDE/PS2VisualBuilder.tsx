@@ -400,17 +400,18 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
   // Duplicate component
   const handleDuplicate = useCallback(() => {
     if (selectedComponent) {
-      const newComponent: PS2Component = {
+      const raw: PS2Component = {
         ...JSON.parse(JSON.stringify(selectedComponent)),
         id: generateId(),
         x: snapToGrid(selectedComponent.x + 20),
         y: snapToGrid(selectedComponent.y + 20),
         name: `${selectedComponent.name}_copy`
       };
+      const newComponent = clampComponent(raw, canvasWidth, canvasHeight);
       setComponents(prev => [...prev, newComponent]);
       setSelectedId(newComponent.id);
     }
-  }, [selectedComponent, snapToGrid]);
+  }, [selectedComponent, snapToGrid, canvasWidth, canvasHeight, clampComponent]);
 
   // Move layer - enhanced with multiple options
   const handleMoveLayer = useCallback((componentId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
