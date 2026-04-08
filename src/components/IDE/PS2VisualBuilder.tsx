@@ -244,7 +244,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     const template = pendingImageTemplate || allTemplates.find(t => t.type === 'image');
     if (!template) return;
 
-    const newComponent: PS2Component = {
+    const raw: PS2Component = {
       id: generateId(),
       type: template.type,
       x: snapToGrid(canvasWidth / 2 - config.width / 2),
@@ -257,13 +257,14 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
         filter: config.filter,
         memoryTarget: config.memoryTarget,
         imageDataUrl: config.imageDataUrl,
-        imageSizeBytes: Math.round((config.imageDataUrl.length * 3) / 4), // approximate decoded size
+        imageSizeBytes: Math.round((config.imageDataUrl.length * 3) / 4),
       },
       zIndex: components.length,
       locked: false,
       visible: true,
       name: `${config.fileName.replace('.png', '')}_${components.length + 1}`
     };
+    const newComponent = clampComponent(raw, canvasWidth, canvasHeight);
 
     // Save image to VFS if available
     const fs = (window as any).__athenaFS;
