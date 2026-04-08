@@ -992,72 +992,138 @@ os.setInterval(() => {
     <>
     {/* Fullscreen overlay */}
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#0a0a16' }}>
-      {/* ── Header bar ── */}
-      <div className="h-10 flex items-center justify-between px-3 border-b border-white/[0.06] shrink-0" style={{ background: 'rgba(14,14,30,0.98)' }}>
-        {/* Left: title + badges */}
-        <div className="flex items-center gap-2.5 min-w-0">
-          <PenTool className="w-4 h-4 text-purple-400 shrink-0" />
-          <span className="text-[12px] font-semibold text-white whitespace-nowrap">PS2 Visual UI Builder</span>
-          <span className="text-[9px] text-cyan-400 border border-cyan-500/30 rounded px-1.5 py-[1px] whitespace-nowrap">{PS2_WIDTH}×{PS2_HEIGHT}</span>
-          <span className="text-[9px] text-gray-400 whitespace-nowrap">{components.length} componentes</span>
+      {/* ── Header bar — liquid glass ── */}
+      <div className="h-11 flex items-center px-2 md:px-3 border-b border-white/[0.06] shrink-0 gap-1 md:gap-2" style={{ background: 'linear-gradient(180deg, rgba(20,20,42,0.97) 0%, rgba(12,12,28,0.99) 100%)', backdropFilter: 'blur(12px)' }}>
+        
+        {/* Left: Brand + Info */}
+        <div className="flex items-center gap-2 min-w-0 shrink-0">
+          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-purple-500/30 to-cyan-500/20 flex items-center justify-center border border-white/[0.08]">
+            <PenTool className="w-3.5 h-3.5 text-purple-400" />
+          </div>
+          <span className="text-[11px] md:text-[12px] font-semibold text-white/90 whitespace-nowrap hidden sm:inline">Visual Builder</span>
         </div>
 
-        {/* Center: tools */}
-        <div className="flex items-center gap-1">
+        {/* Separator */}
+        <div className="w-px h-5 bg-white/[0.06] shrink-0" />
+
+        {/* Video Mode Selector */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-mono whitespace-nowrap transition-all hover:bg-white/[0.06] border border-white/[0.05] bg-white/[0.02]">
+              <Monitor className="w-3 h-3 text-cyan-400 shrink-0" />
+              <span className="text-cyan-300">{canvasWidth}×{canvasHeight}</span>
+              <span className="text-white/40 hidden md:inline">{videoMode.standard}</span>
+              <ChevronDown className="w-3 h-3 text-white/30" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent 
+            className="w-80 p-0 border-white/[0.08]" 
+            style={{ background: 'rgba(14,14,30,0.98)', backdropFilter: 'blur(20px)' }}
+            align="start"
+          >
+            <div className="px-3 py-2 border-b border-white/[0.06]">
+              <span className="text-[11px] font-semibold text-white/80">Video Mode</span>
+              <p className="text-[9px] text-white/30 mt-0.5">Modos de pantalla oficiales de Sony PS2</p>
+            </div>
+            <ScrollArea className="max-h-72">
+              <div className="p-1">
+                {(['SD', 'ED', 'HD'] as const).map(cat => {
+                  const modesInCat = PS2_VIDEO_MODES.filter(m => m.category === cat);
+                  if (modesInCat.length === 0) return null;
+                  return (
+                    <div key={cat}>
+                      <div className="px-2 py-1 mt-1 first:mt-0">
+                        <span className="text-[8px] uppercase tracking-wider font-semibold text-white/25">{cat === 'SD' ? 'Standard Definition' : cat === 'ED' ? 'Enhanced Definition' : 'High Definition'}</span>
+                      </div>
+                      {modesInCat.map(mode => {
+                        const isActive = mode.id === videoMode.id;
+                        const standardColor = mode.standard === 'PAL' ? 'text-purple-400' : mode.standard === 'NTSC' ? 'text-pink-400' : mode.standard === 'VGA' ? 'text-green-400' : mode.standard === 'HDTV' ? 'text-amber-400' : 'text-cyan-400';
+                        return (
+                          <button
+                            key={mode.id}
+                            onClick={() => setVideoMode(mode)}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[10px] transition-all ${isActive ? 'bg-cyan-500/15 border border-cyan-500/30' : 'hover:bg-white/[0.04] border border-transparent'}`}
+                          >
+                            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-cyan-400' : 'bg-white/10'}`} />
+                            <span className={`font-semibold shrink-0 w-10 text-left ${standardColor}`}>{mode.standard}</span>
+                            <span className="text-white/70 font-mono">{mode.width}×{mode.height}{mode.interlaced ? 'i' : 'p'}</span>
+                            <span className="text-white/30 ml-auto">{mode.refresh}</span>
+                            {mode.hires && <Badge variant="outline" className="text-[7px] h-3 px-1 border-amber-500/40 text-amber-400">HR</Badge>}
+                            {isActive && <Check className="w-3 h-3 text-cyan-400 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          </PopoverContent>
+        </Popover>
+
+        {/* Component count */}
+        <span className="text-[9px] text-white/30 whitespace-nowrap hidden lg:inline">{components.length} comp.</span>
+
+        {/* Separator */}
+        <div className="w-px h-5 bg-white/[0.06] shrink-0" />
+
+        {/* Center: Canvas tools */}
+        <div className="flex items-center gap-0.5">
           <TooltipProvider>
             <Tooltip><TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => setShowGrid(!showGrid)} className={`h-7 w-7 p-0 ${showGrid ? 'bg-purple-500/20 text-purple-300' : 'text-gray-500'}`}>
+              <button onClick={() => setShowGrid(!showGrid)} className={`h-7 w-7 rounded-md flex items-center justify-center transition-all ${showGrid ? 'bg-purple-500/15 text-purple-300 border border-purple-500/20' : 'text-white/30 hover:text-white/50 hover:bg-white/[0.04]'}`}>
                 <Grid3x3 className="w-3.5 h-3.5" />
-              </Button>
+              </button>
             </TooltipTrigger><TooltipContent side="bottom">Grilla</TooltipContent></Tooltip>
 
             <Tooltip><TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => setGridSnap(!gridSnap)} className={`h-7 w-7 p-0 ${gridSnap ? 'bg-purple-500/20 text-purple-300' : 'text-gray-500'}`}>
+              <button onClick={() => setGridSnap(!gridSnap)} className={`h-7 w-7 rounded-md flex items-center justify-center transition-all ${gridSnap ? 'bg-purple-500/15 text-purple-300 border border-purple-500/20' : 'text-white/30 hover:text-white/50 hover:bg-white/[0.04]'}`}>
                 <Shapes className="w-3.5 h-3.5" />
-              </Button>
+              </button>
             </TooltipTrigger><TooltipContent side="bottom">Snap: {gridSnap ? 'ON' : 'OFF'}</TooltipContent></Tooltip>
 
             <Tooltip><TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => setShowLayers(!showLayers)} className={`h-7 w-7 p-0 ${showLayers ? 'bg-purple-500/20 text-purple-300' : 'text-gray-500'}`}>
+              <button onClick={() => setShowLayers(!showLayers)} className={`h-7 w-7 rounded-md flex items-center justify-center transition-all ${showLayers ? 'bg-purple-500/15 text-purple-300 border border-purple-500/20' : 'text-white/30 hover:text-white/50 hover:bg-white/[0.04]'}`}>
                 <Layers className="w-3.5 h-3.5" />
-              </Button>
+              </button>
             </TooltipTrigger><TooltipContent side="bottom">Capas</TooltipContent></Tooltip>
           </TooltipProvider>
+        </div>
 
-          <div className="w-px h-5 bg-white/[0.08] mx-1" />
+        {/* Spacer */}
+        <div className="flex-1 min-w-2" />
 
-          <Button
-            variant={showCode ? 'secondary' : 'ghost'}
-            size="sm"
+        {/* Right: Code + Apply + Close */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button
             onClick={() => setShowCode(!showCode)}
-            className="h-7 px-2 text-[11px]"
+            className={`h-7 px-2.5 rounded-md flex items-center gap-1.5 text-[11px] font-medium transition-all border ${showCode ? 'bg-white/[0.08] text-white/90 border-white/[0.12]' : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04] border-transparent'}`}
           >
-            <Code className="w-3.5 h-3.5 mr-1" />
-            Código
-          </Button>
+            <Code className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Código</span>
+          </button>
 
-          <Button
-            size="sm"
+          <button
             onClick={() => {
               onGenerateCode(generateFullCode());
               onOpenChange(false);
             }}
-            className="h-7 px-3 text-[11px] bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
+            className="h-7 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold text-white transition-all border border-emerald-500/30 hover:border-emerald-400/50"
+            style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.25) 0%, rgba(5,150,105,0.35) 100%)' }}
           >
-            <Download className="w-3.5 h-3.5 mr-1" />
-            Aplicar
-          </Button>
-        </div>
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">Aplicar</span>
+          </button>
 
-        {/* Right: close button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleRequestClose}
-          className="h-7 w-7 p-0 text-gray-500 hover:text-red-400 hover:bg-red-500/10"
-        >
-          <X className="w-4 h-4" />
-        </Button>
+          <div className="w-px h-5 bg-white/[0.06] mx-0.5" />
+
+          <button
+            onClick={handleRequestClose}
+            className="h-7 w-7 rounded-md flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
         <div className="flex-1 flex overflow-hidden">
