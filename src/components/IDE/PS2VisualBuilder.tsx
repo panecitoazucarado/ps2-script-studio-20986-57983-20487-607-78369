@@ -594,7 +594,7 @@ os.setInterval(() => {
 `;
 
     return code;
-  }, [components]);
+  }, [components, videoMode, canvasWidth, canvasHeight]);
 
   // Update property
   const updateComponentProp = useCallback((propPath: string, value: any) => {
