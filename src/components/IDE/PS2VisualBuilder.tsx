@@ -234,6 +234,10 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
       name: `${template.name}_${components.length + 1}`
     };
     const newComponent = clampComponent(raw, canvasWidth, canvasHeight);
+    
+    setComponents(prev => [...prev, newComponent]);
+    setSelectedId(newComponent.id);
+  }, [components.length, snapToGrid, canvasWidth, canvasHeight, clampComponent]);
 
   // Handle image upload result
   const handleImageReady = useCallback((config: PS2ImageConfig) => {
