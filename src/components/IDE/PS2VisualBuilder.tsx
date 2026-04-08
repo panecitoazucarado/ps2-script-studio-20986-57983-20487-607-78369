@@ -161,6 +161,11 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [pendingImageTemplate, setPendingImageTemplate] = useState<ComponentTemplate | null>(null);
+  const [videoMode, setVideoMode] = useState<PS2VideoMode>(PS2_VIDEO_MODES[1]); // NTSC 640x448 default
+
+  // Dynamic canvas dimensions based on video mode
+  const canvasWidth = videoMode.width;
+  const canvasHeight = videoMode.height;
 
   const handleRequestClose = useCallback(() => {
     if (components.length > 0) {
