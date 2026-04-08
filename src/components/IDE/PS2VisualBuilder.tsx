@@ -452,7 +452,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
   const handleDuplicateComponent = useCallback((componentId: string) => {
     const comp = components.find(c => c.id === componentId);
     if (comp) {
-      const newComponent: PS2Component = {
+      const raw: PS2Component = {
         ...JSON.parse(JSON.stringify(comp)),
         id: generateId(),
         x: snapToGrid(comp.x + 20),
@@ -460,10 +460,11 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
         name: `${comp.name}_copy`,
         zIndex: components.length
       };
+      const newComponent = clampComponent(raw, canvasWidth, canvasHeight);
       setComponents(prev => [...prev, newComponent]);
       setSelectedId(newComponent.id);
     }
-  }, [components, snapToGrid]);
+  }, [components, snapToGrid, canvasWidth, canvasHeight, clampComponent]);
 
   // Toggle lock for specific component
   const handleToggleLockComponent = useCallback((componentId: string) => {
