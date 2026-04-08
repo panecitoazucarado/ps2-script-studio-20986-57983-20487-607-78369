@@ -1025,7 +1025,7 @@ os.setInterval(() => {
               <span className="text-[11px] font-semibold text-white/80">Video Mode</span>
               <p className="text-[9px] text-white/30 mt-0.5">Modos de pantalla oficiales de Sony PS2</p>
             </div>
-            <ScrollArea className="max-h-72">
+            <div className="overflow-y-auto overscroll-contain" style={{ maxHeight: '320px' }}>
               <div className="p-1">
                 {(['SD', 'ED', 'HD'] as const).map(cat => {
                   const modesInCat = PS2_VIDEO_MODES.filter(m => m.category === cat);
@@ -1057,7 +1057,7 @@ os.setInterval(() => {
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
           </PopoverContent>
         </Popover>
 
