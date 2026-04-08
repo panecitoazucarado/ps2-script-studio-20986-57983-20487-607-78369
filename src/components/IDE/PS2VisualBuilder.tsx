@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ColorPickerPro } from './ColorPickerPro';
 import {
   Square, Circle, Type, Image as ImageIcon, Minus, CheckSquare, 
@@ -25,7 +26,8 @@ import {
   Clock, Gamepad2, Box, FolderOpen, Play, AudioLines, Star, 
   TextCursor, Hash, Sparkles, RotateCw, Wallpaper, ImagePlay, 
   AlignCenter, Rows3, FileText, Badge as BadgeIcon, GripVertical,
-  ChevronsUp, ChevronsDown, MoreHorizontal, Blend, Palette, HardDrive
+  ChevronsUp, ChevronsDown, MoreHorizontal, Blend, Palette, HardDrive,
+  Monitor, ChevronRight, Check
 } from 'lucide-react';
 import { ComponentPalette } from './ComponentPalette';
 import { PS2ImageUploadDialog, PS2ImageConfig } from './PS2ImageUploadDialog';
@@ -35,6 +37,42 @@ import {
   CATEGORIES, PS2_WIDTH, PS2_HEIGHT, generateId, colorToRgba, colorToAthena
 } from '@/lib/ps2-builder';
 import { allTemplates, getTemplatesByCategory, searchTemplates, getTemplateByType } from '@/lib/ps2-builder';
+
+// ═══════════════════════════════════════════════════════════
+// PS2 Official Video Modes - All valid display configurations
+// ═══════════════════════════════════════════════════════════
+interface PS2VideoMode {
+  id: string;
+  label: string;
+  width: number;
+  height: number;
+  standard: string;
+  refresh: string;
+  depth: string;
+  interlaced: boolean;
+  hires: boolean;
+  category: 'SD' | 'ED' | 'HD';
+}
+
+const PS2_VIDEO_MODES: PS2VideoMode[] = [
+  // Standard Definition
+  { id: 'pal_512i',    label: 'PAL 640×512i @50Hz 24bit',         width: 640, height: 512, standard: 'PAL',  refresh: '50Hz', depth: '24bit', interlaced: true,  hires: false, category: 'SD' },
+  { id: 'ntsc_448i',   label: 'NTSC 640×448i @60Hz 24bit',        width: 640, height: 448, standard: 'NTSC', refresh: '60Hz', depth: '24bit', interlaced: true,  hires: false, category: 'SD' },
+  { id: 'edtv_448p',   label: 'EDTV 640×448p @60Hz 24bit',        width: 640, height: 448, standard: 'EDTV', refresh: '60Hz', depth: '24bit', interlaced: false, hires: false, category: 'ED' },
+  { id: 'edtv_512p',   label: 'EDTV 640×512p @50Hz 24bit',        width: 640, height: 512, standard: 'EDTV', refresh: '50Hz', depth: '24bit', interlaced: false, hires: false, category: 'ED' },
+  { id: 'vga_480p',    label: 'VGA 640×480p @60Hz 24bit',          width: 640, height: 480, standard: 'VGA',  refresh: '60Hz', depth: '24bit', interlaced: false, hires: false, category: 'ED' },
+  // Hi-Res
+  { id: 'pal_576i_hr', label: 'PAL 704×576i @50Hz 24bit (HIRES)',  width: 704, height: 576, standard: 'PAL',  refresh: '50Hz', depth: '24bit', interlaced: true,  hires: true,  category: 'SD' },
+  { id: 'ntsc_480i_hr',label: 'NTSC 704×480i @60Hz 24bit (HIRES)', width: 704, height: 480, standard: 'NTSC', refresh: '60Hz', depth: '24bit', interlaced: true,  hires: true,  category: 'SD' },
+  { id: 'edtv_480p_hr',label: 'EDTV 704×480p @60Hz 24bit (HIRES)', width: 704, height: 480, standard: 'EDTV', refresh: '60Hz', depth: '24bit', interlaced: false, hires: true,  category: 'ED' },
+  { id: 'edtv_576p_hr',label: 'EDTV 704×576p @50Hz 24bit (HIRES)', width: 704, height: 576, standard: 'EDTV', refresh: '50Hz', depth: '24bit', interlaced: false, hires: true,  category: 'ED' },
+  // HDTV
+  { id: 'hdtv_720p',   label: 'HDTV 1280×720p @60Hz 16bit (HIRES)', width: 1280, height: 720, standard: 'HDTV', refresh: '60Hz', depth: '16bit', interlaced: false, hires: true, category: 'HD' },
+  { id: 'hdtv_1080i',  label: 'HDTV 1920×1080i @60Hz 16bit (HIRES)',width: 1920, height: 1080,standard: 'HDTV', refresh: '60Hz', depth: '16bit', interlaced: true,  hires: true, category: 'HD' },
+  // Low-res
+  { id: 'pal_256p',    label: 'PAL 640×256p @50Hz 24bit',          width: 640, height: 256, standard: 'PAL',  refresh: '50Hz', depth: '24bit', interlaced: false, hires: false, category: 'SD' },
+  { id: 'ntsc_224p',   label: 'NTSC 640×224p @60Hz 24bit',         width: 640, height: 224, standard: 'NTSC', refresh: '60Hz', depth: '24bit', interlaced: false, hires: false, category: 'SD' },
+];
 
 // Icon mapping for dynamic icon rendering
 const iconMap: Record<string, React.ReactNode> = {
