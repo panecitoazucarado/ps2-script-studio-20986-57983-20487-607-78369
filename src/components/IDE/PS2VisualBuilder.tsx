@@ -1359,19 +1359,31 @@ os.setInterval(() => {
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <Label className="text-[9px] text-muted-foreground">X</Label>
-                            <Input type="number" value={selectedComponent.x} onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedId ? { ...c, x: Number(e.target.value) } : c))} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
+                            <Input type="number" value={selectedComponent.x} onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setComponents(prev => prev.map(c => c.id === selectedId ? clampComponent({ ...c, x: v }, canvasWidth, canvasHeight) : c));
+                            }} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
                           </div>
                           <div>
                             <Label className="text-[9px] text-muted-foreground">Y</Label>
-                            <Input type="number" value={selectedComponent.y} onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedId ? { ...c, y: Number(e.target.value) } : c))} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
+                            <Input type="number" value={selectedComponent.y} onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setComponents(prev => prev.map(c => c.id === selectedId ? clampComponent({ ...c, y: v }, canvasWidth, canvasHeight) : c));
+                            }} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
                           </div>
                           <div>
                             <Label className="text-[9px] text-muted-foreground">Ancho</Label>
-                            <Input type="number" value={selectedComponent.width} onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedId ? { ...c, width: Number(e.target.value) } : c))} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
+                            <Input type="number" value={selectedComponent.width} onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setComponents(prev => prev.map(c => c.id === selectedId ? clampComponent({ ...c, width: v }, canvasWidth, canvasHeight) : c));
+                            }} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
                           </div>
                           <div>
                             <Label className="text-[9px] text-muted-foreground">Alto</Label>
-                            <Input type="number" value={selectedComponent.height} onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedId ? { ...c, height: Number(e.target.value) } : c))} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
+                            <Input type="number" value={selectedComponent.height} onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setComponents(prev => prev.map(c => c.id === selectedId ? clampComponent({ ...c, height: v }, canvasWidth, canvasHeight) : c));
+                            }} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
                           </div>
                         </div>
                       </div>
