@@ -220,7 +220,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
       return;
     }
 
-    const newComponent: PS2Component = {
+    const raw: PS2Component = {
       id: generateId(),
       type: template.type,
       x: snapToGrid(canvasWidth / 2 - template.defaultWidth / 2),
@@ -233,10 +233,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
       visible: true,
       name: `${template.name}_${components.length + 1}`
     };
-    
-    setComponents(prev => [...prev, newComponent]);
-    setSelectedId(newComponent.id);
-  }, [components.length, snapToGrid]);
+    const newComponent = clampComponent(raw, canvasWidth, canvasHeight);
 
   // Handle image upload result
   const handleImageReady = useCallback((config: PS2ImageConfig) => {
