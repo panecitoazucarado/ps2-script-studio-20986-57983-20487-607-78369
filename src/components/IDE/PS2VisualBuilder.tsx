@@ -191,6 +191,20 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     return getTemplatesByCategory(activeCategory);
   }, [searchQuery, activeCategory]);
 
+  // Clamp a component to stay within canvas bounds
+  const clampComponent = useCallback((c: PS2Component, cw: number, ch: number): PS2Component => {
+    const w = Math.max(8, Math.min(c.width, cw));
+    const h = Math.max(8, Math.min(c.height, ch));
+    const x = Math.max(0, Math.min(c.x, cw - w));
+    const y = Math.max(0, Math.min(c.y, ch - h));
+    return { ...c, x, y, width: w, height: h };
+  }, []);
+
+  // Re-clamp all components when video mode changes
+  useEffect(() => {
+    setComponents(prev => prev.map(c => clampComponent(c, canvasWidth, canvasHeight)));
+  }, [canvasWidth, canvasHeight, clampComponent]);
+
   // Snap to grid helper
   const snapToGrid = useCallback((value: number) => {
     if (!gridSnap) return value;
@@ -206,7 +220,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
       return;
     }
 
-    const newComponent: PS2Component = {
+    const raw: PS2Component = {
       id: generateId(),
       type: template.type,
       x: snapToGrid(canvasWidth / 2 - template.defaultWidth / 2),
@@ -219,17 +233,18 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
       visible: true,
       name: `${template.name}_${components.length + 1}`
     };
+    const newComponent = clampComponent(raw, canvasWidth, canvasHeight);
     
     setComponents(prev => [...prev, newComponent]);
     setSelectedId(newComponent.id);
-  }, [components.length, snapToGrid]);
+  }, [components.length, snapToGrid, canvasWidth, canvasHeight, clampComponent]);
 
   // Handle image upload result
   const handleImageReady = useCallback((config: PS2ImageConfig) => {
     const template = pendingImageTemplate || allTemplates.find(t => t.type === 'image');
     if (!template) return;
 
-    const newComponent: PS2Component = {
+    const raw: PS2Component = {
       id: generateId(),
       type: template.type,
       x: snapToGrid(canvasWidth / 2 - config.width / 2),
@@ -242,13 +257,14 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
         filter: config.filter,
         memoryTarget: config.memoryTarget,
         imageDataUrl: config.imageDataUrl,
-        imageSizeBytes: Math.round((config.imageDataUrl.length * 3) / 4), // approximate decoded size
+        imageSizeBytes: Math.round((config.imageDataUrl.length * 3) / 4),
       },
       zIndex: components.length,
       locked: false,
       visible: true,
       name: `${config.fileName.replace('.png', '')}_${components.length + 1}`
     };
+    const newComponent = clampComponent(raw, canvasWidth, canvasHeight);
 
     // Save image to VFS if available
     const fs = (window as any).__athenaFS;
@@ -384,17 +400,18 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
   // Duplicate component
   const handleDuplicate = useCallback(() => {
     if (selectedComponent) {
-      const newComponent: PS2Component = {
+      const raw: PS2Component = {
         ...JSON.parse(JSON.stringify(selectedComponent)),
         id: generateId(),
         x: snapToGrid(selectedComponent.x + 20),
         y: snapToGrid(selectedComponent.y + 20),
         name: `${selectedComponent.name}_copy`
       };
+      const newComponent = clampComponent(raw, canvasWidth, canvasHeight);
       setComponents(prev => [...prev, newComponent]);
       setSelectedId(newComponent.id);
     }
-  }, [selectedComponent, snapToGrid]);
+  }, [selectedComponent, snapToGrid, canvasWidth, canvasHeight, clampComponent]);
 
   // Move layer - enhanced with multiple options
   const handleMoveLayer = useCallback((componentId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
@@ -435,7 +452,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
   const handleDuplicateComponent = useCallback((componentId: string) => {
     const comp = components.find(c => c.id === componentId);
     if (comp) {
-      const newComponent: PS2Component = {
+      const raw: PS2Component = {
         ...JSON.parse(JSON.stringify(comp)),
         id: generateId(),
         x: snapToGrid(comp.x + 20),
@@ -443,10 +460,11 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
         name: `${comp.name}_copy`,
         zIndex: components.length
       };
+      const newComponent = clampComponent(raw, canvasWidth, canvasHeight);
       setComponents(prev => [...prev, newComponent]);
       setSelectedId(newComponent.id);
     }
-  }, [components, snapToGrid]);
+  }, [components, snapToGrid, canvasWidth, canvasHeight, clampComponent]);
 
   // Toggle lock for specific component
   const handleToggleLockComponent = useCallback((componentId: string) => {
@@ -1341,19 +1359,31 @@ os.setInterval(() => {
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <Label className="text-[9px] text-muted-foreground">X</Label>
-                            <Input type="number" value={selectedComponent.x} onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedId ? { ...c, x: Number(e.target.value) } : c))} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
+                            <Input type="number" value={selectedComponent.x} onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setComponents(prev => prev.map(c => c.id === selectedId ? clampComponent({ ...c, x: v }, canvasWidth, canvasHeight) : c));
+                            }} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
                           </div>
                           <div>
                             <Label className="text-[9px] text-muted-foreground">Y</Label>
-                            <Input type="number" value={selectedComponent.y} onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedId ? { ...c, y: Number(e.target.value) } : c))} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
+                            <Input type="number" value={selectedComponent.y} onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setComponents(prev => prev.map(c => c.id === selectedId ? clampComponent({ ...c, y: v }, canvasWidth, canvasHeight) : c));
+                            }} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
                           </div>
                           <div>
                             <Label className="text-[9px] text-muted-foreground">Ancho</Label>
-                            <Input type="number" value={selectedComponent.width} onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedId ? { ...c, width: Number(e.target.value) } : c))} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
+                            <Input type="number" value={selectedComponent.width} onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setComponents(prev => prev.map(c => c.id === selectedId ? clampComponent({ ...c, width: v }, canvasWidth, canvasHeight) : c));
+                            }} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
                           </div>
                           <div>
                             <Label className="text-[9px] text-muted-foreground">Alto</Label>
-                            <Input type="number" value={selectedComponent.height} onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedId ? { ...c, height: Number(e.target.value) } : c))} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
+                            <Input type="number" value={selectedComponent.height} onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setComponents(prev => prev.map(c => c.id === selectedId ? clampComponent({ ...c, height: v }, canvasWidth, canvasHeight) : c));
+                            }} className="h-6 text-[10px] bg-[#1a1a3a] border-[#2a2a4a]" />
                           </div>
                         </div>
                       </div>
