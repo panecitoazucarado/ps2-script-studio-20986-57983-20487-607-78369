@@ -191,6 +191,20 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     return getTemplatesByCategory(activeCategory);
   }, [searchQuery, activeCategory]);
 
+  // Clamp a component to stay within canvas bounds
+  const clampComponent = useCallback((c: PS2Component, cw: number, ch: number): PS2Component => {
+    const w = Math.max(8, Math.min(c.width, cw));
+    const h = Math.max(8, Math.min(c.height, ch));
+    const x = Math.max(0, Math.min(c.x, cw - w));
+    const y = Math.max(0, Math.min(c.y, ch - h));
+    return { ...c, x, y, width: w, height: h };
+  }, []);
+
+  // Re-clamp all components when video mode changes
+  useEffect(() => {
+    setComponents(prev => prev.map(c => clampComponent(c, canvasWidth, canvasHeight)));
+  }, [canvasWidth, canvasHeight, clampComponent]);
+
   // Snap to grid helper
   const snapToGrid = useCallback((value: number) => {
     if (!gridSnap) return value;
