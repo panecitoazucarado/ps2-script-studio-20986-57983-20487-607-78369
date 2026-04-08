@@ -209,8 +209,8 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     const newComponent: PS2Component = {
       id: generateId(),
       type: template.type,
-      x: snapToGrid(PS2_WIDTH / 2 - template.defaultWidth / 2),
-      y: snapToGrid(PS2_HEIGHT / 2 - template.defaultHeight / 2),
+      x: snapToGrid(canvasWidth / 2 - template.defaultWidth / 2),
+      y: snapToGrid(canvasHeight / 2 - template.defaultHeight / 2),
       width: template.defaultWidth,
       height: template.defaultHeight,
       props: JSON.parse(JSON.stringify(template.defaultProps)),
@@ -232,8 +232,8 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     const newComponent: PS2Component = {
       id: generateId(),
       type: template.type,
-      x: snapToGrid(PS2_WIDTH / 2 - config.width / 2),
-      y: snapToGrid(PS2_HEIGHT / 2 - config.height / 2),
+      x: snapToGrid(canvasWidth / 2 - config.width / 2),
+      y: snapToGrid(canvasHeight / 2 - config.height / 2),
       width: config.width,
       height: config.height,
       props: {
@@ -306,9 +306,9 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     const rect = canvasRef.current.getBoundingClientRect();
     
     if (isDragging && selectedId && selectedComponent) {
-      const x = snapToGrid(Math.max(0, Math.min(PS2_WIDTH - selectedComponent.width, 
+      const x = snapToGrid(Math.max(0, Math.min(canvasWidth - selectedComponent.width, 
         (e.clientX - rect.left) / zoom - dragOffset.x)));
-      const y = snapToGrid(Math.max(0, Math.min(PS2_HEIGHT - selectedComponent.height, 
+      const y = snapToGrid(Math.max(0, Math.min(canvasHeight - selectedComponent.height, 
         (e.clientY - rect.top) / zoom - dragOffset.y)));
       
       setComponents(prev => prev.map(c => 
@@ -343,10 +343,10 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
       }
 
       // Clamp to canvas bounds
-      newX = Math.max(0, Math.min(PS2_WIDTH - 20, newX));
-      newY = Math.max(0, Math.min(PS2_HEIGHT - 20, newY));
-      newWidth = Math.min(newWidth, PS2_WIDTH - newX);
-      newHeight = Math.min(newHeight, PS2_HEIGHT - newY);
+      newX = Math.max(0, Math.min(canvasWidth - 20, newX));
+      newY = Math.max(0, Math.min(canvasHeight - 20, newY));
+      newWidth = Math.min(newWidth, canvasWidth - newX);
+      newHeight = Math.min(newHeight, canvasHeight - newY);
       
       setComponents(prev => prev.map(c => 
         c.id === selectedId ? { ...c, x: newX, y: newY, width: newWidth, height: newHeight } : c
@@ -1141,8 +1141,8 @@ os.setInterval(() => {
                 ref={canvasRef}
                 className="relative shadow-2xl border border-[#2a2a4a]"
                 style={{ 
-                  width: PS2_WIDTH * zoom, 
-                  height: PS2_HEIGHT * zoom,
+                  width: canvasWidth * zoom, 
+                  height: canvasHeight * zoom,
                   backgroundColor: '#14142a',
                   backgroundImage: showGrid ? `
                     linear-gradient(to right, rgba(60,60,100,0.15) 1px, transparent 1px),
@@ -1168,11 +1168,11 @@ os.setInterval(() => {
                 
                 {/* Center crosshair */}
                 <div className="absolute pointer-events-none opacity-30" style={{ 
-                  left: (PS2_WIDTH / 2 - 10) * zoom, top: (PS2_HEIGHT / 2) * zoom - 0.5, 
+                  left: (canvasWidth / 2 - 10) * zoom, top: (canvasHeight / 2) * zoom - 0.5, 
                   width: 20 * zoom, height: 1, backgroundColor: '#666' 
                 }} />
                 <div className="absolute pointer-events-none opacity-30" style={{ 
-                  left: (PS2_WIDTH / 2) * zoom - 0.5, top: (PS2_HEIGHT / 2 - 10) * zoom, 
+                  left: (canvasWidth / 2) * zoom - 0.5, top: (canvasHeight / 2 - 10) * zoom, 
                   width: 1, height: 20 * zoom, backgroundColor: '#666' 
                 }} />
               </div>
