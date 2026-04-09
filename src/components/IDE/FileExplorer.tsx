@@ -1664,6 +1664,12 @@ export function FileExplorer({
 
     const updatedFileSystem = renameFileInTree(fileSystem, oldNode.path, newName, newPath);
     updateFileSystem(updatedFileSystem);
+    
+    // Notify parent to update tab names
+    if (onFileRename) {
+      onFileRename(oldNode.path, newPath, newName);
+    }
+    
     setRenamingFile(null);
   };
 
