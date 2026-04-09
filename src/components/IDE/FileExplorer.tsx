@@ -1691,17 +1691,58 @@ export function FileExplorer({
 
   const handleCopy = (node: FileNode) => {
     setClipboard({ node, operation: 'copy' });
-    toast({ title: "Copiado", description: node.name });
+    toast({ title: "Copiado al portapapeles", description: node.name });
   };
 
   const handleCut = (node: FileNode) => {
     setClipboard({ node, operation: 'cut' });
-    toast({ title: "Cortado", description: node.name });
+    toast({ title: "Cortado al portapapeles", description: node.name });
   };
 
-  const handlePaste = () => {
+  const handlePasteAt = (targetNode: FileNode) => {
     if (!clipboard) return;
 
+    // Determine the target folder
+    const targetFolder = targetNode.type === 'folder' 
+      ? targetNode.path 
+      : targetNode.path.split('/').slice(0, -1).join('/') || '/';
+
+    // Avoid pasting into itself
+    if (clipboard.node.path === targetFolder || targetFolder.startsWith(clipboard.node.path + '/')) {
+      toast({ title: "Error", description: "No se puede pegar un elemento dentro de sí mismo" });
+      return;
+    }
+
+    // Check for name collision and generate unique name
+    let finalName = clipboard.node.name;
+    const newPath = targetFolder === '/' 
+      ? `/${finalName}` 
+      : `${targetFolder}/${finalName}`;
+
+    const newNode: FileNode = {
+      ...clipboard.node,
+      path: newPath,
+      name: finalName,
+    };
+
+    let updatedFS = addFileToTree(fileSystem, newNode, targetFolder);
+    
+    if (clipboard.operation === 'cut') {
+      updatedFS = deleteFileFromTree(updatedFS, clipboard.node.path);
+      // Close tab of cut file
+      if (onFileDelete && clipboard.node.type === 'file') {
+        onFileDelete(clipboard.node.path);
+      }
+      setClipboard(null);
+    }
+
+    updateFileSystem(updatedFS);
+    toast({ title: "Pegado", description: `${finalName} en ${targetFolder}` });
+  };
+
+  // Legacy paste for toolbar/keyboard
+  const handlePaste = () => {
+    if (!clipboard) return;
     const newPath = selectedFolderPath === '/' 
       ? `/${clipboard.node.name}` 
       : `${selectedFolderPath}/${clipboard.node.name}`;
@@ -1715,6 +1756,9 @@ export function FileExplorer({
     
     if (clipboard.operation === 'cut') {
       updatedFS = deleteFileFromTree(updatedFS, clipboard.node.path);
+      if (onFileDelete && clipboard.node.type === 'file') {
+        onFileDelete(clipboard.node.path);
+      }
       setClipboard(null);
     }
 
