@@ -959,6 +959,7 @@ export function IDELayoutContent() {
             onProjectLoad={setProjectFiles}
             onFileSystemUpdate={handleFileSystemUpdate}
             onFileDelete={handleFileDelete}
+            onCloneRepository={handleOpenCloneDialog}
             onAIConsult={(file, action) => {
               if (!windows.aiChat.visible) {
                 toggleWindowVisibility('aiChat');
