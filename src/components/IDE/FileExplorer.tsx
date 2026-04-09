@@ -107,6 +107,7 @@ interface FileExplorerProps {
   onProjectLoad?: (files: FileNode[]) => void;
   onFileSystemUpdate?: (files: FileNode[]) => void;
   onAIConsult?: (file: FileNode, action: 'consult' | 'analyze' | 'improve') => void;
+  onFileDelete?: (filePath: string) => void;
   externalFileSystem?: FileNode[];
   onCloneRepository?: () => void;
 }
