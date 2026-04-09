@@ -966,6 +966,7 @@ export function IDELayoutContent() {
             onProjectLoad={setProjectFiles}
             onFileSystemUpdate={handleFileSystemUpdate}
             onFileDelete={handleFileDelete}
+            onFileRename={handleFileRenameFromExplorer}
             onCloneRepository={handleOpenCloneDialog}
             onAIConsult={(file, action) => {
               if (!windows.aiChat.visible) {
