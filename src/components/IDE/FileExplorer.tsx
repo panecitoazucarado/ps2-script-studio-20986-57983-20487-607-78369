@@ -107,6 +107,7 @@ interface FileExplorerProps {
   onProjectLoad?: (files: FileNode[]) => void;
   onFileSystemUpdate?: (files: FileNode[]) => void;
   onAIConsult?: (file: FileNode, action: 'consult' | 'analyze' | 'improve') => void;
+  onFileDelete?: (filePath: string) => void;
   externalFileSystem?: FileNode[];
   onCloneRepository?: () => void;
 }
@@ -1030,6 +1031,7 @@ export function FileExplorer({
   onProjectLoad, 
   onFileSystemUpdate, 
   onAIConsult,
+  onFileDelete,
   externalFileSystem,
   onCloneRepository
 }: FileExplorerProps) {
@@ -1612,6 +1614,26 @@ export function FileExplorer({
   const handleDelete = (node: FileNode) => {
     const updatedFileSystem = deleteFileFromTree(fileSystem, node.path);
     updateFileSystem(updatedFileSystem);
+    // Notify parent to close any open tab for this file
+    if (onFileDelete) {
+      if (node.type === 'file') {
+        onFileDelete(node.path);
+      } else if (node.type === 'folder') {
+        // For folders, we need to close all tabs of files inside the folder
+        const closeFolderFiles = (children: FileNode[]) => {
+          for (const child of children) {
+            if (child.type === 'file') {
+              onFileDelete(child.path);
+            } else if (child.type === 'folder' && child.children) {
+              closeFolderFiles(child.children);
+            }
+          }
+        };
+        if (node.children) {
+          closeFolderFiles(node.children);
+        }
+      }
+    }
     toast({
       title: "Eliminado",
       description: node.name,

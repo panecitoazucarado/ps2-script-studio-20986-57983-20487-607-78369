@@ -134,6 +134,13 @@ export function IDELayoutContent() {
     setCode(newTabs[newActiveIndex].content || '');
   }, [openTabs, activeTabIndex, setOpenTabs]);
 
+  const handleFileDelete = useCallback((filePath: string) => {
+    const tabIndex = openTabs.findIndex(tab => tab.path === filePath);
+    if (tabIndex !== -1) {
+      handleTabClose(tabIndex);
+    }
+  }, [openTabs, handleTabClose]);
+
   const handleTabReorder = useCallback((fromIndex: number, toIndex: number) => {
     setOpenTabs((prev: FileNode[]) => {
       const newTabs = [...prev];
@@ -738,6 +745,7 @@ export function IDELayoutContent() {
             externalFileSystem={projectFiles}
             onProjectLoad={setProjectFiles}
             onFileSystemUpdate={handleFileSystemUpdate}
+            onFileDelete={handleFileDelete}
             onCloneRepository={handleOpenCloneDialog}
             onAIConsult={(file, action) => {
               if (!windows.aiChat.visible) {
@@ -950,6 +958,7 @@ export function IDELayoutContent() {
             externalFileSystem={projectFiles}
             onProjectLoad={setProjectFiles}
             onFileSystemUpdate={handleFileSystemUpdate}
+            onFileDelete={handleFileDelete}
             onCloneRepository={handleOpenCloneDialog}
             onAIConsult={(file, action) => {
               if (!windows.aiChat.visible) {
