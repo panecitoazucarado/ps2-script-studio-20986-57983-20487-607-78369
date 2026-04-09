@@ -17,6 +17,7 @@ import {
   RefreshCw,
   ChevronRight,
   ChevronDown,
+  Scissors,
   Download,
   Save,
   X,
