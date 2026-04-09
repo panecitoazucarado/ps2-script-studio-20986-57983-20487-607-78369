@@ -141,6 +141,12 @@ export function IDELayoutContent() {
     }
   }, [openTabs, handleTabClose]);
 
+  const handleFileRenameFromExplorer = useCallback((oldPath: string, newPath: string, newName: string) => {
+    setOpenTabs((prev: FileNode[]) => prev.map(tab => 
+      tab.path === oldPath ? { ...tab, path: newPath, name: newName } : tab
+    ));
+  }, [setOpenTabs]);
+
   const handleTabReorder = useCallback((fromIndex: number, toIndex: number) => {
     setOpenTabs((prev: FileNode[]) => {
       const newTabs = [...prev];
