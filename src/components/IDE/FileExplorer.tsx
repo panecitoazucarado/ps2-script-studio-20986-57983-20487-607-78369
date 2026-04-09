@@ -1033,6 +1033,7 @@ export function FileExplorer({
   onFileSystemUpdate, 
   onAIConsult,
   onFileDelete,
+  onFileRename,
   externalFileSystem,
   onCloneRepository
 }: FileExplorerProps) {
