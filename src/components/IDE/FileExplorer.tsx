@@ -108,6 +108,7 @@ interface FileExplorerProps {
   onFileSystemUpdate?: (files: FileNode[]) => void;
   onAIConsult?: (file: FileNode, action: 'consult' | 'analyze' | 'improve') => void;
   onFileDelete?: (filePath: string) => void;
+  onFileRename?: (oldPath: string, newPath: string, newName: string) => void;
   externalFileSystem?: FileNode[];
   onCloneRepository?: () => void;
 }
@@ -1032,6 +1033,7 @@ export function FileExplorer({
   onFileSystemUpdate, 
   onAIConsult,
   onFileDelete,
+  onFileRename,
   externalFileSystem,
   onCloneRepository
 }: FileExplorerProps) {
@@ -1662,6 +1664,12 @@ export function FileExplorer({
 
     const updatedFileSystem = renameFileInTree(fileSystem, oldNode.path, newName, newPath);
     updateFileSystem(updatedFileSystem);
+    
+    // Notify parent to update tab names
+    if (onFileRename) {
+      onFileRename(oldNode.path, newPath, newName);
+    }
+    
     setRenamingFile(null);
   };
 
