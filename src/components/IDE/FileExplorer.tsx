@@ -1031,6 +1031,7 @@ export function FileExplorer({
   onProjectLoad, 
   onFileSystemUpdate, 
   onAIConsult,
+  onFileDelete,
   externalFileSystem,
   onCloneRepository
 }: FileExplorerProps) {
