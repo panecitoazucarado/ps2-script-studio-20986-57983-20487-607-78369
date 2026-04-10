@@ -71,7 +71,11 @@ import {
   Container,
   Cloud,
   Link,
-  FileQuestion
+  FileQuestion,
+  ExternalLink,
+  Archive,
+  CopyPlus,
+  Pen,
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { FileNode } from '@/types/athena';
