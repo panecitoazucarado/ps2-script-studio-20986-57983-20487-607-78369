@@ -1941,6 +1941,8 @@ export function FileExplorer({
     const ext = name.split('.').pop()?.toLowerCase() || '';
     return ['mp3', 'wav', 'ogg', 'flac', 'aac', 'adp'].includes(ext);
   };
+
+  const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
