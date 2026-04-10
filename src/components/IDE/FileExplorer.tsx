@@ -2712,7 +2712,6 @@ export function FileExplorer({
                 </>
               )}
             </ContextMenuContent>
-            </ContextMenuContent>
           </ContextMenu>
           
           {node.type === 'folder' && 
