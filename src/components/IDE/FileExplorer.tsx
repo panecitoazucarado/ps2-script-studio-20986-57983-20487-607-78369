@@ -1810,7 +1810,137 @@ export function FileExplorer({
     onAIConsult?.(node, action);
   };
 
-  const formatBytes = (bytes: number): string => {
+  // === DUPLICATE ===
+  const handleDuplicate = (node: FileNode) => {
+    const ext = node.name.includes('.') ? '.' + node.name.split('.').pop() : '';
+    const baseName = ext ? node.name.slice(0, -ext.length) : node.name;
+    const newName = `${baseName} copia${ext}`;
+    const parentPath = node.path.split('/').slice(0, -1).join('/') || '/';
+    const newPath = parentPath === '/' ? `/${newName}` : `${parentPath}/${newName}`;
+
+    const deepClone = (n: FileNode, newBasePath: string): FileNode => {
+      const cloned: FileNode = { ...n, name: n === node ? newName : n.name, path: n === node ? newPath : newBasePath + '/' + n.name };
+      if (n.type === 'folder' && n.children) {
+        cloned.children = n.children.map(c => deepClone(c, cloned.path));
+      }
+      return cloned;
+    };
+
+    const clonedNode = deepClone(node, parentPath);
+    const updatedFS = addFileToTree(fileSystem, clonedNode, parentPath);
+    updateFileSystem(updatedFS);
+    toast({ title: "Duplicado", description: `${newName}` });
+  };
+
+  // === COMPRESS TO ZIP ===
+  const handleCompress = async (node: FileNode) => {
+    const zip = new JSZip();
+
+    const addToZip = (n: FileNode, folder: JSZip) => {
+      if (n.type === 'folder' && n.children) {
+        const sub = folder.folder(n.name);
+        if (sub) n.children.forEach(c => addToZip(c, sub));
+      } else if (n.type === 'file' && n.content) {
+        if (n.content.startsWith('data:')) {
+          const base64Data = n.content.split(',')[1];
+          folder.file(n.name, base64Data, { base64: true });
+        } else {
+          folder.file(n.name, n.content);
+        }
+      }
+    };
+
+    if (node.type === 'folder') {
+      const sub = zip.folder(node.name);
+      if (sub && node.children) node.children.forEach(c => addToZip(c, sub));
+    } else if (node.content) {
+      if (node.content.startsWith('data:')) {
+        zip.file(node.name, node.content.split(',')[1], { base64: true });
+      } else {
+        zip.file(node.name, node.content);
+      }
+    }
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${node.name.split('.')[0]}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({ title: "Comprimido", description: `${node.name}.zip descargado` });
+  };
+
+  // === MOVE TO TRASH (temporary folder) ===
+  const handleMoveToTrash = (node: FileNode) => {
+    // Ensure .Basurero folder exists
+    let updatedFS = [...fileSystem];
+    const trashFolder = updatedFS.find(n => n.name === '.Basurero' && n.type === 'folder');
+    if (!trashFolder) {
+      const newTrash: FileNode = {
+        name: '.Basurero',
+        type: 'folder',
+        path: '/.Basurero',
+        children: []
+      };
+      updatedFS = [...updatedFS, newTrash];
+    }
+
+    // Move node to trash
+    const trashedNode: FileNode = {
+      ...node,
+      path: `/.Basurero/${node.name}`,
+    };
+    if (trashedNode.type === 'folder' && trashedNode.children) {
+      const rebasePaths = (children: FileNode[], basePath: string): FileNode[] =>
+        children.map(c => ({
+          ...c,
+          path: `${basePath}/${c.name}`,
+          children: c.children ? rebasePaths(c.children, `${basePath}/${c.name}`) : undefined
+        }));
+      trashedNode.children = rebasePaths(trashedNode.children, trashedNode.path);
+    }
+
+    // Remove from original location
+    updatedFS = deleteFileFromTree(updatedFS, node.path);
+    // Add to trash
+    updatedFS = addFileToTree(updatedFS, trashedNode, '/.Basurero');
+    updateFileSystem(updatedFS);
+
+    // Close tabs
+    if (onFileDelete) {
+      if (node.type === 'file') {
+        onFileDelete(node.path);
+      } else if (node.type === 'folder' && node.children) {
+        const closeFolderFiles = (children: FileNode[]) => {
+          children.forEach(c => {
+            if (c.type === 'file') onFileDelete(c.path);
+            else if (c.children) closeFolderFiles(c.children);
+          });
+        };
+        closeFolderFiles(node.children);
+      }
+    }
+    toast({ title: "Movido al Basurero", description: node.name });
+  };
+
+  // === OPEN WITH specific tool ===
+  const isImageFile = (name: string) => {
+    const ext = name.split('.').pop()?.toLowerCase() || '';
+    return ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'ico', 'tga', 'dds'].includes(ext);
+  };
+
+  const isCodeFile = (name: string) => {
+    const ext = name.split('.').pop()?.toLowerCase() || '';
+    return ['js', 'ts', 'jsx', 'tsx', 'c', 'cpp', 'h', 'hpp', 's', 'asm', 'py', 'lua', 'sh', 'json', 'xml', 'html', 'css', 'glsl', 'vert', 'frag', 'vcl', 'dsm', 'md', 'txt', 'yaml', 'yml', 'ini', 'cfg', 'cnf', 'mak', 'ld', 'toml'].includes(ext);
+  };
+
+  const isAudioFile = (name: string) => {
+    const ext = name.split('.').pop()?.toLowerCase() || '';
+    return ['mp3', 'wav', 'ogg', 'flac', 'aac', 'adp'].includes(ext);
+  };
     if (bytes === 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
