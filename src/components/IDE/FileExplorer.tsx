@@ -2503,122 +2503,215 @@ export function FileExplorer({
               </div>
             </ContextMenuTrigger>
             
-            <ContextMenuContent className="w-60 p-1.5 rounded-xl bg-[hsl(var(--background)/0.82)] backdrop-blur-2xl border border-white/[0.08] shadow-[0_8px_40px_rgba(0,0,0,0.45),0_0_0_1px_rgba(255,255,255,0.04)_inset]">
-              {/* Edit Group */}
-              <ContextMenuItem 
-                onClick={() => { setRenamingFile(node); setRenameValue(node.name); }} 
-                className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors"
-              >
-                <Edit3 className="w-3.5 h-3.5 text-[hsl(var(--ps2-cyan))]" />
-                Renombrar
-                <span className="ml-auto text-[10px] text-muted-foreground/60 font-mono">F2</span>
-              </ContextMenuItem>
+            <ContextMenuContent className="w-64 p-1 rounded-2xl bg-[hsl(var(--background)/0.72)] backdrop-blur-3xl border border-white/[0.12] shadow-[0_24px_80px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.06)_inset,0_1px_0_rgba(255,255,255,0.08)_inset]">
               
-              <div className="my-1 mx-2 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-              
-              {/* Clipboard Group */}
-              <ContextMenuItem onClick={() => handleCopy(node)} className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors">
-                <Copy className="w-3.5 h-3.5 text-[hsl(var(--ps2-blue))]" />
-                Copiar
-                <span className="ml-auto text-[10px] text-muted-foreground/60 font-mono">⌘C</span>
-              </ContextMenuItem>
-              
-              <ContextMenuItem onClick={() => handleCut(node)} className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors">
-                <Scissors className="w-3.5 h-3.5 text-[hsl(var(--ps2-orange))]" />
-                Cortar
-                <span className="ml-auto text-[10px] text-muted-foreground/60 font-mono">⌘X</span>
-              </ContextMenuItem>
-              
-              {clipboard && (
-                <ContextMenuItem onClick={() => handlePasteAt(node)} className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors">
-                  <ClipboardPaste className="w-3.5 h-3.5 text-[hsl(var(--ps2-green))]" />
-                  Pegar {clipboard.operation === 'cut' ? '(mover)' : '(copiar)'}
-                  <span className="ml-auto text-[10px] text-muted-foreground/60 font-mono">⌘V</span>
-                </ContextMenuItem>
-              )}
-              
-              <div className="my-1 mx-2 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-
-              {/* Danger Zone */}
-              <ContextMenuItem 
-                onClick={() => handleDelete(node)} 
-                className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium text-red-400 hover:bg-red-500/[0.1] focus:bg-red-500/[0.12] focus:text-red-400 transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Eliminar
-                <span className="ml-auto text-[10px] text-red-400/50 font-mono">Del</span>
-              </ContextMenuItem>
-              
-              <div className="my-1 mx-2 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-              
-              {/* Info Group */}
-              {node.type === 'file' && (
-                <ContextMenuItem onClick={() => handleShowPreview(node)} className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors">
-                  <Eye className="w-3.5 h-3.5 text-[hsl(var(--ps2-green))]" />
-                  Vista previa
-                </ContextMenuItem>
-              )}
-              
-              <ContextMenuItem onClick={() => handleShowInfo(node)} className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors">
-                <Info className="w-3.5 h-3.5 text-[hsl(var(--ps2-blue))]" />
-                Información
-              </ContextMenuItem>
-              
-              <ContextMenuItem onClick={() => handleShowHistory(node)} className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors">
-                <History className="w-3.5 h-3.5 text-[hsl(var(--ps2-purple))]" />
-                Historial
-              </ContextMenuItem>
-              
-              {/* AI Actions */}
+              {/* === ABRIR === */}
               {node.type === 'file' && (
                 <>
-                  <div className="my-1 mx-2 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+                  <ContextMenuItem 
+                    onClick={() => onFileSelect(node)} 
+                    className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4 text-blue-400" />
+                    Abrir
+                  </ContextMenuItem>
                   
+                  {/* ABRIR CON submenu */}
                   <ContextMenuSub>
-                    <ContextMenuSubTrigger className="gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors">
-                      <Sparkles className="w-3.5 h-3.5 text-[hsl(var(--ps2-orange))]" />
+                    <ContextMenuSubTrigger className="gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors pl-10">
+                      Abrir con
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-52 p-1 rounded-2xl bg-[hsl(var(--background)/0.72)] backdrop-blur-3xl border border-white/[0.12] shadow-[0_24px_80px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.06)_inset]">
+                      {isCodeFile(node.name) && (
+                        <ContextMenuItem onClick={() => onFileSelect(node)} className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors">
+                          <Code2 className="w-4 h-4 text-blue-400" />
+                          Editor de Código
+                        </ContextMenuItem>
+                      )}
+                      {isImageFile(node.name) && (
+                        <ContextMenuItem onClick={() => { onFileSelect(node); }} className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors">
+                          <ImageIcon className="w-4 h-4 text-green-400" />
+                          Visor de Imágenes
+                        </ContextMenuItem>
+                      )}
+                      {isAudioFile(node.name) && (
+                        <ContextMenuItem onClick={() => onFileSelect(node)} className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors">
+                          <Music className="w-4 h-4 text-pink-400" />
+                          Reproductor de Audio
+                        </ContextMenuItem>
+                      )}
+                      <ContextMenuItem onClick={() => handleShowPreview(node)} className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors">
+                        <Eye className="w-4 h-4 text-emerald-400" />
+                        Vista Rápida
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  
+                  <div className="my-1.5 mx-3 h-px bg-gradient-to-r from-transparent via-white/[0.10] to-transparent" />
+                </>
+              )}
+
+              {/* === TRANSFERIR AL BASURERO === */}
+              <ContextMenuItem 
+                onClick={() => handleMoveToTrash(node)} 
+                className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
+              >
+                <Trash2 className="w-4 h-4 text-gray-400" />
+                Transferir al basurero
+              </ContextMenuItem>
+
+              {/* === BORRAR PERMANENTEMENTE === */}
+              <ContextMenuItem 
+                onClick={() => handleDelete(node)} 
+                className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium text-red-400 hover:bg-red-500/[0.12] focus:bg-red-500/[0.15] focus:text-red-400 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Borrar permanentemente
+                <span className="ml-auto text-[10px] text-red-400/40 font-mono">⌫</span>
+              </ContextMenuItem>
+              
+              <div className="my-1.5 mx-3 h-px bg-gradient-to-r from-transparent via-white/[0.10] to-transparent" />
+
+              {/* === OBTENER INFORMACIÓN === */}
+              <ContextMenuItem 
+                onClick={() => handleShowInfo(node)} 
+                className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
+              >
+                <Info className="w-4 h-4 text-blue-400" />
+                Obtener información
+                <span className="ml-auto text-[10px] text-muted-foreground/40 font-mono">⌘I</span>
+              </ContextMenuItem>
+
+              {/* === RENOMBRAR === */}
+              <ContextMenuItem 
+                onClick={() => { setRenamingFile(node); setRenameValue(node.name); }} 
+                className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
+              >
+                <Pen className="w-4 h-4 text-gray-400" />
+                Renombrar
+              </ContextMenuItem>
+
+              {/* === COMPRIMIR === */}
+              <ContextMenuItem 
+                onClick={() => handleCompress(node)} 
+                className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
+              >
+                <Archive className="w-4 h-4 text-gray-400" />
+                Comprimir "{node.name}"
+              </ContextMenuItem>
+
+              {/* === DUPLICAR === */}
+              <ContextMenuItem 
+                onClick={() => handleDuplicate(node)} 
+                className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
+              >
+                <CopyPlus className="w-4 h-4 text-gray-400" />
+                Duplicar
+              </ContextMenuItem>
+
+              {/* === VISTA RÁPIDA (file only) === */}
+              {node.type === 'file' && (
+                <ContextMenuItem 
+                  onClick={() => handleShowPreview(node)} 
+                  className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
+                >
+                  <Eye className="w-4 h-4 text-gray-400" />
+                  Vista rápida
+                  <span className="ml-auto text-[10px] text-muted-foreground/40 font-mono">Espacio</span>
+                </ContextMenuItem>
+              )}
+              
+              <div className="my-1.5 mx-3 h-px bg-gradient-to-r from-transparent via-white/[0.10] to-transparent" />
+
+              {/* === COPIAR / CORTAR / PEGAR === */}
+              <ContextMenuItem 
+                onClick={() => handleCopy(node)} 
+                className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
+              >
+                <Copy className="w-4 h-4 text-gray-400" />
+                Copiar
+                <span className="ml-auto text-[10px] text-muted-foreground/40 font-mono">⌘C</span>
+              </ContextMenuItem>
+              
+              <ContextMenuItem 
+                onClick={() => handleCut(node)} 
+                className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
+              >
+                <Scissors className="w-4 h-4 text-gray-400" />
+                Cortar
+                <span className="ml-auto text-[10px] text-muted-foreground/40 font-mono">⌘X</span>
+              </ContextMenuItem>
+
+              {clipboard && (
+                <ContextMenuItem 
+                  onClick={() => handlePasteAt(node)} 
+                  className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
+                >
+                  <ClipboardPaste className="w-4 h-4 text-gray-400" />
+                  Pegar {clipboard.operation === 'cut' ? '(mover aquí)' : ''}
+                  <span className="ml-auto text-[10px] text-muted-foreground/40 font-mono">⌘V</span>
+                </ContextMenuItem>
+              )}
+
+              {/* === HISTORIAL === */}
+              <div className="my-1.5 mx-3 h-px bg-gradient-to-r from-transparent via-white/[0.10] to-transparent" />
+              
+              <ContextMenuItem 
+                onClick={() => handleShowHistory(node)} 
+                className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
+              >
+                <History className="w-4 h-4 text-gray-400" />
+                Historial
+              </ContextMenuItem>
+
+              {/* === ACCIONES IA (submenu) === */}
+              {node.type === 'file' && (
+                <>
+                  <div className="my-1.5 mx-3 h-px bg-gradient-to-r from-transparent via-white/[0.10] to-transparent" />
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger className="gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors">
+                      <Sparkles className="w-4 h-4 text-orange-400" />
                       Acciones IA
                     </ContextMenuSubTrigger>
-                    <ContextMenuSubContent className="w-48 p-1.5 rounded-xl bg-[hsl(var(--background)/0.82)] backdrop-blur-2xl border border-white/[0.08] shadow-[0_8px_40px_rgba(0,0,0,0.45)]">
-                      <ContextMenuItem onClick={() => handleAIAction(node, 'consult')} className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors">
-                        <MessageSquare className="w-3.5 h-3.5 text-[hsl(var(--ps2-green))]" />
-                        Consultar
+                    <ContextMenuSubContent className="w-52 p-1 rounded-2xl bg-[hsl(var(--background)/0.72)] backdrop-blur-3xl border border-white/[0.12] shadow-[0_24px_80px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.06)_inset]">
+                      <ContextMenuItem onClick={() => handleAIAction(node, 'consult')} className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors">
+                        <MessageSquare className="w-4 h-4 text-green-400" />
+                        Consultar con IA
                       </ContextMenuItem>
-                      <ContextMenuItem onClick={() => handleAIAction(node, 'analyze')} className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors">
-                        <Sparkles className="w-3.5 h-3.5 text-[hsl(var(--ps2-orange))]" />
-                        Analizar
+                      <ContextMenuItem onClick={() => handleAIAction(node, 'analyze')} className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors">
+                        <Sparkles className="w-4 h-4 text-orange-400" />
+                        Analizar código
                       </ContextMenuItem>
-                      <ContextMenuItem onClick={() => handleAIAction(node, 'improve')} className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors">
-                        <Zap className="w-3.5 h-3.5 text-[hsl(var(--ps2-cyan))]" />
-                        Mejorar
+                      <ContextMenuItem onClick={() => handleAIAction(node, 'improve')} className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors">
+                        <Zap className="w-4 h-4 text-cyan-400" />
+                        Mejorar código
                       </ContextMenuItem>
                     </ContextMenuSubContent>
                   </ContextMenuSub>
                 </>
               )}
 
-              {/* New File/Folder for folders */}
+              {/* === NUEVO ARCHIVO/CARPETA (folders only) === */}
               {node.type === 'folder' && (
                 <>
-                  <div className="my-1 mx-2 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-                  
+                  <div className="my-1.5 mx-3 h-px bg-gradient-to-r from-transparent via-white/[0.10] to-transparent" />
                   <ContextMenuItem 
                     onClick={(e) => { e.stopPropagation(); setSelectedFolderPath(node.path); setShowNewFileDialog(true); }} 
-                    className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors"
+                    className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
                   >
-                    <FilePlus2 className="w-3.5 h-3.5 text-[hsl(var(--ps2-cyan))]" />
+                    <FilePlus2 className="w-4 h-4 text-cyan-400" />
                     Nuevo archivo
                   </ContextMenuItem>
-                  
                   <ContextMenuItem 
                     onClick={(e) => { e.stopPropagation(); setSelectedFolderPath(node.path); setShowNewFolderDialog(true); }} 
-                    className="gap-2.5 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-white/[0.06] focus:bg-white/[0.08] transition-colors"
+                    className="gap-3 cursor-pointer rounded-xl px-3 py-2.5 text-[13px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10] transition-colors"
                   >
-                    <FolderPlus className="w-3.5 h-3.5 text-[hsl(var(--ps2-orange))]" />
+                    <FolderPlus className="w-4 h-4 text-orange-400" />
                     Nueva carpeta
                   </ContextMenuItem>
                 </>
               )}
+            </ContextMenuContent>
             </ContextMenuContent>
           </ContextMenu>
           
