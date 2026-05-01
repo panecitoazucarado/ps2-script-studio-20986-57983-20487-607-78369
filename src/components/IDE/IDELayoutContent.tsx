@@ -6,6 +6,8 @@ import { ImageViewer } from './ImageViewer';
 import { PS2Preview } from './PS2Preview';
 import { AthenaWelcomeTab } from './AthenaWelcomeTab';
 import { AthenaAboutTab } from './AthenaAboutTab';
+import { CreateProjectWizardTab, CreateProjectPayload } from './CreateProjectWizardTab';
+import { loadAthenaBuild, buildIniContent, buildMainScript, buildHelloScript } from '@/lib/athena/builds';
 import { IDEHeader } from './IDEHeader';
 import { IDEStatusBar } from './IDEStatusBar';
 import { FloatingWindow } from './FloatingWindow';
@@ -67,7 +69,9 @@ export function IDELayoutContent() {
 
   const openTabs = openTabsState;
   const selectedFile = openTabs[activeTabIndex] || null;
-  const isWelcomeActive = selectedFile?.path === '/__welcome__' || selectedFile?.path === '/__about__';
+  const isWelcomeActive = selectedFile?.path === '/__welcome__'
+    || selectedFile?.path === '/__about__'
+    || selectedFile?.path === '/__create_project__';
   const hasNoTabs = openTabs.length === 0;
 
   const isImageFile = (filename: string): boolean => {
