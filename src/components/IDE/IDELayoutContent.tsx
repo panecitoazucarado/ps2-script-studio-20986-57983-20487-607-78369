@@ -923,6 +923,13 @@ export function IDELayoutContent() {
                     selectedFile?.path === '/__welcome__' ? (
                       <AthenaWelcomeTab
                         onCreateFile={(name, content) => {
+                          // The "Crear nuevo proyecto" hero CTA passes name='main.js'
+                          // Route it through the new wizard tab. Other quick-create
+                          // shortcuts (Nuevo archivo / Nuevo script) keep the old behavior.
+                          if (name === 'main.js') {
+                            handleOpenCreateWizard();
+                            return;
+                          }
                           const newFile: FileNode = { name, type: 'file', path: `/${name}`, content };
                           setProjectFiles(prev => [...prev, newFile]);
                           setFileSystemVersion(prev => prev + 1);
@@ -951,6 +958,11 @@ export function IDELayoutContent() {
                       />
                     ) : selectedFile?.path === '/__about__' ? (
                       <AthenaAboutTab />
+                    ) : selectedFile?.path === '/__create_project__' ? (
+                      <CreateProjectWizardTab
+                        onCreate={handleCreateProject}
+                        onCancel={handleCloseCreateWizard}
+                      />
                     ) : undefined
                   }
                   imageViewerContent={
