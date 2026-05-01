@@ -6,6 +6,8 @@ import { ImageViewer } from './ImageViewer';
 import { PS2Preview } from './PS2Preview';
 import { AthenaWelcomeTab } from './AthenaWelcomeTab';
 import { AthenaAboutTab } from './AthenaAboutTab';
+import { CreateProjectWizardTab, CreateProjectPayload } from './CreateProjectWizardTab';
+import { loadAthenaBuild, buildIniContent, buildMainScript, buildHelloScript } from '@/lib/athena/builds';
 import { IDEHeader } from './IDEHeader';
 import { IDEStatusBar } from './IDEStatusBar';
 import { FloatingWindow } from './FloatingWindow';
@@ -67,7 +69,9 @@ export function IDELayoutContent() {
 
   const openTabs = openTabsState;
   const selectedFile = openTabs[activeTabIndex] || null;
-  const isWelcomeActive = selectedFile?.path === '/__welcome__' || selectedFile?.path === '/__about__';
+  const isWelcomeActive = selectedFile?.path === '/__welcome__'
+    || selectedFile?.path === '/__about__'
+    || selectedFile?.path === '/__create_project__';
   const hasNoTabs = openTabs.length === 0;
 
   const isImageFile = (filename: string): boolean => {
@@ -176,6 +180,117 @@ export function IDELayoutContent() {
     setShowPreview(true);
     setIsRunning(true);
   }, []);
+
+  // Open the "Create new project" wizard inside a VS Code-like tab
+  const handleOpenCreateWizard = useCallback(() => {
+    const wizardTab: FileNode = {
+      name: 'Crear nuevo proyecto',
+      type: 'file',
+      path: '/__create_project__',
+      content: ''
+    };
+    const existing = openTabs.findIndex(t => t.path === '/__create_project__');
+    if (existing !== -1) {
+      setActiveTabIndex(existing);
+    } else {
+      setOpenTabs((prev: FileNode[]) => [...prev, wizardTab]);
+      setActiveTabIndex(openTabs.length);
+    }
+  }, [openTabs, setOpenTabs]);
+
+  const handleCloseCreateWizard = useCallback(() => {
+    const idx = openTabs.findIndex(t => t.path === '/__create_project__');
+    if (idx !== -1) handleTabClose(idx);
+  }, [openTabs, handleTabClose]);
+
+  // Build & inject project from wizard payload
+  const handleCreateProject = useCallback(async (payload: CreateProjectPayload) => {
+    const { kind, build, defaultScript, projectName } = payload;
+    const safeName = projectName.replace(/[^a-zA-Z0-9_\-]/g, '-') || 'mi-proyecto-ps2';
+    const root = `/${safeName}`;
+    const newFiles: FileNode[] = [];
+
+    try {
+      if (kind === 'lite') {
+        // Single script project
+        const mainContent = buildMainScript(defaultScript, safeName);
+        newFiles.push({
+          name: safeName,
+          type: 'folder',
+          path: root,
+          children: [
+            { name: defaultScript, type: 'file', path: `${root}/${defaultScript}`, content: mainContent },
+          ]
+        });
+      } else {
+        // full or hello — both need build
+        if (!build) {
+          toast.error('Debes elegir una versión de AthenaEnv.');
+          return;
+        }
+        toast.loading('Empaquetando athena.elf y athena.ini...', { id: 'create-proj' });
+        const loaded = await loadAthenaBuild(build);
+        const iniContent = buildIniContent(defaultScript);
+        const scriptContent = kind === 'hello'
+          ? buildHelloScript(safeName)
+          : buildMainScript(defaultScript, safeName);
+
+        const children: FileNode[] = [
+          { name: defaultScript, type: 'file', path: `${root}/${defaultScript}`, content: scriptContent },
+          { name: 'athena.ini', type: 'file', path: `${root}/athena.ini`, content: iniContent },
+          { name: 'athena.elf', type: 'file', path: `${root}/athena.elf`, content: `__BASE64__:${loaded.elfBase64}` },
+          { name: 'README.md', type: 'file', path: `${root}/README.md`, content:
+`# ${safeName}\n\nProyecto generado por **ATHENA STUDIOS** con el asistente.\n\n- Runtime: \`${loaded.versionLabel}\`\n- Script principal: \`${defaultScript}\`\n\n## ¿Cómo arranca tu juego?\n\n1. \`athena.elf\` se ejecuta en la PS2 (o en el preview).\n2. Lee \`athena.ini\` y mira la línea \`default_script = "${defaultScript}"\`.\n3. Carga ese script con QuickJS y lo ejecuta.\n\nCambia esa línea en \`athena.ini\` si quieres usar otro archivo .js como entrypoint.\n` },
+        ];
+
+        newFiles.push({
+          name: safeName,
+          type: 'folder',
+          path: root,
+          children
+        });
+        toast.dismiss('create-proj');
+      }
+
+      // Inject into project file system
+      setProjectFiles(prev => [...prev, ...newFiles]);
+      setFileSystemVersion(v => v + 1);
+
+      // Close the wizard tab
+      const wizIdx = openTabs.findIndex(t => t.path === '/__create_project__');
+      let tabsAfterClose = openTabs;
+      if (wizIdx !== -1) {
+        tabsAfterClose = openTabs.filter((_, i) => i !== wizIdx);
+      }
+
+      // Open the main script in a tab
+      const mainScriptNode = newFiles[0].children!.find(c => c.name === defaultScript)!;
+      const newTabs = [...tabsAfterClose, mainScriptNode];
+      setOpenTabsState(newTabs);
+      setActiveTabIndex(newTabs.length - 1);
+      setCode(mainScriptNode.content || '');
+
+      toast.success(`Proyecto "${safeName}" creado correctamente`, {
+        description: kind !== 'lite'
+          ? `Se copiaron athena.elf y athena.ini en /${safeName}`
+          : `Script ${defaultScript} listo para editar`,
+      });
+
+      // Floating teaching bubble about default_script
+      if (kind !== 'lite') {
+        setTimeout(() => {
+          toast.message('💡 ¿Cómo funciona athena.ini?', {
+            description: `La línea default_script = "${defaultScript}" dentro de athena.ini le dice a athena.elf qué archivo .js cargar al arrancar. Cámbiala si renombras tu script principal.`,
+            duration: 12000,
+          });
+        }, 800);
+      }
+    } catch (err) {
+      toast.dismiss('create-proj');
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      toast.error(`No se pudo crear el proyecto: ${msg}`);
+    }
+  }, [openTabs, setOpenTabsState]);
 
   const handleToggleRun = useCallback(() => {
     setIsRunning(prev => !prev);
@@ -808,6 +923,13 @@ export function IDELayoutContent() {
                     selectedFile?.path === '/__welcome__' ? (
                       <AthenaWelcomeTab
                         onCreateFile={(name, content) => {
+                          // The "Crear nuevo proyecto" hero CTA passes name='main.js'
+                          // Route it through the new wizard tab. Other quick-create
+                          // shortcuts (Nuevo archivo / Nuevo script) keep the old behavior.
+                          if (name === 'main.js') {
+                            handleOpenCreateWizard();
+                            return;
+                          }
                           const newFile: FileNode = { name, type: 'file', path: `/${name}`, content };
                           setProjectFiles(prev => [...prev, newFile]);
                           setFileSystemVersion(prev => prev + 1);
@@ -836,6 +958,11 @@ export function IDELayoutContent() {
                       />
                     ) : selectedFile?.path === '/__about__' ? (
                       <AthenaAboutTab />
+                    ) : selectedFile?.path === '/__create_project__' ? (
+                      <CreateProjectWizardTab
+                        onCreate={handleCreateProject}
+                        onCancel={handleCloseCreateWizard}
+                      />
                     ) : undefined
                   }
                   imageViewerContent={
