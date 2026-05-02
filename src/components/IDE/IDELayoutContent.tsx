@@ -342,39 +342,113 @@ export function IDELayoutContent() {
         `remote: Enumerating objects... \x1b[2m(connecting)\x1b[0m`
       ]);
 
-      // Use edge function to bypass CORS
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { data, error } = await supabase.functions.invoke('clone-github-repo', {
-        body: { owner, repo }
-      });
-
-      if (error) {
-        throw new Error(error.message || 'Error al conectar con el servidor');
+      // ─── Direct browser download from codeload.github.com (CORS-enabled, no server, no tokens) ───
+      // Detect default branch via GitHub public REST (no auth required for public repos)
+      let defaultBranch = 'main';
+      try {
+        const metaRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+          headers: { Accept: 'application/vnd.github+json' },
+        });
+        if (metaRes.ok) {
+          const meta = await metaRes.json();
+          if (meta?.default_branch) defaultBranch = meta.default_branch;
+        } else if (metaRes.status === 404) {
+          throw new Error(`Repositorio no encontrado: ${owner}/${repo}`);
+        }
+      } catch (e) {
+        // Network/api failure → fall back to common branches
+        if (e instanceof Error && e.message.startsWith('Repositorio no encontrado')) throw e;
       }
 
-      if (!data.success || !data.zipData) {
-        throw new Error(data.error || 'No se recibieron datos del repositorio');
+      const tryBranches = Array.from(new Set([defaultBranch, 'main', 'master']));
+      let zipResponse: Response | null = null;
+      let usedBranch = '';
+
+      for (const branch of tryBranches) {
+        const codeloadUrl = `https://codeload.github.com/${owner}/${repo}/zip/refs/heads/${branch}`;
+        setCloneProgress(prev => [...prev,
+          `remote: Resolving \x1b[1;36m${branch}\x1b[0m...`,
+        ]);
+        try {
+          const r = await fetch(codeloadUrl);
+          if (r.ok) {
+            zipResponse = r;
+            usedBranch = branch;
+            break;
+          }
+        } catch {
+          // try next branch
+        }
       }
 
-      const sizeKB = (data.size / 1024).toFixed(2);
-      const sizeMB = (data.size / (1024 * 1024)).toFixed(2);
-      const sizeDisplay = data.size > 1024 * 1024 ? `${sizeMB} MiB` : `${sizeKB} KiB`;
-      
-      setCloneProgress(prev => [...prev, 
-        `remote: Counting objects: \x1b[1;32mdone\x1b[0m`,
-        `remote: Compressing objects: 100% \x1b[1;32mdone\x1b[0m`,
-        `Receiving objects: 100% | \x1b[1;33m${sizeDisplay}\x1b[0m`,
+      if (!zipResponse) {
+        throw new Error('No se pudo descargar el repositorio. Verifica que sea público y la URL sea correcta.');
+      }
+
+      // Stream the response to track download progress
+      const contentLength = Number(zipResponse.headers.get('content-length') || 0);
+      const reader = zipResponse.body?.getReader();
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+      let lastReportedPct = -1;
+
+      if (reader) {
+        // Add a placeholder line we'll mutate via re-render
+        setCloneProgress(prev => [...prev,
+          `remote: Counting objects: \x1b[1;32mdone\x1b[0m`,
+          `remote: Compressing objects: \x1b[1;32mdone\x1b[0m`,
+          `Receiving objects:   0% (\x1b[1;33m0 B\x1b[0m)`,
+        ]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) {
+            chunks.push(value);
+            received += value.length;
+            const pct = contentLength > 0 ? Math.floor((received / contentLength) * 100) : -1;
+            const fmt = received > 1024 * 1024
+              ? `${(received / (1024 * 1024)).toFixed(2)} MiB`
+              : `${(received / 1024).toFixed(2)} KiB`;
+            if (pct !== lastReportedPct && (pct === -1 || pct % 5 === 0)) {
+              lastReportedPct = pct;
+              const label = pct >= 0
+                ? `Receiving objects: ${String(pct).padStart(3)}% (\x1b[1;33m${fmt}\x1b[0m)`
+                : `Receiving objects: \x1b[1;33m${fmt}\x1b[0m`;
+              setCloneProgress(prev => {
+                const next = [...prev];
+                next[next.length - 1] = label;
+                return next;
+              });
+            }
+          }
+        }
+      } else {
+        // Fallback: full buffer
+        const buf = new Uint8Array(await zipResponse.arrayBuffer());
+        chunks.push(buf);
+        received = buf.length;
+      }
+
+      // Concat chunks into a single Uint8Array
+      const bytes = new Uint8Array(received);
+      let offset = 0;
+      for (const c of chunks) {
+        bytes.set(c, offset);
+        offset += c.length;
+      }
+
+      const sizeMB = (received / (1024 * 1024)).toFixed(2);
+      const sizeKB = (received / 1024).toFixed(2);
+      const sizeDisplay = received > 1024 * 1024 ? `${sizeMB} MiB` : `${sizeKB} KiB`;
+
+      setCloneProgress(prev => [...prev,
+        `Receiving objects: 100% (\x1b[1;33m${sizeDisplay}\x1b[0m) \x1b[1;32mdone\x1b[0m`,
         `Resolving deltas: 100% \x1b[1;32mdone\x1b[0m`,
-        ''
+        '',
+        `Branch: \x1b[1;36m${usedBranch}\x1b[0m`,
+        'Unpacking objects: \x1b[2m(processing archive)\x1b[0m',
       ]);
-      setCloneProgress(prev => [...prev, 'Unpacking objects: \x1b[2m(processing archive)\x1b[0m']);
-
-      // Decode base64 to binary
-      const binaryString = atob(data.zipData);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
 
       const zip = new JSZip();
       const contents = await zip.loadAsync(bytes);
@@ -407,6 +481,27 @@ export function IDELayoutContent() {
         parent.children.push(created);
         folderCount++;
         return created;
+      };
+
+      // Detect binary-ish extensions to avoid mojibake from text decode
+      const BINARY_EXTS = new Set([
+        'png','jpg','jpeg','gif','webp','bmp','ico','tga','dds',
+        'mp3','wav','ogg','flac','m4a','aac',
+        'mp4','mkv','avi','mov','webm',
+        'zip','gz','tar','7z','rar',
+        'elf','iso','bin','dat','pak','adp','ss2','vag','vp6','m2v','pss',
+        'ttf','otf','woff','woff2',
+        'pdf','psd','ai','blend','fbx','obj',
+        'exe','dll','so','dylib',
+      ]);
+
+      const arrayBufferToBase64 = (buf: Uint8Array): string => {
+        let binary = '';
+        const chunk = 0x8000;
+        for (let i = 0; i < buf.length; i += chunk) {
+          binary += String.fromCharCode.apply(null, Array.from(buf.subarray(i, i + chunk)));
+        }
+        return btoa(binary);
       };
 
       for (const [entryPath, zipEntry] of Object.entries(contents.files)) {
@@ -445,8 +540,14 @@ export function IDELayoutContent() {
         if (currentFolder.children.some(n => n.type === 'file' && n.path === filePath)) continue;
 
         let content = '';
+        const extLower = fileName.includes('.') ? fileName.split('.').pop()!.toLowerCase() : '';
         try {
-          content = await zipEntry.async('text');
+          if (BINARY_EXTS.has(extLower)) {
+            const bin = await zipEntry.async('uint8array');
+            content = `__BASE64__:${arrayBufferToBase64(bin)}`;
+          } else {
+            content = await zipEntry.async('text');
+          }
         } catch {
           content = '[Binary file]';
         }
