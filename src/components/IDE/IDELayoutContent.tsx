@@ -21,9 +21,11 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   X, GripVertical, GitBranch, Terminal, Loader2, 
-  HelpCircle, Copy, CheckCircle2, XCircle, ExternalLink, Download, FileArchive, Gamepad2 
+  HelpCircle, Copy, CheckCircle2, XCircle, ExternalLink, Download, FileArchive, Gamepad2,
+  Github, Info, Folder, Code2, Sparkles
 } from 'lucide-react';
 import { useWindowDocking } from '@/contexts/WindowDockingContext';
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   Dialog,
   DialogContent,
