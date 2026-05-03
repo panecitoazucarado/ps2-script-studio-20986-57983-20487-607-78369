@@ -1394,6 +1394,9 @@ export function FileExplorer({
           if (node.content.startsWith('data:')) {
             const base64Data = node.content.split(',')[1];
             targetFolder.file(node.name, base64Data, { base64: true });
+          } else if (node.content.startsWith('__BASE64__:')) {
+            const base64Data = node.content.slice('__BASE64__:'.length);
+            targetFolder.file(node.name, base64Data, { base64: true });
           } else {
             targetFolder.file(node.name, node.content);
           }
@@ -1844,6 +1847,8 @@ export function FileExplorer({
         if (n.content.startsWith('data:')) {
           const base64Data = n.content.split(',')[1];
           folder.file(n.name, base64Data, { base64: true });
+        } else if (n.content.startsWith('__BASE64__:')) {
+          folder.file(n.name, n.content.slice('__BASE64__:'.length), { base64: true });
         } else {
           folder.file(n.name, n.content);
         }
@@ -1856,6 +1861,8 @@ export function FileExplorer({
     } else if (node.content) {
       if (node.content.startsWith('data:')) {
         zip.file(node.name, node.content.split(',')[1], { base64: true });
+      } else if (node.content.startsWith('__BASE64__:')) {
+        zip.file(node.name, node.content.slice('__BASE64__:'.length), { base64: true });
       } else {
         zip.file(node.name, node.content);
       }
