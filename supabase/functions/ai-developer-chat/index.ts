@@ -86,7 +86,7 @@ serve(async (req) => {
             { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        throw new Error(`Error al analizar imagen: ${visionResponse.status} - ${errorText}`);
+        throw new Error('Error al analizar imagen');
       }
 
       console.log('✅ Imagen analizada correctamente');
@@ -591,15 +591,48 @@ Cuando generes código, SIEMPRE:
 
     // Procesar tool calls si existen
     const fileOperations: any[] = [];
+    const ALLOWED_OPS = new Set([
+      'create_file', 'update_file', 'create_folder', 'delete_file', 'rename_file', 'move_file'
+    ]);
+    const isSafePath = (p: unknown): p is string => {
+      if (typeof p !== 'string' || p.length === 0 || p.length > 1024) return false;
+      if (p.includes('..')) return false;
+      if (p.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(p)) return false;
+      // eslint-disable-next-line no-control-regex
+      if (/[\x00-\x1f]/.test(p)) return false;
+      return true;
+    };
     if (message.tool_calls && message.tool_calls.length > 0) {
       for (const toolCall of message.tool_calls) {
         const functionName = toolCall.function.name;
-        const args = JSON.parse(toolCall.function.arguments);
-        
-        fileOperations.push({
-          operation: functionName,
-          ...args
-        });
+        if (!ALLOWED_OPS.has(functionName)) {
+          console.error('Operación no permitida ignorada:', functionName);
+          continue;
+        }
+        let args: any;
+        try {
+          args = JSON.parse(toolCall.function.arguments);
+        } catch (e) {
+          console.error('Argumentos de tool inválidos (no es JSON)');
+          continue;
+        }
+        if (!args || typeof args !== 'object' || Array.isArray(args)) {
+          console.error('Argumentos de tool inválidos (no es objeto)');
+          continue;
+        }
+        if ('path' in args && !isSafePath(args.path)) {
+          console.error('Ruta inválida detectada en tool call');
+          continue;
+        }
+        if ('new_path' in args && !isSafePath(args.new_path)) {
+          console.error('Ruta destino inválida detectada en tool call');
+          continue;
+        }
+        if ('content' in args && typeof args.content === 'string' && args.content.length > 1_000_000) {
+          console.error('Contenido de archivo demasiado grande, ignorado');
+          continue;
+        }
+        fileOperations.push({ operation: functionName, ...args });
       }
     }
 
@@ -617,7 +650,7 @@ Cuando generes código, SIEMPRE:
   } catch (error: any) {
     console.error('Error en ai-developer-chat:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Servicio temporalmente no disponible' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
