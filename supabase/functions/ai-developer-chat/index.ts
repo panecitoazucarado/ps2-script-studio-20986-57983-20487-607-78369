@@ -86,7 +86,7 @@ serve(async (req) => {
             { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        throw new Error(`Error al analizar imagen: ${visionResponse.status} - ${errorText}`);
+        throw new Error('Error al analizar imagen');
       }
 
       console.log('✅ Imagen analizada correctamente');
