@@ -36,11 +36,13 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`GitHub API error: ${response.status} - ${errorText}`);
+      const clientMessage = response.status === 404
+        ? 'Repositorio no encontrado o no es público'
+        : response.status === 403
+        ? 'Acceso denegado por GitHub (posible límite de tasa)'
+        : 'No se pudo obtener el repositorio';
       return new Response(
-        JSON.stringify({ 
-          error: `GitHub error: ${response.status}`,
-          details: response.status === 404 ? 'Repositorio no encontrado' : errorText
-        }),
+        JSON.stringify({ error: clientMessage }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -66,9 +68,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error cloning repository:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido al clonar';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Error interno al clonar el repositorio' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
