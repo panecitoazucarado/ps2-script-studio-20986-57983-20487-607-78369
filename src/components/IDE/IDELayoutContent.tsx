@@ -31,7 +31,6 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 import { toast } from 'sonner';
-import JSZip from 'jszip';
 
 export function IDELayoutContent() {
   const { windows, undockWindow, dockingEnabled, toggleWindowVisibility } = useWindowDocking();
@@ -326,14 +325,57 @@ export function IDELayoutContent() {
     ]);
 
     try {
-      // Parse GitHub URL to get owner and repo
-      const urlMatch = repoUrl.match(/github\.com[\/:]([^\/]+)\/([^\/\.]+)/);
-      if (!urlMatch) {
-        throw new Error('URL de GitHub no válida. Formato esperado: https://github.com/owner/repo');
-      }
+      // Parse and sanitize GitHub URL / command input
+      const parseGitHubRepository = (input: string) => {
+        let clean = input.trim()
+          .replace(/^git\s+clone\s+/i, '')
+          .replace(/^gh\s+repo\s+clone\s+/i, '')
+          .replace(/^['"]|['"]$/g, '')
+          .trim();
 
-      const [, owner, repoName] = urlMatch;
-      const repo = repoName.replace(/\.git$/, ''); // Remove .git suffix if present
+        // The terminal accepts pasted commands/comments, so keep only the repository token.
+        clean = clean.split(/\s+/)[0]?.trim() || '';
+        if (!clean) {
+          throw new Error('URL de GitHub no válida. Formato esperado: https://github.com/owner/repo.git');
+        }
+
+        const sshMatch = clean.match(/^git@github\.com:([^/\s]+)\/(.+?)(?:\.git)?[/?#]?$/i);
+        if (sshMatch) {
+          const owner = sshMatch[1];
+          const repo = sshMatch[2].replace(/\.git$/i, '').replace(/[/?#].*$/, '');
+          return { owner, repo };
+        }
+
+        if (/^[\w.-]+\/[\w.-]+(?:\.git)?$/i.test(clean)) {
+          const [owner, rawRepo] = clean.split('/');
+          return { owner, repo: rawRepo.replace(/\.git$/i, '') };
+        }
+
+        if (!/^https?:\/\//i.test(clean)) clean = `https://${clean}`;
+
+        try {
+          const parsed = new URL(clean);
+          if (!/^(www\.)?github\.com$/i.test(parsed.hostname)) {
+            throw new Error('host');
+          }
+          const [owner, rawRepo] = parsed.pathname.split('/').filter(Boolean);
+          const repo = (rawRepo || '').replace(/\.git$/i, '');
+          if (!owner || !repo) throw new Error('path');
+          return { owner, repo };
+        } catch {
+          throw new Error('URL de GitHub no válida. Formato esperado: https://github.com/owner/repo.git');
+        }
+      };
+
+      const assertSafeGitHubName = (value: string, label: string) => {
+        if (!/^[A-Za-z0-9_.-]+$/.test(value)) {
+          throw new Error(`${label} de GitHub inválido: ${value}`);
+        }
+      };
+
+      const { owner, repo } = parseGitHubRepository(repoUrl);
+      assertSafeGitHubName(owner, 'Usuario');
+      assertSafeGitHubName(repo, 'Repositorio');
 
       setCloneProgress(prev => [...prev, 
         `\x1b[1;33m$\x1b[0m git clone https://github.com/${owner}/${repo}.git`,
@@ -342,123 +384,67 @@ export function IDELayoutContent() {
         `remote: Enumerating objects... \x1b[2m(connecting)\x1b[0m`
       ]);
 
-      // ─── Direct browser download from codeload.github.com (CORS-enabled, no server, no tokens) ───
-      // Detect default branch via GitHub public REST (no auth required for public repos)
-      let defaultBranch = 'main';
-      try {
-        const metaRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-          headers: { Accept: 'application/vnd.github+json' },
+      // GitHub codeload ZIP blocks browser origins in the preview. Clone through the public
+      // GitHub REST API instead: metadata → recursive tree → raw file contents.
+      const githubJson = async <T,>(url: string): Promise<T> => {
+        const response = await fetch(url, {
+          headers: {
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
         });
-        if (metaRes.ok) {
-          const meta = await metaRes.json();
-          if (meta?.default_branch) defaultBranch = meta.default_branch;
-        } else if (metaRes.status === 404) {
-          throw new Error(`Repositorio no encontrado: ${owner}/${repo}`);
-        }
-      } catch (e) {
-        // Network/api failure → fall back to common branches
-        if (e instanceof Error && e.message.startsWith('Repositorio no encontrado')) throw e;
-      }
 
-      const tryBranches = Array.from(new Set([defaultBranch, 'main', 'master']));
-      let zipResponse: Response | null = null;
-      let usedBranch = '';
-
-      for (const branch of tryBranches) {
-        const codeloadUrl = `https://codeload.github.com/${owner}/${repo}/zip/refs/heads/${branch}`;
-        setCloneProgress(prev => [...prev,
-          `remote: Resolving \x1b[1;36m${branch}\x1b[0m...`,
-        ]);
-        try {
-          const r = await fetch(codeloadUrl);
-          if (r.ok) {
-            zipResponse = r;
-            usedBranch = branch;
-            break;
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error(`Repositorio no encontrado o privado: ${owner}/${repo}`);
           }
-        } catch {
-          // try next branch
-        }
-      }
-
-      if (!zipResponse) {
-        throw new Error('No se pudo descargar el repositorio. Verifica que sea público y la URL sea correcta.');
-      }
-
-      // Stream the response to track download progress
-      const contentLength = Number(zipResponse.headers.get('content-length') || 0);
-      const reader = zipResponse.body?.getReader();
-      const chunks: Uint8Array[] = [];
-      let received = 0;
-      let lastReportedPct = -1;
-
-      if (reader) {
-        // Add a placeholder line we'll mutate via re-render
-        setCloneProgress(prev => [...prev,
-          `remote: Counting objects: \x1b[1;32mdone\x1b[0m`,
-          `remote: Compressing objects: \x1b[1;32mdone\x1b[0m`,
-          `Receiving objects:   0% (\x1b[1;33m0 B\x1b[0m)`,
-        ]);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (value) {
-            chunks.push(value);
-            received += value.length;
-            const pct = contentLength > 0 ? Math.floor((received / contentLength) * 100) : -1;
-            const fmt = received > 1024 * 1024
-              ? `${(received / (1024 * 1024)).toFixed(2)} MiB`
-              : `${(received / 1024).toFixed(2)} KiB`;
-            if (pct !== lastReportedPct && (pct === -1 || pct % 5 === 0)) {
-              lastReportedPct = pct;
-              const label = pct >= 0
-                ? `Receiving objects: ${String(pct).padStart(3)}% (\x1b[1;33m${fmt}\x1b[0m)`
-                : `Receiving objects: \x1b[1;33m${fmt}\x1b[0m`;
-              setCloneProgress(prev => {
-                const next = [...prev];
-                next[next.length - 1] = label;
-                return next;
-              });
-            }
+          if (response.status === 403) {
+            throw new Error('GitHub limitó temporalmente las peticiones públicas. Intenta de nuevo en unos minutos.');
           }
+          throw new Error(`GitHub respondió ${response.status}. No se pudo leer el repositorio.`);
         }
-      } else {
-        // Fallback: full buffer
-        const buf = new Uint8Array(await zipResponse.arrayBuffer());
-        chunks.push(buf);
-        received = buf.length;
-      }
 
-      // Concat chunks into a single Uint8Array
-      const bytes = new Uint8Array(received);
-      let offset = 0;
-      for (const c of chunks) {
-        bytes.set(c, offset);
-        offset += c.length;
-      }
+        return response.json() as Promise<T>;
+      };
 
-      const sizeMB = (received / (1024 * 1024)).toFixed(2);
-      const sizeKB = (received / 1024).toFixed(2);
-      const sizeDisplay = received > 1024 * 1024 ? `${sizeMB} MiB` : `${sizeKB} KiB`;
+      type GitHubRepoMeta = { default_branch?: string };
+      type GitHubBranch = { commit?: { sha?: string } };
+      type GitHubTreeItem = {
+        path: string;
+        type: 'blob' | 'tree' | 'commit';
+        size?: number;
+      };
+      type GitHubTree = { tree?: GitHubTreeItem[]; truncated?: boolean };
+
+      const meta = await githubJson<GitHubRepoMeta>(`https://api.github.com/repos/${owner}/${repo}`);
+      const defaultBranch = meta.default_branch || 'main';
 
       setCloneProgress(prev => [...prev,
-        `Receiving objects: 100% (\x1b[1;33m${sizeDisplay}\x1b[0m) \x1b[1;32mdone\x1b[0m`,
-        `Resolving deltas: 100% \x1b[1;32mdone\x1b[0m`,
-        '',
-        `Branch: \x1b[1;36m${usedBranch}\x1b[0m`,
-        'Unpacking objects: \x1b[2m(processing archive)\x1b[0m',
+        `remote: Resolving \x1b[1;36m${defaultBranch}\x1b[0m...`,
       ]);
 
-      const zip = new JSZip();
-      const contents = await zip.loadAsync(bytes);
+      const encodedBranch = encodeURIComponent(defaultBranch);
+      const branchInfo = await githubJson<GitHubBranch>(`https://api.github.com/repos/${owner}/${repo}/branches/${encodedBranch}`);
+      const treeSha = branchInfo.commit?.sha || defaultBranch;
+      const treeData = await githubJson<GitHubTree>(`https://api.github.com/repos/${owner}/${repo}/git/trees/${treeSha}?recursive=1`);
+      const treeEntries = (treeData.tree || []).filter(item => item.path && item.type !== 'commit');
+      const blobEntries = treeEntries.filter(item => item.type === 'blob');
 
-      const totalEntries = Object.keys(contents.files).length;
-      setCloneProgress(prev => [...prev, `Unpacking objects: 100% (${totalEntries}/${totalEntries}) \x1b[1;32mdone\x1b[0m`]);
+      if (!treeEntries.length) {
+        throw new Error('El repositorio está vacío o GitHub no devolvió archivos para clonar.');
+      }
 
-      // Convert zip contents to FileNode tree (robust: creates missing intermediate folders)
-      const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const rootFolderName = Object.keys(contents.files)[0]?.split('/')[0] || repo;
+      if (treeData.truncated) {
+        setCloneProgress(prev => [...prev,
+          `remote: \x1b[1;33mwarning\x1b[0m el árbol del repositorio fue truncado por GitHub; se cargarán los archivos disponibles.`,
+        ]);
+      }
+
+      setCloneProgress(prev => [...prev,
+        `remote: Counting objects: \x1b[1;32m${treeEntries.length}\x1b[0m`,
+        `remote: Compressing objects: \x1b[1;32mdone\x1b[0m`,
+        `Receiving objects:   0% (\x1b[1;33m0/${blobEntries.length} files\x1b[0m)`,
+      ]);
 
       const repoRoot: FileNode = {
         name: repo,
@@ -469,6 +455,7 @@ export function IDELayoutContent() {
 
       let fileCount = 0;
       let folderCount = 0;
+      let received = 0;
       const fileTypes: Record<string, number> = {};
       const allFiles: string[] = [];
 
@@ -483,7 +470,15 @@ export function IDELayoutContent() {
         return created;
       };
 
-      // Detect binary-ish extensions to avoid mojibake from text decode
+      const ensureFolderPath = (parts: string[]) => {
+        let currentFolder = repoRoot;
+        for (const part of parts.filter(Boolean)) {
+          currentFolder = getOrCreateFolder(currentFolder, part);
+        }
+        return currentFolder;
+      };
+
+      // Detect binary-ish extensions to avoid mojibake from text decode.
       const BINARY_EXTS = new Set([
         'png','jpg','jpeg','gif','webp','bmp','ico','tga','dds',
         'mp3','wav','ogg','flac','m4a','aac',
@@ -492,7 +487,7 @@ export function IDELayoutContent() {
         'elf','iso','bin','dat','pak','adp','ss2','vag','vp6','m2v','pss',
         'ttf','otf','woff','woff2',
         'pdf','psd','ai','blend','fbx','obj',
-        'exe','dll','so','dylib',
+        'exe','dll','so','dylib','o','a',
       ]);
 
       const arrayBufferToBase64 = (buf: Uint8Array): string => {
@@ -504,53 +499,52 @@ export function IDELayoutContent() {
         return btoa(binary);
       };
 
-      for (const [entryPath, zipEntry] of Object.entries(contents.files)) {
-        // Remove the GitHub zipball root folder prefix
-        const relativePathRaw = entryPath.replace(new RegExp(`^${escapeRegExp(rootFolderName)}/?`), '');
-        const relativePath = relativePathRaw.replace(/\\/g, '/');
-        if (!relativePath) continue;
-
-        const isDir = zipEntry.dir || relativePath.endsWith('/');
-        const cleanPath = relativePath.replace(/\/$/, '');
-        if (!cleanPath) continue;
-
-        const parts = cleanPath.split('/').filter(Boolean);
-        if (parts.length === 0) continue;
-
-        // Walk / create folders
-        let currentFolder = repoRoot;
-        const folderParts = isDir ? parts : parts.slice(0, -1);
-        for (const part of folderParts) {
-          currentFolder = getOrCreateFolder(currentFolder, part);
-        }
-
-        if (isDir) continue;
-
-        // Create file
-        const fileName = parts[parts.length - 1];
-        const filePath = `${currentFolder.path}/${fileName}`;
-
-        // Track file extension
-        const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() || 'other' : 'no-ext';
-        fileTypes[ext] = (fileTypes[ext] || 0) + 1;
-        allFiles.push(cleanPath);
-
-        // Avoid duplicates
-        currentFolder.children ||= [];
-        if (currentFolder.children.some(n => n.type === 'file' && n.path === filePath)) continue;
-
-        let content = '';
-        const extLower = fileName.includes('.') ? fileName.split('.').pop()!.toLowerCase() : '';
+      const decodeText = (bytes: Uint8Array): string => {
         try {
-          if (BINARY_EXTS.has(extLower)) {
-            const bin = await zipEntry.async('uint8array');
-            content = `__BASE64__:${arrayBufferToBase64(bin)}`;
-          } else {
-            content = await zipEntry.async('text');
-          }
+          return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
         } catch {
-          content = '[Binary file]';
+          return Array.from(bytes).map(byte => String.fromCharCode(byte)).join('');
         }
+      };
+
+      const branchPath = defaultBranch.split('/').map(encodeURIComponent).join('/');
+      const rawFileUrl = (path: string) =>
+        `https://raw.githubusercontent.com/${owner}/${repo}/${branchPath}/${path.split('/').map(encodeURIComponent).join('/')}`;
+
+      for (const entry of treeEntries.filter(item => item.type === 'tree')) {
+        ensureFolderPath(entry.path.split('/'));
+      }
+
+      let processedFiles = 0;
+      let lastReportedPct = -1;
+      const concurrency = 6;
+      let nextIndex = 0;
+
+      const processBlob = async (entry: GitHubTreeItem) => {
+        const cleanPath = entry.path.replace(/^\/+/, '').replace(/\/+$/, '');
+        const parts = cleanPath.split('/').filter(Boolean);
+        if (!parts.length) return;
+
+        const fileName = parts[parts.length - 1];
+        const currentFolder = ensureFolderPath(parts.slice(0, -1));
+        currentFolder.children ||= [];
+
+        const filePath = `${currentFolder.path}/${fileName}`;
+        if (currentFolder.children.some(n => n.type === 'file' && n.path === filePath)) return;
+
+        const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() || 'other' : 'no-ext';
+        const extLower = ext === 'no-ext' ? '' : ext;
+
+        const response = await fetch(rawFileUrl(cleanPath), { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`No se pudo descargar ${cleanPath} (${response.status})`);
+        }
+
+        const buffer = new Uint8Array(await response.arrayBuffer());
+        received += buffer.byteLength;
+
+        const isBinary = BINARY_EXTS.has(extLower);
+        const content = isBinary ? `__BASE64__:${arrayBufferToBase64(buffer)}` : decodeText(buffer);
 
         currentFolder.children.push({
           name: fileName,
@@ -559,8 +553,46 @@ export function IDELayoutContent() {
           content
         });
 
+        fileTypes[ext] = (fileTypes[ext] || 0) + 1;
+        allFiles.push(cleanPath);
         fileCount++;
-      }
+        processedFiles++;
+
+        const pct = blobEntries.length > 0 ? Math.floor((processedFiles / blobEntries.length) * 100) : 100;
+        if (pct !== lastReportedPct && (pct === 100 || pct % 5 === 0 || processedFiles === 1)) {
+          lastReportedPct = pct;
+          const fmt = received > 1024 * 1024
+            ? `${(received / (1024 * 1024)).toFixed(2)} MiB`
+            : `${(received / 1024).toFixed(2)} KiB`;
+          setCloneProgress(prev => {
+            const next = [...prev];
+            next[next.length - 1] = `Receiving objects: ${String(pct).padStart(3)}% (\x1b[1;33m${processedFiles}/${blobEntries.length} files, ${fmt}\x1b[0m)`;
+            return next;
+          });
+        }
+      };
+
+      const workers = Array.from({ length: Math.min(concurrency, Math.max(blobEntries.length, 1)) }, async () => {
+        while (nextIndex < blobEntries.length) {
+          const currentIndex = nextIndex++;
+          await processBlob(blobEntries[currentIndex]);
+        }
+      });
+
+      await Promise.all(workers);
+
+      const sizeMB = (received / (1024 * 1024)).toFixed(2);
+      const sizeKB = (received / 1024).toFixed(2);
+      const sizeDisplay = received > 1024 * 1024 ? `${sizeMB} MiB` : `${sizeKB} KiB`;
+
+      setCloneProgress(prev => [...prev,
+        `Receiving objects: 100% (\x1b[1;33m${sizeDisplay}\x1b[0m) \x1b[1;32mdone\x1b[0m`,
+        `Resolving deltas: 100% \x1b[1;32mdone\x1b[0m`,
+        '',
+        `Branch: \x1b[1;36m${defaultBranch}\x1b[0m`,
+        'Unpacking objects: \x1b[2m(creating file tree)\x1b[0m',
+        `Unpacking objects: 100% (${treeEntries.length}/${treeEntries.length}) \x1b[1;32mdone\x1b[0m`
+      ]);
 
       const sortTree = (nodes: FileNode[]) => {
         nodes.sort((a, b) => {
@@ -609,8 +641,8 @@ export function IDELayoutContent() {
         .slice(0, 8);
 
       const typeStatsLines = sortedTypes.map(([ext, count]) => {
-        const bar = '█'.repeat(Math.min(Math.ceil(count / fileCount * 20), 20));
-        const pct = ((count / fileCount) * 100).toFixed(1);
+        const bar = '█'.repeat(Math.min(Math.ceil(count / Math.max(fileCount, 1) * 20), 20));
+        const pct = ((count / Math.max(fileCount, 1)) * 100).toFixed(1);
         return `  \x1b[0;36m.${ext.padEnd(12)}\x1b[0m ${String(count).padStart(4)} files \x1b[0;32m${bar}\x1b[0m ${pct}%`;
       });
 
