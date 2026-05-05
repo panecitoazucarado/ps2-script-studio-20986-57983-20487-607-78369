@@ -1334,23 +1334,19 @@ export function FileExplorer({
       const files = target.files;
       
       if (!files || files.length === 0) return;
-      
+      let workingFS = fileSystem;
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const content = await readFileContent(file);
-        
         const newFile: FileNode = {
           name: file.name,
           type: 'file',
           path: selectedFolderPath === '/' ? `/${file.name}` : `${selectedFolderPath}/${file.name}`,
           content
         };
-        
-        const updatedFS = addFileToTree(fileSystem, newFile, selectedFolderPath);
-        setFileSystem(updatedFS);
+        workingFS = addFileToTree(workingFS, newFile, selectedFolderPath);
       }
-      
-      onFileSystemUpdate?.(fileSystem);
+      updateFileSystem(workingFS);
       toast({
         title: "Archivos importados",
         description: `${files.length} archivo(s) agregado(s)`,
@@ -2514,22 +2510,19 @@ export function FileExplorer({
     
     const files = e.dataTransfer.files;
     if (files.length > 0) {
+      let workingFS = fileSystem;
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const content = await readFileContent(file);
-        
         const newFile: FileNode = {
           name: file.name,
           type: 'file',
           path: selectedFolderPath === '/' ? `/${file.name}` : `${selectedFolderPath}/${file.name}`,
           content
         };
-        
-        const updatedFS = addFileToTree(fileSystem, newFile, selectedFolderPath);
-        setFileSystem(updatedFS);
+        workingFS = addFileToTree(workingFS, newFile, selectedFolderPath);
       }
-      
-      onFileSystemUpdate?.(fileSystem);
+      updateFileSystem(workingFS);
       toast({
         title: "Archivos agregados",
         description: `${files.length} archivo(s)`,
