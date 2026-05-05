@@ -3098,6 +3098,38 @@ export function FileExplorer({
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Clear Project Confirmation */}
+      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <AlertDialogContent className="border-white/10 bg-popover/95 backdrop-blur-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-4 h-4" />
+              Limpiar proyecto
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs leading-relaxed">
+              Se eliminarán <strong>todos los archivos y carpetas</strong> del explorador y se cerrarán todas las pestañas abiertas.
+              <br />
+              Esta acción <strong>no se puede deshacer</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-8 text-xs">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setFileSystem([]);
+                updateFileSystem([]);
+                onProjectClear?.();
+                setShowClearConfirm(false);
+                toast({ title: 'Proyecto limpiado', description: 'Se eliminaron todos los archivos y se cerraron las pestañas.' });
+              }}
+              className="h-8 text-xs bg-destructive hover:bg-destructive/90"
+            >
+              Sí, limpiar todo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
