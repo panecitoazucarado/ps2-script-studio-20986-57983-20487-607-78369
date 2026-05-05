@@ -105,6 +105,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface FileExplorerProps {
   onFileSelect: (file: FileNode) => void;
@@ -116,6 +126,7 @@ interface FileExplorerProps {
   onFileRename?: (oldPath: string, newPath: string, newName: string) => void;
   externalFileSystem?: FileNode[];
   onCloneRepository?: () => void;
+  onProjectClear?: () => void;
 }
 
 interface FileMetadata {
@@ -1040,7 +1051,8 @@ export function FileExplorer({
   onFileDelete,
   onFileRename,
   externalFileSystem,
-  onCloneRepository
+  onCloneRepository,
+  onProjectClear
 }: FileExplorerProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set([]));
   const [searchTerm, setSearchTerm] = useState('');
@@ -1066,6 +1078,7 @@ export function FileExplorer({
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [fileMetadata, setFileMetadata] = useState<FileMetadata | null>(null);
   const [fileHistory, setFileHistory] = useState<FileHistory[]>([]);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   
   // Double click detection
   const lastClickTime = useRef<number>(0);
@@ -2719,24 +2732,44 @@ export function FileExplorer({
                   <MoreVertical className="w-3.5 h-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={handleFolderImport} className="gap-2">
-                  <Upload className="w-4 h-4" />
-                  Importar Proyecto
+              <DropdownMenuContent
+                align="end"
+                sideOffset={6}
+                className="w-44 p-1 rounded-lg border border-white/10 bg-popover/95 backdrop-blur-xl shadow-2xl"
+              >
+                <div className="px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  Proyecto
+                </div>
+                <DropdownMenuItem
+                  onClick={handleFolderImport}
+                  className="gap-2 h-7 px-2 text-[11px] rounded-md cursor-pointer focus:bg-white/[0.07]"
+                >
+                  <Upload className="w-3.5 h-3.5 text-cyan-400" />
+                  Importar carpeta
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleFilesImport} className="gap-2">
-                  <FilePlus2 className="w-4 h-4" />
-                  Importar Archivos
+                <DropdownMenuItem
+                  onClick={handleFilesImport}
+                  className="gap-2 h-7 px-2 text-[11px] rounded-md cursor-pointer focus:bg-white/[0.07]"
+                >
+                  <FilePlus2 className="w-3.5 h-3.5 text-emerald-400" />
+                  Importar archivos
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleExportProject} disabled={fileSystem.length === 0} className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Exportar como ZIP
+                <DropdownMenuItem
+                  onClick={handleExportProject}
+                  disabled={fileSystem.length === 0}
+                  className="gap-2 h-7 px-2 text-[11px] rounded-md cursor-pointer focus:bg-white/[0.07]"
+                >
+                  <Download className="w-3.5 h-3.5 text-blue-400" />
+                  Exportar .zip
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => { setFileSystem([]); updateFileSystem([]); }} className="gap-2 text-destructive">
-                  <RefreshCw className="w-4 h-4" />
-                  Limpiar Proyecto
+                <div className="my-1 h-px bg-white/[0.06]" />
+                <DropdownMenuItem
+                  onClick={() => setShowClearConfirm(true)}
+                  disabled={fileSystem.length === 0}
+                  className="gap-2 h-7 px-2 text-[11px] rounded-md cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Limpiar proyecto
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -3065,6 +3098,38 @@ export function FileExplorer({
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Clear Project Confirmation */}
+      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <AlertDialogContent className="border-white/10 bg-popover/95 backdrop-blur-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-4 h-4" />
+              Limpiar proyecto
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs leading-relaxed">
+              Se eliminarán <strong>todos los archivos y carpetas</strong> del explorador y se cerrarán todas las pestañas abiertas.
+              <br />
+              Esta acción <strong>no se puede deshacer</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-8 text-xs">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setFileSystem([]);
+                updateFileSystem([]);
+                onProjectClear?.();
+                setShowClearConfirm(false);
+                toast({ title: 'Proyecto limpiado', description: 'Se eliminaron todos los archivos y se cerraron las pestañas.' });
+              }}
+              className="h-8 text-xs bg-destructive hover:bg-destructive/90"
+            >
+              Sí, limpiar todo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

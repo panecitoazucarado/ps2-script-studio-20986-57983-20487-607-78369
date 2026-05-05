@@ -146,6 +146,19 @@ export function IDELayoutContent() {
     }
   }, [openTabs, handleTabClose]);
 
+  const handleProjectClear = useCallback(() => {
+    // Close all tabs that correspond to project files (keep internal tabs like welcome/about/wizard)
+    const internalPaths = new Set(['/__welcome__', '/__about__', '/__create_project__']);
+    setOpenTabsState(prev => {
+      const remaining = prev.filter(t => internalPaths.has(t.path));
+      return remaining.length > 0 ? remaining : [welcomeTab];
+    });
+    setActiveTabIndex(0);
+    setCode('');
+    setProjectFiles([]);
+    setFileSystemVersion(v => v + 1);
+  }, []);
+
   const handleFileRenameFromExplorer = useCallback((oldPath: string, newPath: string, newName: string) => {
     setOpenTabs((prev: FileNode[]) => prev.map(tab => 
       tab.path === oldPath ? { ...tab, path: newPath, name: newName } : tab
@@ -1004,6 +1017,7 @@ export function IDELayoutContent() {
             onFileDelete={handleFileDelete}
             onFileRename={handleFileRenameFromExplorer}
             onCloneRepository={handleOpenCloneDialog}
+            onProjectClear={handleProjectClear}
             onAIConsult={(file, action) => {
               if (!windows.aiChat.visible) {
                 toggleWindowVisibility('aiChat');
@@ -1230,6 +1244,7 @@ export function IDELayoutContent() {
             onFileDelete={handleFileDelete}
             onFileRename={handleFileRenameFromExplorer}
             onCloneRepository={handleOpenCloneDialog}
+            onProjectClear={handleProjectClear}
             onAIConsult={(file, action) => {
               if (!windows.aiChat.visible) {
                 toggleWindowVisibility('aiChat');
