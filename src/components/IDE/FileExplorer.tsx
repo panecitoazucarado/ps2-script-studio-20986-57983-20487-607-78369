@@ -2732,24 +2732,44 @@ export function FileExplorer({
                   <MoreVertical className="w-3.5 h-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={handleFolderImport} className="gap-2">
-                  <Upload className="w-4 h-4" />
-                  Importar Proyecto
+              <DropdownMenuContent
+                align="end"
+                sideOffset={6}
+                className="w-44 p-1 rounded-lg border border-white/10 bg-popover/95 backdrop-blur-xl shadow-2xl"
+              >
+                <div className="px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  Proyecto
+                </div>
+                <DropdownMenuItem
+                  onClick={handleFolderImport}
+                  className="gap-2 h-7 px-2 text-[11px] rounded-md cursor-pointer focus:bg-white/[0.07]"
+                >
+                  <Upload className="w-3.5 h-3.5 text-cyan-400" />
+                  Importar carpeta
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleFilesImport} className="gap-2">
-                  <FilePlus2 className="w-4 h-4" />
-                  Importar Archivos
+                <DropdownMenuItem
+                  onClick={handleFilesImport}
+                  className="gap-2 h-7 px-2 text-[11px] rounded-md cursor-pointer focus:bg-white/[0.07]"
+                >
+                  <FilePlus2 className="w-3.5 h-3.5 text-emerald-400" />
+                  Importar archivos
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleExportProject} disabled={fileSystem.length === 0} className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Exportar como ZIP
+                <DropdownMenuItem
+                  onClick={handleExportProject}
+                  disabled={fileSystem.length === 0}
+                  className="gap-2 h-7 px-2 text-[11px] rounded-md cursor-pointer focus:bg-white/[0.07]"
+                >
+                  <Download className="w-3.5 h-3.5 text-blue-400" />
+                  Exportar .zip
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => { setFileSystem([]); updateFileSystem([]); }} className="gap-2 text-destructive">
-                  <RefreshCw className="w-4 h-4" />
-                  Limpiar Proyecto
+                <div className="my-1 h-px bg-white/[0.06]" />
+                <DropdownMenuItem
+                  onClick={() => setShowClearConfirm(true)}
+                  disabled={fileSystem.length === 0}
+                  className="gap-2 h-7 px-2 text-[11px] rounded-md cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Limpiar proyecto
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
