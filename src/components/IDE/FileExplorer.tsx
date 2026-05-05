@@ -1591,15 +1591,32 @@ export function FileExplorer({
   };
 
   const addFileToTree = (tree: FileNode[], newNode: FileNode, targetPath: string): FileNode[] => {
-    if (targetPath === '/') {
-      return [...tree, newNode];
+    if (targetPath === '/' || targetPath === '') {
+      const uniqueName = makeUniqueName(tree, newNode.name, newNode.type);
+      const finalNode = reparentNode({ ...newNode, name: uniqueName }, '/');
+      if (uniqueName !== newNode.name) {
+        toast({
+          title: 'Nombre duplicado',
+          description: `Ya existía "${newNode.name}". Renombrado a "${uniqueName}".`,
+        });
+      }
+      return [...tree, finalNode];
     }
 
     return tree.map(node => {
       if (node.type === 'folder' && node.path === targetPath) {
+        const children = node.children || [];
+        const uniqueName = makeUniqueName(children, newNode.name, newNode.type);
+        const finalNode = reparentNode({ ...newNode, name: uniqueName }, targetPath);
+        if (uniqueName !== newNode.name) {
+          toast({
+            title: 'Nombre duplicado',
+            description: `Ya existía "${newNode.name}" en esta carpeta. Renombrado a "${uniqueName}".`,
+          });
+        }
         return {
           ...node,
-          children: [...(node.children || []), newNode]
+          children: [...children, finalNode]
         };
       } else if (node.type === 'folder' && node.children) {
         return {
@@ -1609,6 +1626,63 @@ export function FileExplorer({
       }
       return node;
     });
+  };
+
+  // ===== Unique-name helpers (Windows/macOS-style: no duplicates in same folder) =====
+  const makeUniqueName = (
+    siblings: FileNode[],
+    name: string,
+    type: 'file' | 'folder'
+  ): string => {
+    const exists = (candidate: string) =>
+      siblings.some(
+        s => s.type === type && s.name.toLowerCase() === candidate.toLowerCase()
+      );
+    if (!exists(name)) return name;
+
+    let base = name;
+    let ext = '';
+    if (type === 'file' && name.includes('.')) {
+      const i = name.lastIndexOf('.');
+      base = name.slice(0, i);
+      ext = name.slice(i);
+    }
+    // Strip an existing _N suffix to keep numbering tidy
+    const m = base.match(/^(.*)_(\d+)$/);
+    if (m) base = m[1];
+
+    let n = 2;
+    while (exists(`${base}_${n}${ext}`)) n++;
+    return `${base}_${n}${ext}`;
+  };
+
+  const reparentNode = (node: FileNode, parentPath: string): FileNode => {
+    const newPath =
+      parentPath === '/' || parentPath === ''
+        ? `/${node.name}`
+        : `${parentPath}/${node.name}`;
+    const cloned: FileNode = { ...node, path: newPath };
+    if (node.type === 'folder' && node.children) {
+      cloned.children = node.children.map(c => reparentNode(c, newPath));
+    }
+    return cloned;
+  };
+
+  const findFolderByPath = (tree: FileNode[], path: string): FileNode | null => {
+    for (const n of tree) {
+      if (n.path === path && n.type === 'folder') return n;
+      if (n.type === 'folder' && n.children) {
+        const f = findFolderByPath(n.children, path);
+        if (f) return f;
+      }
+    }
+    return null;
+  };
+
+  const getSiblingsAtPath = (tree: FileNode[], parentPath: string): FileNode[] => {
+    if (parentPath === '/' || parentPath === '') return tree;
+    const folder = findFolderByPath(tree, parentPath);
+    return folder?.children || [];
   };
 
   // Handle double click to rename
