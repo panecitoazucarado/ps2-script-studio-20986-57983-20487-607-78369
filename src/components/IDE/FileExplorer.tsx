@@ -1051,7 +1051,8 @@ export function FileExplorer({
   onFileDelete,
   onFileRename,
   externalFileSystem,
-  onCloneRepository
+  onCloneRepository,
+  onProjectClear
 }: FileExplorerProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set([]));
   const [searchTerm, setSearchTerm] = useState('');
@@ -1077,6 +1078,7 @@ export function FileExplorer({
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [fileMetadata, setFileMetadata] = useState<FileMetadata | null>(null);
   const [fileHistory, setFileHistory] = useState<FileHistory[]>([]);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   
   // Double click detection
   const lastClickTime = useRef<number>(0);
