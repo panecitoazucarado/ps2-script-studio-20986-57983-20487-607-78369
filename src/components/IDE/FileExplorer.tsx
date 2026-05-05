@@ -126,6 +126,7 @@ interface FileExplorerProps {
   onFileRename?: (oldPath: string, newPath: string, newName: string) => void;
   externalFileSystem?: FileNode[];
   onCloneRepository?: () => void;
+  onProjectClear?: () => void;
 }
 
 interface FileMetadata {
