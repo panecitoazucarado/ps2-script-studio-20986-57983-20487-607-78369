@@ -1017,6 +1017,7 @@ export function IDELayoutContent() {
             onFileDelete={handleFileDelete}
             onFileRename={handleFileRenameFromExplorer}
             onCloneRepository={handleOpenCloneDialog}
+            onProjectClear={handleProjectClear}
             onAIConsult={(file, action) => {
               if (!windows.aiChat.visible) {
                 toggleWindowVisibility('aiChat');
@@ -1243,6 +1244,7 @@ export function IDELayoutContent() {
             onFileDelete={handleFileDelete}
             onFileRename={handleFileRenameFromExplorer}
             onCloneRepository={handleOpenCloneDialog}
+            onProjectClear={handleProjectClear}
             onAIConsult={(file, action) => {
               if (!windows.aiChat.visible) {
                 toggleWindowVisibility('aiChat');
