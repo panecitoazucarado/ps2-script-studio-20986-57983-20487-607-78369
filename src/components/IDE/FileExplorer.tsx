@@ -1753,16 +1753,25 @@ export function FileExplorer({
       return;
     }
 
-    const pathParts = oldNode.path.split('/');
-    pathParts[pathParts.length - 1] = newName;
-    const newPath = pathParts.join('/');
+    const parentPath = oldNode.path.split('/').slice(0, -1).join('/') || '/';
+    const siblings = getSiblingsAtPath(fileSystem, parentPath).filter(
+      s => s.path !== oldNode.path
+    );
+    const uniqueName = makeUniqueName(siblings, newName.trim(), oldNode.type);
+    if (uniqueName !== newName.trim()) {
+      toast({
+        title: 'Nombre duplicado',
+        description: `Ya existe "${newName}" en esta carpeta. Renombrado a "${uniqueName}".`,
+      });
+    }
+    const newPath = parentPath === '/' ? `/${uniqueName}` : `${parentPath}/${uniqueName}`;
 
-    const updatedFileSystem = renameFileInTree(fileSystem, oldNode.path, newName, newPath);
+    const updatedFileSystem = renameFileInTree(fileSystem, oldNode.path, uniqueName, newPath);
     updateFileSystem(updatedFileSystem);
     
     // Notify parent to update tab names
     if (onFileRename) {
-      onFileRename(oldNode.path, newPath, newName);
+      onFileRename(oldNode.path, newPath, uniqueName);
     }
     
     setRenamingFile(null);
