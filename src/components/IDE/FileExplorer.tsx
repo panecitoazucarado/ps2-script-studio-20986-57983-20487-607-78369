@@ -2620,6 +2620,19 @@ export function FileExplorer({
                           Editor de Código
                         </ContextMenuItem>
                       )}
+                      {node.name.toLowerCase().endsWith('.js') && (
+                        <ContextMenuItem
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent('athena:open-in-visual-builder', {
+                              detail: { path: node.path, name: node.name, content: node.content || '' }
+                            }));
+                          }}
+                          className="gap-2 cursor-pointer rounded-md px-2 py-1 text-[11px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10]"
+                        >
+                          <Layers className="w-3 h-3 text-purple-400" />
+                          Visual UI Builder
+                        </ContextMenuItem>
+                      )}
                       {isImageFile(node.name) && (
                         <ContextMenuItem onClick={() => onFileSelect(node)} className="gap-2 cursor-pointer rounded-md px-2 py-1 text-[11px] font-medium hover:bg-white/[0.08] focus:bg-white/[0.10]">
                           <ImageIcon className="w-3 h-3 text-green-400" />

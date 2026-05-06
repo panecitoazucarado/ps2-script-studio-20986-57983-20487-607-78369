@@ -31,6 +31,9 @@ import {
 } from 'lucide-react';
 import { ComponentPalette } from './ComponentPalette';
 import { PS2ImageUploadDialog, PS2ImageConfig } from './PS2ImageUploadDialog';
+import { VisualBuilderSaveDialog } from './VisualBuilderSaveDialog';
+import { toast } from 'sonner';
+import { Save, Plus } from 'lucide-react';
 
 import {
   PS2Component, PS2Color, ComponentTemplate, ComponentCategory, CategoryInfo,
@@ -146,6 +149,98 @@ interface PS2VisualBuilderProps {
 export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2VisualBuilderProps) {
   const [components, setComponents] = useState<PS2Component[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Multi-scene tabs
+  type SceneTab = { id: string; name: string; filePath: string | null; snapshot: PS2Component[]; dirty: boolean };
+  const initialSceneId = useMemo(() => generateId(), []);
+  const [scenes, setScenes] = useState<SceneTab[]>([
+    { id: initialSceneId, name: 'escena_01.js', filePath: null, snapshot: [], dirty: false }
+  ]);
+  const [activeSceneId, setActiveSceneId] = useState<string>(initialSceneId);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0];
+
+  // Mark active scene dirty whenever components change
+  useEffect(() => {
+    setScenes(prev => prev.map(s =>
+      s.id === activeSceneId ? { ...s, snapshot: components, dirty: true } : s
+    ));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [components]);
+
+  const switchScene = useCallback((targetId: string) => {
+    if (targetId === activeSceneId) return;
+    setScenes(prev => prev.map(s =>
+      s.id === activeSceneId ? { ...s, snapshot: components } : s
+    ));
+    const target = scenes.find(s => s.id === targetId);
+    if (target) {
+      setActiveSceneId(targetId);
+      setComponents(target.snapshot);
+      setSelectedId(null);
+    }
+  }, [activeSceneId, components, scenes]);
+
+  const addNewScene = useCallback(() => {
+    const id = generateId();
+    const n = scenes.length + 1;
+    const name = `escena_${String(n).padStart(2, '0')}.js`;
+    setScenes(prev => prev.map(s =>
+      s.id === activeSceneId ? { ...s, snapshot: components } : s
+    ).concat([{ id, name, filePath: null, snapshot: [], dirty: false }]));
+    setActiveSceneId(id);
+    setComponents([]);
+    setSelectedId(null);
+  }, [activeSceneId, components, scenes.length]);
+
+  const closeScene = useCallback((id: string) => {
+    const s = scenes.find(x => x.id === id);
+    if (s?.dirty && !window.confirm(`"${s.name}" tiene cambios sin guardar. ¿Cerrar de todas formas?`)) return;
+    setScenes(prev => {
+      const filtered = prev.filter(x => x.id !== id);
+      if (filtered.length === 0) {
+        const fresh: SceneTab = { id: generateId(), name: 'escena_01.js', filePath: null, snapshot: [], dirty: false };
+        setActiveSceneId(fresh.id);
+        setComponents([]);
+        setSelectedId(null);
+        return [fresh];
+      }
+      if (id === activeSceneId) {
+        const next = filtered[0];
+        setActiveSceneId(next.id);
+        setComponents(next.snapshot);
+        setSelectedId(null);
+      }
+      return filtered;
+    });
+  }, [scenes, activeSceneId]);
+
+  // Listen for "open in visual builder" from File Explorer
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { path, name, content } = (e as CustomEvent).detail || {};
+      if (!path) return;
+      // Skip if already open
+      const existing = scenes.find(s => s.filePath === path);
+      if (existing) {
+        switchScene(existing.id);
+        return;
+      }
+      const id = generateId();
+      // Snapshot current scene
+      setScenes(prev => prev.map(s =>
+        s.id === activeSceneId ? { ...s, snapshot: components } : s
+      ).concat([{ id, name, filePath: path, snapshot: [], dirty: false }]));
+      setActiveSceneId(id);
+      setComponents([]); // raw .js can't be reverse-engineered into components; start blank
+      setSelectedId(null);
+      toast.info(`Escena cargada: ${name}`, {
+        description: 'Edita visualmente y usa "Guardar escena" para sobrescribir el archivo.',
+      });
+    };
+    window.addEventListener('athena:vb-load-scene', handler);
+    return () => window.removeEventListener('athena:vb-load-scene', handler);
+  }, [scenes, activeSceneId, components, switchScene]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isResizing, setIsResizing] = useState(false);
@@ -1121,16 +1216,34 @@ os.setInterval(() => {
             <span className="hidden sm:inline">Código</span>
           </button>
 
+          {activeScene?.filePath && (
+            <button
+              onClick={() => {
+                const code = generateFullCode();
+                const api = (window as any).__athenaFS;
+                if (api?.updateFile) {
+                  api.updateFile(activeScene.filePath!, code);
+                  setScenes(prev => prev.map(s => s.id === activeScene.id ? { ...s, dirty: false } : s));
+                  toast.success(`Escena guardada: ${activeScene.name}`);
+                } else {
+                  toast.error('Sistema de archivos no disponible');
+                }
+              }}
+              className="h-7 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold text-white transition-all border border-blue-500/30 hover:border-blue-400/50"
+              style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.25) 0%, rgba(37,99,235,0.35) 100%)' }}
+            >
+              <Save className="w-3.5 h-3.5 text-blue-300" />
+              <span className="hidden sm:inline">Guardar escena</span>
+            </button>
+          )}
+
           <button
-            onClick={() => {
-              onGenerateCode(generateFullCode());
-              onOpenChange(false);
-            }}
+            onClick={() => setShowSaveDialog(true)}
             className="h-7 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold text-white transition-all border border-emerald-500/30 hover:border-emerald-400/50"
             style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.25) 0%, rgba(5,150,105,0.35) 100%)' }}
           >
             <Download className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Aplicar</span>
+            <span className="hidden sm:inline">Aplicar al proyecto</span>
           </button>
 
           <div className="w-px h-5 bg-white/[0.06] mx-0.5" />
@@ -1142,6 +1255,38 @@ os.setInterval(() => {
             <X className="w-4 h-4" />
           </button>
         </div>
+      </div>
+
+      {/* Scene tabs bar */}
+      <div className="flex items-center gap-0.5 px-2 py-1 bg-[#0a0a18] border-b border-white/[0.06] overflow-x-auto">
+        {scenes.map(s => (
+          <div
+            key={s.id}
+            onClick={() => switchScene(s.id)}
+            className={`group flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-t-md text-[11px] cursor-pointer transition-all border-b-2 ${
+              s.id === activeSceneId
+                ? 'bg-white/[0.06] text-white border-purple-400'
+                : 'text-white/50 hover:text-white/80 hover:bg-white/[0.03] border-transparent'
+            }`}
+          >
+            <Code className="w-3 h-3 text-yellow-400/80" />
+            <span className="max-w-[140px] truncate">{s.name}</span>
+            {s.dirty && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+            <button
+              onClick={(e) => { e.stopPropagation(); closeScene(s.id); }}
+              className="ml-1 h-4 w-4 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-white/[0.1] transition-opacity"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+        <button
+          onClick={addNewScene}
+          className="ml-1 h-7 w-7 rounded-md flex items-center justify-center text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors"
+          title="Nueva escena"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
       </div>
 
         <div className="flex-1 flex overflow-hidden">
@@ -1718,6 +1863,29 @@ os.setInterval(() => {
       open={showImageUpload}
       onOpenChange={setShowImageUpload}
       onImageReady={handleImageReady}
+    />
+
+    {/* Save / Apply to project dialog */}
+    <VisualBuilderSaveDialog
+      open={showSaveDialog}
+      onOpenChange={setShowSaveDialog}
+      defaultName={activeScene?.name || 'escena_01.js'}
+      onConfirm={(target) => {
+        const code = generateFullCode();
+        const api = (window as any).__athenaFS;
+        if (!api) { toast.error('Sistema de archivos no disponible'); return; }
+        const exists = api.readFile?.(target);
+        if (exists !== null && exists !== undefined) {
+          api.updateFile(target, code);
+        } else {
+          api.createFile(target, code);
+        }
+        const fileName = target.split('/').pop() || 'escena.js';
+        setScenes(prev => prev.map(s =>
+          s.id === activeSceneId ? { ...s, name: fileName, filePath: target, dirty: false } : s
+        ));
+        toast.success(`Escena aplicada: ${target}`);
+      }}
     />
     </>
   );
