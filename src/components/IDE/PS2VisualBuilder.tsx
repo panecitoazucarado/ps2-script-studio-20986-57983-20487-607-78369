@@ -1832,6 +1832,29 @@ os.setInterval(() => {
       onOpenChange={setShowImageUpload}
       onImageReady={handleImageReady}
     />
+
+    {/* Save / Apply to project dialog */}
+    <VisualBuilderSaveDialog
+      open={showSaveDialog}
+      onOpenChange={setShowSaveDialog}
+      defaultName={activeScene?.name || 'escena_01.js'}
+      onConfirm={(target) => {
+        const code = generateFullCode();
+        const api = (window as any).__athenaFS;
+        if (!api) { toast.error('Sistema de archivos no disponible'); return; }
+        const exists = api.readFile?.(target);
+        if (exists !== null && exists !== undefined) {
+          api.updateFile(target, code);
+        } else {
+          api.createFile(target, code);
+        }
+        const fileName = target.split('/').pop() || 'escena.js';
+        setScenes(prev => prev.map(s =>
+          s.id === activeSceneId ? { ...s, name: fileName, filePath: target, dirty: false } : s
+        ));
+        toast.success(`Escena aplicada: ${target}`);
+      }}
+    />
     </>
   );
 }
