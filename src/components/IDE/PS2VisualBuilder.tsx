@@ -1257,6 +1257,38 @@ os.setInterval(() => {
         </div>
       </div>
 
+      {/* Scene tabs bar */}
+      <div className="flex items-center gap-0.5 px-2 py-1 bg-[#0a0a18] border-b border-white/[0.06] overflow-x-auto">
+        {scenes.map(s => (
+          <div
+            key={s.id}
+            onClick={() => switchScene(s.id)}
+            className={`group flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-t-md text-[11px] cursor-pointer transition-all border-b-2 ${
+              s.id === activeSceneId
+                ? 'bg-white/[0.06] text-white border-purple-400'
+                : 'text-white/50 hover:text-white/80 hover:bg-white/[0.03] border-transparent'
+            }`}
+          >
+            <Code className="w-3 h-3 text-yellow-400/80" />
+            <span className="max-w-[140px] truncate">{s.name}</span>
+            {s.dirty && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+            <button
+              onClick={(e) => { e.stopPropagation(); closeScene(s.id); }}
+              className="ml-1 h-4 w-4 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-white/[0.1] transition-opacity"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+        <button
+          onClick={addNewScene}
+          className="ml-1 h-7 w-7 rounded-md flex items-center justify-center text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors"
+          title="Nueva escena"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
         <div className="flex-1 flex overflow-hidden">
           {/* Left Sidebar: Component Palette */}
           <ComponentPalette onAddComponent={handleAddComponent} />
