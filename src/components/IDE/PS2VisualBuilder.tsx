@@ -31,6 +31,9 @@ import {
 } from 'lucide-react';
 import { ComponentPalette } from './ComponentPalette';
 import { PS2ImageUploadDialog, PS2ImageConfig } from './PS2ImageUploadDialog';
+import { VisualBuilderSaveDialog } from './VisualBuilderSaveDialog';
+import { toast } from 'sonner';
+import { Save, Plus } from 'lucide-react';
 
 import {
   PS2Component, PS2Color, ComponentTemplate, ComponentCategory, CategoryInfo,
@@ -146,6 +149,98 @@ interface PS2VisualBuilderProps {
 export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2VisualBuilderProps) {
   const [components, setComponents] = useState<PS2Component[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Multi-scene tabs
+  type SceneTab = { id: string; name: string; filePath: string | null; snapshot: PS2Component[]; dirty: boolean };
+  const initialSceneId = useMemo(() => generateId(), []);
+  const [scenes, setScenes] = useState<SceneTab[]>([
+    { id: initialSceneId, name: 'escena_01.js', filePath: null, snapshot: [], dirty: false }
+  ]);
+  const [activeSceneId, setActiveSceneId] = useState<string>(initialSceneId);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0];
+
+  // Mark active scene dirty whenever components change
+  useEffect(() => {
+    setScenes(prev => prev.map(s =>
+      s.id === activeSceneId ? { ...s, snapshot: components, dirty: true } : s
+    ));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [components]);
+
+  const switchScene = useCallback((targetId: string) => {
+    if (targetId === activeSceneId) return;
+    setScenes(prev => prev.map(s =>
+      s.id === activeSceneId ? { ...s, snapshot: components } : s
+    ));
+    const target = scenes.find(s => s.id === targetId);
+    if (target) {
+      setActiveSceneId(targetId);
+      setComponents(target.snapshot);
+      setSelectedId(null);
+    }
+  }, [activeSceneId, components, scenes]);
+
+  const addNewScene = useCallback(() => {
+    const id = generateId();
+    const n = scenes.length + 1;
+    const name = `escena_${String(n).padStart(2, '0')}.js`;
+    setScenes(prev => prev.map(s =>
+      s.id === activeSceneId ? { ...s, snapshot: components } : s
+    ).concat([{ id, name, filePath: null, snapshot: [], dirty: false }]));
+    setActiveSceneId(id);
+    setComponents([]);
+    setSelectedId(null);
+  }, [activeSceneId, components, scenes.length]);
+
+  const closeScene = useCallback((id: string) => {
+    const s = scenes.find(x => x.id === id);
+    if (s?.dirty && !window.confirm(`"${s.name}" tiene cambios sin guardar. ¿Cerrar de todas formas?`)) return;
+    setScenes(prev => {
+      const filtered = prev.filter(x => x.id !== id);
+      if (filtered.length === 0) {
+        const fresh: SceneTab = { id: generateId(), name: 'escena_01.js', filePath: null, snapshot: [], dirty: false };
+        setActiveSceneId(fresh.id);
+        setComponents([]);
+        setSelectedId(null);
+        return [fresh];
+      }
+      if (id === activeSceneId) {
+        const next = filtered[0];
+        setActiveSceneId(next.id);
+        setComponents(next.snapshot);
+        setSelectedId(null);
+      }
+      return filtered;
+    });
+  }, [scenes, activeSceneId]);
+
+  // Listen for "open in visual builder" from File Explorer
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { path, name, content } = (e as CustomEvent).detail || {};
+      if (!path) return;
+      // Skip if already open
+      const existing = scenes.find(s => s.filePath === path);
+      if (existing) {
+        switchScene(existing.id);
+        return;
+      }
+      const id = generateId();
+      // Snapshot current scene
+      setScenes(prev => prev.map(s =>
+        s.id === activeSceneId ? { ...s, snapshot: components } : s
+      ).concat([{ id, name, filePath: path, snapshot: [], dirty: false }]));
+      setActiveSceneId(id);
+      setComponents([]); // raw .js can't be reverse-engineered into components; start blank
+      setSelectedId(null);
+      toast.info(`Escena cargada: ${name}`, {
+        description: 'Edita visualmente y usa "Guardar escena" para sobrescribir el archivo.',
+      });
+    };
+    window.addEventListener('athena:vb-load-scene', handler);
+    return () => window.removeEventListener('athena:vb-load-scene', handler);
+  }, [scenes, activeSceneId, components, switchScene]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isResizing, setIsResizing] = useState(false);
