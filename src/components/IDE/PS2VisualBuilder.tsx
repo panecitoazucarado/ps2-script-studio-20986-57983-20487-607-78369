@@ -1216,16 +1216,34 @@ os.setInterval(() => {
             <span className="hidden sm:inline">Código</span>
           </button>
 
+          {activeScene?.filePath && (
+            <button
+              onClick={() => {
+                const code = generateFullCode();
+                const api = (window as any).__athenaFS;
+                if (api?.updateFile) {
+                  api.updateFile(activeScene.filePath!, code);
+                  setScenes(prev => prev.map(s => s.id === activeScene.id ? { ...s, dirty: false } : s));
+                  toast.success(`Escena guardada: ${activeScene.name}`);
+                } else {
+                  toast.error('Sistema de archivos no disponible');
+                }
+              }}
+              className="h-7 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold text-white transition-all border border-blue-500/30 hover:border-blue-400/50"
+              style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.25) 0%, rgba(37,99,235,0.35) 100%)' }}
+            >
+              <Save className="w-3.5 h-3.5 text-blue-300" />
+              <span className="hidden sm:inline">Guardar escena</span>
+            </button>
+          )}
+
           <button
-            onClick={() => {
-              onGenerateCode(generateFullCode());
-              onOpenChange(false);
-            }}
+            onClick={() => setShowSaveDialog(true)}
             className="h-7 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold text-white transition-all border border-emerald-500/30 hover:border-emerald-400/50"
             style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.25) 0%, rgba(5,150,105,0.35) 100%)' }}
           >
             <Download className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Aplicar</span>
+            <span className="hidden sm:inline">Aplicar al proyecto</span>
           </button>
 
           <div className="w-px h-5 bg-white/[0.06] mx-0.5" />
