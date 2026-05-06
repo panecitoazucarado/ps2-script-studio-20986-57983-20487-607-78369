@@ -65,6 +65,20 @@ export function IDELayoutContent() {
   // Visual Builder state
   const [showVisualBuilder, setShowVisualBuilder] = useState(false);
 
+  // Listen for "Open with Visual UI Builder" requests from the File Explorer
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { path: string; name: string; content: string };
+      setShowVisualBuilder(true);
+      // Forward to the builder once mounted
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('athena:vb-load-scene', { detail }));
+      }, 50);
+    };
+    window.addEventListener('athena:open-in-visual-builder', handler);
+    return () => window.removeEventListener('athena:open-in-visual-builder', handler);
+  }, []);
+
   const fileExplorerHeaderRef = useRef<HTMLDivElement>(null);
   const previewHeaderRef = useRef<HTMLDivElement>(null);
 
