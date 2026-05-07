@@ -154,13 +154,20 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Multi-scene tabs
-  type SceneTab = { id: string; name: string; filePath: string | null; snapshot: PS2Component[]; dirty: boolean };
+  type SceneTab = {
+    id: string; name: string; filePath: string | null;
+    snapshot: PS2Component[]; dirty: boolean;
+    rawCode: string;        // current source code (editable in Monaco)
+    manualEdited: boolean;  // true when user typed in Monaco — preserve raw on save
+  };
   const initialSceneId = useMemo(() => generateId(), []);
   const [scenes, setScenes] = useState<SceneTab[]>([
-    { id: initialSceneId, name: 'escena_01.js', filePath: null, snapshot: [], dirty: false }
+    { id: initialSceneId, name: 'escena_01.js', filePath: null, snapshot: [], dirty: false, rawCode: '', manualEdited: false }
   ]);
   const [activeSceneId, setActiveSceneId] = useState<string>(initialSceneId);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showFileSidebar, setShowFileSidebar] = useState(true);
+  const [livePreview, setLivePreview] = useState(false);
   const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0];
 
   // Mark active scene dirty whenever components change
