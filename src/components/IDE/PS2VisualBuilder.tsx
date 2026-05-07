@@ -209,7 +209,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     setScenes(prev => {
       const filtered = prev.filter(x => x.id !== id);
       if (filtered.length === 0) {
-        const fresh: SceneTab = { id: generateId(), name: 'escena_01.js', filePath: null, snapshot: [], dirty: false };
+        const fresh: SceneTab = { id: generateId(), name: 'escena_01.js', filePath: null, snapshot: [], dirty: false, rawCode: '', manualEdited: false };
         setActiveSceneId(fresh.id);
         setComponents([]);
         setSelectedId(null);
