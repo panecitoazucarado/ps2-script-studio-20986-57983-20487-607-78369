@@ -1323,6 +1323,17 @@ os.setInterval(() => {
       </div>
 
         <div className="flex-1 flex overflow-hidden">
+          {/* File sidebar (mini explorer for .js scenes) */}
+          {showFileSidebar && (
+            <VisualBuilderFileSidebar
+              activePath={activeScene?.filePath || null}
+              onOpenFile={(path, name, content) => {
+                window.dispatchEvent(new CustomEvent('athena:vb-load-scene', {
+                  detail: { path, name, content }
+                }));
+              }}
+            />
+          )}
           {/* Left Sidebar: Component Palette */}
           <ComponentPalette onAddComponent={handleAddComponent} />
 
