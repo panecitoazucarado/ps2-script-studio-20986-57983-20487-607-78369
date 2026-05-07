@@ -1904,7 +1904,7 @@ os.setInterval(() => {
       onOpenChange={setShowSaveDialog}
       defaultName={activeScene?.name || 'escena_01.js'}
       onConfirm={(target) => {
-        const code = generateFullCode();
+        const code = effectiveCode;
         const api = (window as any).__athenaFS;
         if (!api) { toast.error('Sistema de archivos no disponible'); return; }
         const exists = api.readFile?.(target);
