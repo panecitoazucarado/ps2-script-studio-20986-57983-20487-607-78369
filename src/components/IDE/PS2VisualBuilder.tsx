@@ -1147,6 +1147,13 @@ os.setInterval(() => {
             <PenTool className="w-3.5 h-3.5 text-purple-400" />
           </div>
           <span className="text-[11px] md:text-[12px] font-semibold text-white/90 whitespace-nowrap hidden sm:inline">Visual Builder</span>
+          <button
+            onClick={() => setShowFileSidebar(v => !v)}
+            title="Mostrar/ocultar archivos"
+            className={`h-6 w-6 rounded-md flex items-center justify-center transition-all border ${showFileSidebar ? 'bg-white/[0.08] text-white/90 border-white/[0.12]' : 'text-white/40 hover:text-white/70 border-transparent hover:bg-white/[0.04]'}`}
+          >
+            <FolderTree className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         {/* Separator */}
