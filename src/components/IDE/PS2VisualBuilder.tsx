@@ -197,7 +197,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     const name = `escena_${String(n).padStart(2, '0')}.js`;
     setScenes(prev => prev.map(s =>
       s.id === activeSceneId ? { ...s, snapshot: components } : s
-    ).concat([{ id, name, filePath: null, snapshot: [], dirty: false }]));
+    ).concat([{ id, name, filePath: null, snapshot: [], dirty: false, rawCode: '', manualEdited: false }]));
     setActiveSceneId(id);
     setComponents([]);
     setSelectedId(null);
@@ -237,15 +237,22 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
         return;
       }
       const id = generateId();
+      // Re-read fresh content from VFS in case the cached event payload is stale
+      let fresh = content || '';
+      try {
+        const api = (window as any).__athenaFS;
+        const fromFS = api?.readFile?.(path);
+        if (typeof fromFS === 'string' && fromFS.length > 0) fresh = fromFS;
+      } catch {}
       // Snapshot current scene
       setScenes(prev => prev.map(s =>
         s.id === activeSceneId ? { ...s, snapshot: components } : s
-      ).concat([{ id, name, filePath: path, snapshot: [], dirty: false }]));
+      ).concat([{ id, name, filePath: path, snapshot: [], dirty: false, rawCode: fresh, manualEdited: true }]));
       setActiveSceneId(id);
       setComponents([]); // raw .js can't be reverse-engineered into components; start blank
       setSelectedId(null);
       toast.info(`Escena cargada: ${name}`, {
-        description: 'Edita visualmente y usa "Guardar escena" para sobrescribir el archivo.',
+        description: 'Editor de código activo — los cambios se guardarán al archivo original.',
       });
     };
     window.addEventListener('athena:vb-load-scene', handler);
