@@ -32,8 +32,11 @@ import {
 import { ComponentPalette } from './ComponentPalette';
 import { PS2ImageUploadDialog, PS2ImageConfig } from './PS2ImageUploadDialog';
 import { VisualBuilderSaveDialog } from './VisualBuilderSaveDialog';
+import { VisualBuilderMonacoEditor } from './VisualBuilderMonacoEditor';
+import { VisualBuilderFileSidebar } from './VisualBuilderFileSidebar';
+import { AthenaRunner } from './AthenaRunner';
 import { toast } from 'sonner';
-import { Save, Plus } from 'lucide-react';
+import { Save, Plus, FolderTree, Play as PlayIcon, PenTool as PenToolIcon } from 'lucide-react';
 
 import {
   PS2Component, PS2Color, ComponentTemplate, ComponentCategory, CategoryInfo,
