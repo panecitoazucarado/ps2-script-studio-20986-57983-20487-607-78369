@@ -1252,7 +1252,7 @@ os.setInterval(() => {
           {activeScene?.filePath && (
             <button
               onClick={() => {
-                const code = generateFullCode();
+                const code = effectiveCode;
                 const api = (window as any).__athenaFS;
                 if (api?.updateFile) {
                   api.updateFile(activeScene.filePath!, code);
