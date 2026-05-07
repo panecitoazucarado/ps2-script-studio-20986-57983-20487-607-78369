@@ -726,6 +726,22 @@ os.setInterval(() => {
     return code;
   }, [components, videoMode, canvasWidth, canvasHeight]);
 
+  // Effective code for the right-panel editor and live preview.
+  // If user typed manually (or scene was opened from a file) we trust rawCode.
+  // Otherwise we render the auto-generated code from components.
+  const effectiveCode = useMemo(() => {
+    if (activeScene?.manualEdited && (activeScene.rawCode || activeScene.filePath)) {
+      return activeScene.rawCode || '';
+    }
+    return generateFullCode();
+  }, [activeScene?.manualEdited, activeScene?.rawCode, activeScene?.filePath, generateFullCode]);
+
+  const handleEditorCodeChange = useCallback((next: string) => {
+    setScenes(prev => prev.map(s =>
+      s.id === activeSceneId ? { ...s, rawCode: next, manualEdited: true, dirty: true } : s
+    ));
+  }, [activeSceneId]);
+
   // Update property
   const updateComponentProp = useCallback((propPath: string, value: any) => {
     if (!selectedId) return;
