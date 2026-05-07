@@ -32,8 +32,11 @@ import {
 import { ComponentPalette } from './ComponentPalette';
 import { PS2ImageUploadDialog, PS2ImageConfig } from './PS2ImageUploadDialog';
 import { VisualBuilderSaveDialog } from './VisualBuilderSaveDialog';
+import { VisualBuilderMonacoEditor } from './VisualBuilderMonacoEditor';
+import { VisualBuilderFileSidebar } from './VisualBuilderFileSidebar';
+import { AthenaRunner } from './AthenaRunner';
 import { toast } from 'sonner';
-import { Save, Plus } from 'lucide-react';
+import { Save, Plus, FolderTree } from 'lucide-react';
 
 import {
   PS2Component, PS2Color, ComponentTemplate, ComponentCategory, CategoryInfo,
@@ -151,13 +154,20 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Multi-scene tabs
-  type SceneTab = { id: string; name: string; filePath: string | null; snapshot: PS2Component[]; dirty: boolean };
+  type SceneTab = {
+    id: string; name: string; filePath: string | null;
+    snapshot: PS2Component[]; dirty: boolean;
+    rawCode: string;        // current source code (editable in Monaco)
+    manualEdited: boolean;  // true when user typed in Monaco — preserve raw on save
+  };
   const initialSceneId = useMemo(() => generateId(), []);
   const [scenes, setScenes] = useState<SceneTab[]>([
-    { id: initialSceneId, name: 'escena_01.js', filePath: null, snapshot: [], dirty: false }
+    { id: initialSceneId, name: 'escena_01.js', filePath: null, snapshot: [], dirty: false, rawCode: '', manualEdited: false }
   ]);
   const [activeSceneId, setActiveSceneId] = useState<string>(initialSceneId);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showFileSidebar, setShowFileSidebar] = useState(true);
+  const [livePreview, setLivePreview] = useState(false);
   const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0];
 
   // Mark active scene dirty whenever components change
@@ -187,7 +197,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     const name = `escena_${String(n).padStart(2, '0')}.js`;
     setScenes(prev => prev.map(s =>
       s.id === activeSceneId ? { ...s, snapshot: components } : s
-    ).concat([{ id, name, filePath: null, snapshot: [], dirty: false }]));
+    ).concat([{ id, name, filePath: null, snapshot: [], dirty: false, rawCode: '', manualEdited: false }]));
     setActiveSceneId(id);
     setComponents([]);
     setSelectedId(null);
@@ -199,7 +209,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
     setScenes(prev => {
       const filtered = prev.filter(x => x.id !== id);
       if (filtered.length === 0) {
-        const fresh: SceneTab = { id: generateId(), name: 'escena_01.js', filePath: null, snapshot: [], dirty: false };
+        const fresh: SceneTab = { id: generateId(), name: 'escena_01.js', filePath: null, snapshot: [], dirty: false, rawCode: '', manualEdited: false };
         setActiveSceneId(fresh.id);
         setComponents([]);
         setSelectedId(null);
@@ -227,15 +237,22 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
         return;
       }
       const id = generateId();
+      // Re-read fresh content from VFS in case the cached event payload is stale
+      let fresh = content || '';
+      try {
+        const api = (window as any).__athenaFS;
+        const fromFS = api?.readFile?.(path);
+        if (typeof fromFS === 'string' && fromFS.length > 0) fresh = fromFS;
+      } catch {}
       // Snapshot current scene
       setScenes(prev => prev.map(s =>
         s.id === activeSceneId ? { ...s, snapshot: components } : s
-      ).concat([{ id, name, filePath: path, snapshot: [], dirty: false }]));
+      ).concat([{ id, name, filePath: path, snapshot: [], dirty: false, rawCode: fresh, manualEdited: true }]));
       setActiveSceneId(id);
       setComponents([]); // raw .js can't be reverse-engineered into components; start blank
       setSelectedId(null);
       toast.info(`Escena cargada: ${name}`, {
-        description: 'Edita visualmente y usa "Guardar escena" para sobrescribir el archivo.',
+        description: 'Editor de código activo — los cambios se guardarán al archivo original.',
       });
     };
     window.addEventListener('athena:vb-load-scene', handler);
@@ -245,7 +262,7 @@ export function PS2VisualBuilder({ open, onOpenChange, onGenerateCode }: PS2Visu
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
-  const [showCode, setShowCode] = useState(false);
+  const [showCode, setShowCode] = useState(true);
   const [gridSnap, setGridSnap] = useState(true);
   const [gridSize, setGridSize] = useState(8);
   const [showGrid, setShowGrid] = useState(true);
@@ -709,6 +726,22 @@ os.setInterval(() => {
     return code;
   }, [components, videoMode, canvasWidth, canvasHeight]);
 
+  // Effective code for the right-panel editor and live preview.
+  // If user typed manually (or scene was opened from a file) we trust rawCode.
+  // Otherwise we render the auto-generated code from components.
+  const effectiveCode = useMemo(() => {
+    if (activeScene?.manualEdited && (activeScene.rawCode || activeScene.filePath)) {
+      return activeScene.rawCode || '';
+    }
+    return generateFullCode();
+  }, [activeScene?.manualEdited, activeScene?.rawCode, activeScene?.filePath, generateFullCode]);
+
+  const handleEditorCodeChange = useCallback((next: string) => {
+    setScenes(prev => prev.map(s =>
+      s.id === activeSceneId ? { ...s, rawCode: next, manualEdited: true, dirty: true } : s
+    ));
+  }, [activeSceneId]);
+
   // Update property
   const updateComponentProp = useCallback((propPath: string, value: any) => {
     if (!selectedId) return;
@@ -1114,6 +1147,13 @@ os.setInterval(() => {
             <PenTool className="w-3.5 h-3.5 text-purple-400" />
           </div>
           <span className="text-[11px] md:text-[12px] font-semibold text-white/90 whitespace-nowrap hidden sm:inline">Visual Builder</span>
+          <button
+            onClick={() => setShowFileSidebar(v => !v)}
+            title="Mostrar/ocultar archivos"
+            className={`h-6 w-6 rounded-md flex items-center justify-center transition-all border ${showFileSidebar ? 'bg-white/[0.08] text-white/90 border-white/[0.12]' : 'text-white/40 hover:text-white/70 border-transparent hover:bg-white/[0.04]'}`}
+          >
+            <FolderTree className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         {/* Separator */}
@@ -1219,7 +1259,7 @@ os.setInterval(() => {
           {activeScene?.filePath && (
             <button
               onClick={() => {
-                const code = generateFullCode();
+                const code = effectiveCode;
                 const api = (window as any).__athenaFS;
                 if (api?.updateFile) {
                   api.updateFile(activeScene.filePath!, code);
@@ -1290,6 +1330,17 @@ os.setInterval(() => {
       </div>
 
         <div className="flex-1 flex overflow-hidden">
+          {/* File sidebar (mini explorer for .js scenes) */}
+          {showFileSidebar && (
+            <VisualBuilderFileSidebar
+              activePath={activeScene?.filePath || null}
+              onOpenFile={(path, name, content) => {
+                window.dispatchEvent(new CustomEvent('athena:vb-load-scene', {
+                  detail: { path, name, content }
+                }));
+              }}
+            />
+          )}
           {/* Left Sidebar: Component Palette */}
           <ComponentPalette onAddComponent={handleAddComponent} />
 
@@ -1775,60 +1826,20 @@ os.setInterval(() => {
               
               {showCode && (
                 <TabsContent value="code" className="flex-1 m-0 overflow-hidden flex flex-col min-h-0">
-                  {/* Mini Editor Header */}
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-[#1a1a2e] border-b border-[#2a2a4a]">
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1">
-                        <div className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
-                      </div>
-                      <span className="text-[10px] text-gray-400 font-mono">ui_generated.js</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Badge variant="outline" className="text-[8px] h-4 px-1.5 border-emerald-500/50 text-emerald-400">
-                        JavaScript
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 w-5 p-0"
-                        onClick={() => {
-                          navigator.clipboard.writeText(generateFullCode());
-                        }}
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* Mini Code Editor - Professional scrollbars for both axes */}
-                  <div className="flex-1 min-h-0 bg-[#0d0d1a] relative overflow-hidden">
-                    <div className="absolute inset-0 overflow-auto code-editor-scroll">
-                      <div className="flex text-[10px] font-mono leading-relaxed min-w-max">
-                        {/* Line Numbers - Sticky column */}
-                        <div className="select-none text-right pr-3 pl-2 py-2 bg-[#0a0a15] text-gray-600 border-r border-[#1a1a3a] sticky left-0 z-10 min-w-[40px]">
-                          {generateFullCode().split('\n').map((_, i) => (
-                            <div key={i} className="h-[14px] leading-[14px]">{i + 1}</div>
-                          ))}
-                        </div>
-                        
-                        {/* Code Content with Syntax Highlighting */}
-                        <div className="flex-1 py-2 pl-3 pr-6 pb-4">
-                          {generateFullCode().split('\n').map((line, i) => (
-                            <div key={i} className="h-[14px] leading-[14px] whitespace-pre">
-                              {highlightSyntax(line)}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Mini Editor Footer */}
+                  <VisualBuilderMonacoEditor
+                    filename={activeScene?.name || 'escena.js'}
+                    value={effectiveCode}
+                    onChange={handleEditorCodeChange}
+                    language="javascript"
+                  />
                   <div className="flex items-center justify-between px-3 py-1 bg-[#12122a] border-t border-[#2a2a4a] text-[9px] text-gray-500">
-                    <span>{generateFullCode().split('\n').length} líneas</span>
-                    <span>UTF-8 • AthenaEnv JS</span>
+                    <span>{effectiveCode.split('\n').length} líneas</span>
+                    <span className="flex items-center gap-2">
+                      {activeScene?.manualEdited
+                        ? <span className="text-emerald-400">Edición manual</span>
+                        : <span className="text-cyan-400">Auto-generado</span>}
+                      <span>UTF-8 • AthenaEnv JS</span>
+                    </span>
                   </div>
                 </TabsContent>
               )}
@@ -1871,7 +1882,7 @@ os.setInterval(() => {
       onOpenChange={setShowSaveDialog}
       defaultName={activeScene?.name || 'escena_01.js'}
       onConfirm={(target) => {
-        const code = generateFullCode();
+        const code = effectiveCode;
         const api = (window as any).__athenaFS;
         if (!api) { toast.error('Sistema de archivos no disponible'); return; }
         const exists = api.readFile?.(target);
