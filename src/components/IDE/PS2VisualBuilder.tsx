@@ -1808,60 +1808,20 @@ os.setInterval(() => {
               
               {showCode && (
                 <TabsContent value="code" className="flex-1 m-0 overflow-hidden flex flex-col min-h-0">
-                  {/* Mini Editor Header */}
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-[#1a1a2e] border-b border-[#2a2a4a]">
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1">
-                        <div className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
-                      </div>
-                      <span className="text-[10px] text-gray-400 font-mono">ui_generated.js</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Badge variant="outline" className="text-[8px] h-4 px-1.5 border-emerald-500/50 text-emerald-400">
-                        JavaScript
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 w-5 p-0"
-                        onClick={() => {
-                          navigator.clipboard.writeText(generateFullCode());
-                        }}
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* Mini Code Editor - Professional scrollbars for both axes */}
-                  <div className="flex-1 min-h-0 bg-[#0d0d1a] relative overflow-hidden">
-                    <div className="absolute inset-0 overflow-auto code-editor-scroll">
-                      <div className="flex text-[10px] font-mono leading-relaxed min-w-max">
-                        {/* Line Numbers - Sticky column */}
-                        <div className="select-none text-right pr-3 pl-2 py-2 bg-[#0a0a15] text-gray-600 border-r border-[#1a1a3a] sticky left-0 z-10 min-w-[40px]">
-                          {generateFullCode().split('\n').map((_, i) => (
-                            <div key={i} className="h-[14px] leading-[14px]">{i + 1}</div>
-                          ))}
-                        </div>
-                        
-                        {/* Code Content with Syntax Highlighting */}
-                        <div className="flex-1 py-2 pl-3 pr-6 pb-4">
-                          {generateFullCode().split('\n').map((line, i) => (
-                            <div key={i} className="h-[14px] leading-[14px] whitespace-pre">
-                              {highlightSyntax(line)}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Mini Editor Footer */}
+                  <VisualBuilderMonacoEditor
+                    filename={activeScene?.name || 'escena.js'}
+                    value={effectiveCode}
+                    onChange={handleEditorCodeChange}
+                    language="javascript"
+                  />
                   <div className="flex items-center justify-between px-3 py-1 bg-[#12122a] border-t border-[#2a2a4a] text-[9px] text-gray-500">
-                    <span>{generateFullCode().split('\n').length} líneas</span>
-                    <span>UTF-8 • AthenaEnv JS</span>
+                    <span>{effectiveCode.split('\n').length} líneas</span>
+                    <span className="flex items-center gap-2">
+                      {activeScene?.manualEdited
+                        ? <span className="text-emerald-400">Edición manual</span>
+                        : <span className="text-cyan-400">Auto-generado</span>}
+                      <span>UTF-8 • AthenaEnv JS</span>
+                    </span>
                   </div>
                 </TabsContent>
               )}
